@@ -432,7 +432,7 @@ ${A.auth === 'key' ? `<div style="display: flex; align-items: center; gap: 12px;
 </div>`;
   if (A.step === 3) {
     const defs = [['remember', 'Ask once, remember securely', 'Recommended', 'Saved in your Keychain on this Mac. You won’t be asked again.'],
-      ['always', 'Remember, never ask', '', 'Saved in your Keychain. Sudo runs without Touch ID or your Mac password.'],
+      ['always', 'Remember, never ask', 'Not recommended', 'Saved in your Keychain. Sudo runs without Touch ID or your Mac password.'],
       ['every', 'Ask every time', '', 'Never saved. You type it for each power, restart or update.'],
       ['nopass', 'Passwordless sudo', 'Advanced', 'The server already allows these commands without a password.']];
     const notes = { remember: `Stored in the macOS Keychain, encrypted and readable only by Ice Servers on this Mac while it’s unlocked. It is never synced to iCloud, written to logs, or sent anywhere except to sudo on ${esc(name)} over SSH. Forget it anytime in Settings.`,
@@ -447,7 +447,7 @@ ${defs.map(([k, label, tag, desc]) => {
       return `<button role="radio" aria-checked="${on}" data-cmd="aSudo" data-val="${k}" style="display: flex; align-items: center; gap: 14px; width: 100%; min-height: 60px; padding: 10px 14px; border-radius: 16px; cursor: pointer; background: ${on ? 'rgba(255,255,255,calc(0.95 * var(--wk)))' : 'rgba(255,255,255,calc(0.55 * var(--wk)))'}; border: 2px solid ${on ? 'var(--accent)' : 'rgba(255,255,255,calc(0.8 * var(--wk)))'}">
 <span style="width: 20px; height: 20px; flex-shrink: 0; box-sizing: border-box; border-radius: 10px; display: flex; align-items: center; justify-content: center; border: 2px solid ${on ? 'var(--accent)' : 'rgba(var(--hair),0.3)'}"><span style="width: 10px; height: 10px; border-radius: 5px; background: ${on ? 'var(--accent)' : 'transparent'}"></span></span>
 <span style="display: flex; flex-direction: column; gap: 2px; text-align: left">
-<span style="font-size: 14px; font-weight: 600; color: var(--text)">${label}${tag ? ` <span style="margin-left: 6px; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; color: ${k === 'remember' ? '#1E7A34' : 'var(--sub2)'}; background: ${k === 'remember' ? 'rgba(52,199,89,0.16)' : 'rgba(120,120,128,0.14)'}">${tag}</span>` : ''}</span>
+<span style="font-size: 14px; font-weight: 600; color: var(--text)">${label}${tag ? ` <span style="margin-left: 6px; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; color: ${{ remember: '#1E7A34', always: '#C4000F' }[k] || 'var(--sub2)'}; background: ${{ remember: 'rgba(52,199,89,0.16)', always: 'rgba(255,59,48,0.12)' }[k] || 'rgba(120,120,128,0.14)'}">${tag}</span>` : ''}</span>
 <span style="font-size: 12px; color: var(--sub2)">${desc}</span>
 </span>
 </button>`;
@@ -512,12 +512,12 @@ ${c.state === 'trust' ? `<div style="display: flex; align-items: center; gap: 12
   const nextLabel = A.step === 3 ? 'Test Connection' : A.step === 4 ? 'Add Server' : A.step === 5 ? 'Open ' + esc(name) : 'Continue';
   const ok = addValid();
   return `<div style="${OVERLAY}; background: rgba(10,25,50,0.3)">
-<div role="dialog" aria-label="Add server" style="width: 640px; max-height: calc(100% - 32px); overflow-y: auto; padding: 26px 28px; display: flex; flex-direction: column; gap: 20px; ${DIALOG}; background: rgba(var(--sheet),0.9)">
+<div role="dialog" aria-label="Add server" style="width: 640px; max-height: calc(100% - 32px); overflow: hidden; padding: 26px 28px; display: flex; flex-direction: column; gap: 20px; ${DIALOG}; background: rgba(var(--sheet),0.9)">
 <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px">
 <h1 style="margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.01em">${A.step === 5 ? 'Server added' : 'Add Server'}</h1>
 ${A.step < 5 ? `<ol aria-label="Steps" style="margin: 0; padding: 0; list-style: none; display: flex; align-items: center; gap: 6px">${steps}</ol>` : ''}
 </div>
-${body}
+<div id="aBody" style="flex: 0 1 auto; min-height: 0; overflow-y: auto; margin: -4px -28px; padding: 4px 28px">${body}</div>
 <div style="display: flex; align-items: center; gap: 10px">
 ${A.step > 1 && A.step < 5 ? `<button data-cmd="aBack" style="${GHOST}; padding: 0 20px">Back</button>` : ''}
 <div style="flex-grow: 1"></div>
@@ -581,7 +581,9 @@ function sheet(which) {
   const el = $('sheet');
   if (!which) { el.innerHTML = ''; return; }
   const focused = document.activeElement && document.activeElement.dataset && document.activeElement.dataset.f;
+  const scroll = $('aBody') ? $('aBody').scrollTop : 0;
   el.innerHTML = which === 'add' ? addSheet() : widgetSheet();
+  if ($('aBody')) $('aBody').scrollTop = scroll;
   const input = focused ? el.querySelector(`[data-f="${focused}"]`) : el.querySelector('input');
   if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
 }
