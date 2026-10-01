@@ -190,6 +190,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             probe?.cancel()
             probe = nil
         case "addSave": addServer(Draft(m["draft"] as? [String: Any] ?? [:]))
+        case "checkNopass":
+            Passwordless.check(Draft(m["draft"] as? [String: Any] ?? [:])) { [weak p] allowed, error in
+                p?.call("nopassResult", ["allowed": allowed ?? NSNull(), "error": error])
+            }
         case "chooseKey": chooseKey(in: p)
         // Settings › Passwords
         case "savePassword": server?.savePassword()

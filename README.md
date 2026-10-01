@@ -48,8 +48,11 @@ color, chooses whether it appears in widgets and the menu bar, and removes it (w
 Shutting down, restarting and updating need sudo. For each server you choose:
 
 - **Ask once, remember securely**: kept in your macOS Keychain, optionally behind Touch ID.
+- **Remember, never ask**: kept in your Keychain and used without Touch ID or your Mac's password.
+  Anyone using your Mac while it's unlocked can then restart, shut down or update the server.
 - **Ask every time**: never saved.
-- **Passwordless sudo**: for servers that allow these commands without a password.
+- **Passwordless sudo**: for servers that allow these commands without a password. Add Server
+  checks the server's rules for each command and shows which ones still ask for a password.
 
 **Settings › Passwords** (⌘,) shows what's saved, and can save, forget or require Touch ID.
 For passwordless sudo, allow just these commands (run `sudo visudo -f /etc/sudoers.d/ice-servers` on the server):

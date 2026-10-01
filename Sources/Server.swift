@@ -173,7 +173,9 @@ final class Server {
     func installUpdates() {
         guard phase == "online" else { return }
         progress = 0
-        let cmd = "env DEBIAN_FRONTEND=noninteractive apt-get -y -q -o APT::Status-Fd=1"
+        // Run apt-get itself under sudo (not `env apt-get`), so passwordless sudo rules for apt-get apply.
+        // Without a terminal, debconf already answers questions with their defaults.
+        let cmd = "apt-get -y -q -o APT::Status-Fd=1"
             + " -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold upgrade --with-new-pkgs"
         sudo(cmd, action: "Installing updates", busy: "updating", line: { [self] line in
             let f = line.split(separator: ":")
@@ -230,7 +232,7 @@ final class Server {
         reconnect()
     }
 
-    var hasSavedPassword: Bool { password != nil && sudoMode == "remember" || Keychain.has(cfg.id) }
+    var hasSavedPassword: Bool { password != nil && sudoMode != "every" || Keychain.has(cfg.id) }
 
     func forgetPassword() {
         password = nil
@@ -280,7 +282,8 @@ final class Server {
                 if Keychain.has(cfg.id) { password = Keychain.get(cfg.id) }
             }
             guard let pw = password else { return run(nil) }
-            guard ice.config.touchID == true else { return run(pw) }
+            // "always" means remembered and never confirmed on this Mac.
+            guard ice.config.touchID == true, sudoMode != "always" else { return run(pw) }
             let what = ["Restart": "restart", "Shutting down": "shut down", "Installing updates": "install updates on",
                         "Checking for updates": "check for updates on"][action] ?? "run sudo on"
             ice.authenticate("use your saved sudo password to \(what) \(cfg.name)") { ok in
@@ -308,7 +311,7 @@ final class Server {
                 if keep {
                     password = pw
                     Keychain.set(cfg.id, pw)
-                    if sudoMode != "remember" {
+                    if sudoMode == "every" || sudoMode == "nopass" {
                         cfg.sudo = "remember"
                         ice.save()
                     }

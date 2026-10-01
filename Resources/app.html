@@ -311,7 +311,8 @@ function addValid() {
   const dup = S.servers.some((s) => s.name === (A.name.trim() || A.host.trim()));
   return A.step === 1 ? A.host.trim().length > 0 && !dup :
     A.step === 2 ? A.user.trim().length > 0 && (A.auth === 'key' || A.sshPassword.length > 0) :
-    A.step === 3 ? !(A.sudo === 'remember' && A.when === 'now' && A.sudoPassword.length === 0) :
+    A.step === 3 ? (A.sudo === 'nopass' ? !!(A.nopass && A.nopass.allowed && Object.values(A.nopass.allowed).every(Boolean))
+      : !((A.sudo === 'remember' || A.sudo === 'always') && A.when === 'now' && A.sudoPassword.length === 0)) :
     A.step === 4 ? A.checks.every((c) => c.state === 'done') : true;
 }
 
@@ -350,9 +351,11 @@ ${A.auth === 'key' ? `<div style="display: flex; align-items: center; gap: 12px;
 </div>`;
   if (A.step === 3) {
     const defs = [['remember', 'Ask once, remember securely', 'Recommended', 'Saved in your Keychain on this Mac. You won’t be asked again.'],
+      ['always', 'Remember, never ask', '', 'Saved in your Keychain. Sudo runs without Touch ID or your Mac password.'],
       ['every', 'Ask every time', '', 'Never saved. You type it for each power, restart or update.'],
       ['nopass', 'Passwordless sudo', 'Advanced', 'The server already allows these commands without a password.']];
     const notes = { remember: `Stored in the macOS Keychain, encrypted and readable only by Ice Servers on this Mac while it’s unlocked. It is never synced to iCloud, written to logs, or sent anywhere except to sudo on ${esc(name)} over SSH. Forget it anytime in Settings.`,
+      always: `Stored in the macOS Keychain on this Mac, like the option above, but admin actions run without asking you first: anyone using this Mac while it’s unlocked can restart, shut down or update ${esc(name)}.`,
       every: 'The password is held in memory only for the command you run, then discarded.',
       nopass: 'Only for servers where you’ve limited passwordless sudo to the power, reboot and update commands in sudoers.' };
     body = `<div style="display: flex; flex-direction: column; gap: 14px">
@@ -369,7 +372,8 @@ ${defs.map(([k, label, tag, desc]) => {
 </button>`;
     }).join('')}
 </div>
-${A.sudo === 'remember' ? `<div style="display: flex; flex-direction: column; gap: 12px; padding: 14px; border-radius: 16px; background: rgba(255,255,255,calc(0.75 * var(--wk))); border: 1px solid rgba(var(--hair),0.12)">
+${A.sudo === 'nopass' ? nopassPanel(user) : ''}
+${A.sudo === 'remember' || A.sudo === 'always' ? `<div style="display: flex; flex-direction: column; gap: 12px; padding: 14px; border-radius: 16px; background: rgba(255,255,255,calc(0.75 * var(--wk))); border: 1px solid rgba(var(--hair),0.12)">
 <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
 <div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 13px; font-weight: 600">Ask for it</span><span style="font-size: 12px; color: var(--sub2)">Enter it now, or the first time an action needs it.</span></div>
 <div style="${SEG_TRACK}; width: 230px; flex-shrink: 0">${[['now', 'Now'], ['later', 'When needed']].map(([v, t]) => `<button data-cmd="aWhen" data-val="${v}" aria-pressed="${A.when === v}" style="${SEG(A.when === v)}">${t}</button>`).join('')}</div>
@@ -378,19 +382,20 @@ ${A.when === 'now' ? `<div style="display: flex; gap: 8px">
 <input class="icefield" data-f="sudoPassword" type="${A.show ? 'text' : 'password'}" aria-label="Sudo password" placeholder="Sudo password" autocomplete="off" value="${esc(A.sudoPassword)}">
 <button data-cmd="aShow" aria-label="${A.show ? 'Hide password' : 'Show password'}" style="width: 44px; height: 44px; flex-shrink: 0; border-radius: 12px; border: 1px solid rgba(var(--hair),0.2); background: var(--solid); display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
 </div>` : ''}
-<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+${A.sudo === 'remember' ? `<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
 <div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 13px; font-weight: 600">Require Touch ID to use it</span><span style="font-size: 12px; color: var(--sub2)">Confirm with your fingerprint before each sudo action.</span></div>
 ${toggle(A.touchID, 'aTouch', 'Require Touch ID')}
-</div>
 </div>` : ''}
-<div style="display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 14px; background: rgba(var(--accent-rgb),0.08)">
+</div>` : ''}
+${A.sudo === 'nopass' ? '' : `<div style="display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 14px; background: rgba(var(--accent-rgb),0.08)">
 ${LOCK(18, '#0058B0').replace('<svg ', '<svg style="flex-shrink: 0; margin-top: 1px" ')}
 <span style="font-size: 12px; line-height: 1.45; color: #1D3A5C">${notes[A.sudo]}</span>
-</div>
+</div>`}
 </div>`;
   }
   if (A.step === 4) {
-    const sudoLabel = { remember: A.when === 'now' ? 'Saving sudo password to Keychain' : 'sudo password will be asked on first use', every: 'sudo will ask each time', nopass: 'Checking passwordless sudo' }[A.sudo];
+    const save = A.when === 'now' ? 'Saving sudo password to Keychain' : 'sudo password will be asked on first use';
+    const sudoLabel = { remember: save, always: save, every: 'sudo will ask each time', nopass: 'Checking passwordless sudo' }[A.sudo];
     const labels = [`Reaching ${esc(host)}:${esc(A.port)}`, 'Verifying host key', `Signing in as ${esc(user)}`, sudoLabel, 'Reading CPU, memory, disk and temperature'];
     body = `<div style="display: flex; flex-direction: column; gap: 10px">${A.checks.map((c, i) => {
       const active = c.state !== 'pending';
@@ -414,7 +419,8 @@ ${c.state === 'trust' ? `<div style="display: flex; align-items: center; gap: 12
     }).join('')}</div>`;
   }
   if (A.step === 5) {
-    const note = A.sudo === 'remember' ? (A.when === 'now' ? 'Its sudo password is in your Keychain' + (A.touchID ? ', unlocked with Touch ID when needed.' : '.') : 'You’ll be asked for the sudo password once, the first time you use power, restart or updates.')
+    const note = A.sudo === 'always' ? (A.when === 'now' ? 'Its sudo password is in your Keychain. Admin actions run without asking.' : 'You’ll be asked for the sudo password once, the first time you use power, restart or updates. After that, never.')
+      : A.sudo === 'remember' ? (A.when === 'now' ? 'Its sudo password is in your Keychain' + (A.touchID ? ', unlocked with Touch ID when needed.' : '.') : 'You’ll be asked for the sudo password once, the first time you use power, restart or updates.')
       : A.sudo === 'every' ? 'You’ll be asked for the sudo password each time you run an admin action.' : 'Admin actions will run with passwordless sudo.';
     body = `<div style="display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 18px 0 6px; text-align: center">
 <span style="width: 64px; height: 64px; border-radius: 32px; background: #248A3D; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 24px rgba(36,138,61,0.35)">${CHECK(30, 2.8)}</span>
@@ -425,7 +431,7 @@ ${c.state === 'trust' ? `<div style="display: flex; align-items: center; gap: 12
   const nextLabel = A.step === 3 ? 'Test Connection' : A.step === 4 ? 'Add Server' : A.step === 5 ? 'Open ' + esc(name) : 'Continue';
   const ok = addValid();
   return `<div style="${OVERLAY}; background: rgba(10,25,50,0.3)">
-<div role="dialog" aria-label="Add server" style="width: 640px; padding: 26px 28px; display: flex; flex-direction: column; gap: 20px; ${DIALOG}; background: rgba(var(--sheet),0.9)">
+<div role="dialog" aria-label="Add server" style="width: 640px; max-height: calc(100% - 32px); overflow-y: auto; padding: 26px 28px; display: flex; flex-direction: column; gap: 20px; ${DIALOG}; background: rgba(var(--sheet),0.9)">
 <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px">
 <h1 style="margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.01em">${A.step === 5 ? 'Server added' : 'Add Server'}</h1>
 ${A.step < 5 ? `<ol aria-label="Steps" style="margin: 0; padding: 0; list-style: none; display: flex; align-items: center; gap: 6px">${steps}</ol>` : ''}
@@ -441,6 +447,33 @@ ${A.step > 1 && A.step < 5 ? `<button data-cmd="aBack" style="${GHOST}; padding:
 </div>`;
 }
 
+// Passwordless sudo: ask the server which of the app's commands sudo runs without a password.
+function nopassPanel(user) {
+  const n = A.nopass;
+  if (!n || n.checking) {
+    if (!n) { A.nopass = { checking: true }; post({ cmd: 'checkNopass', draft: draft() }); }
+    return `<div style="display: flex; align-items: center; gap: 10px; padding: 14px; border-radius: 16px; background: rgba(255,255,255,calc(0.75 * var(--wk))); border: 1px solid rgba(var(--hair),0.12); font-size: 13px; font-weight: 600">${SPIN(18, 2.6, 'var(--accent)')}Checking what ${esc(A.host.trim())} lets ${esc(user)} run without a password…</div>`;
+  }
+  const rows = n.error ? `<div style="font-size: 13px; font-weight: 600; color: #C4000F">${esc(n.error)}</div>`
+    : [['reboot', 'Restart', 'systemctl reboot'], ['poweroff', 'Shut down', 'systemctl poweroff'], ['apt', 'Check and install updates', 'apt-get']].map(([k, label, cmd]) => {
+      const ok = n.allowed[k];
+      return `<div style="display: flex; align-items: center; gap: 10px">${ok ? `<span style="width: 20px; height: 20px; flex-shrink: 0; border-radius: 10px; background: #248A3D; display: flex; align-items: center; justify-content: center">${CHECK(11, 3)}</span>` : `<span style="width: 20px; height: 20px; flex-shrink: 0; border-radius: 10px; background: #C4000F; display: flex; align-items: center; justify-content: center; color: #FFFFFF; font-size: 13px; font-weight: 800">!</span>`}
+<span style="font-size: 13px; font-weight: 600">${label}</span><code style="margin-left: auto; font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--sub2)">sudo ${cmd}</code><span style="width: 120px; text-align: right; font-size: 12px; font-weight: 600; color: ${ok ? '#1E7A34' : '#C4000F'}">${ok ? 'No password' : 'Asks for password'}</span></div>`;
+    }).join('');
+  const all = !n.error && Object.values(n.allowed).every(Boolean);
+  return `<div style="display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 16px; background: rgba(255,255,255,calc(0.75 * var(--wk))); border: 1px solid rgba(var(--hair),0.12)">
+${rows}
+${all ? '' : `<div style="display: flex; align-items: flex-end; gap: 12px"><div style="flex-grow: 1; min-width: 0; font-size: 12px; line-height: 1.45; color: var(--sub2)">${n.error ? '' : `To allow them, add this line with <code style="font-family: ui-monospace, Menlo, monospace">sudo visudo -f /etc/sudoers.d/ice-servers</code> on ${esc(A.host.trim())}, or pick another option:<br><code style="font-family: ui-monospace, Menlo, monospace; color: var(--text); -webkit-user-select: text; user-select: text">${esc(user)} ALL=(root) NOPASSWD: /usr/bin/systemctl reboot, /usr/bin/systemctl poweroff, /usr/bin/apt-get</code>`}</div>
+<button data-cmd="aRecheck" style="height: 36px; flex-shrink: 0; padding: 0 14px; border-radius: 18px; border: 1px solid rgba(var(--hair),0.18); background: var(--solid); font-size: 13px; font-weight: 600; color: var(--accent); cursor: pointer">Check Again</button></div>`}
+</div>`;
+}
+
+function nopassResult(o) {
+  if (!A) return;
+  A.nopass = { allowed: o.allowed, error: o.allowed ? '' : o.error || 'Couldn’t check the server.' };
+  sheet('add');
+}
+
 const draft = () => ({ id: A.id, name: A.name, host: A.host, port: A.port, user: A.user, auth: A.auth, key: A.key, sshPassword: A.sshPassword,
   sudo: A.sudo, when: A.when, sudoPassword: A.sudoPassword, touchID: A.touchID });
 
@@ -454,6 +487,7 @@ function addCheck(o) {
 function keyChosen(o) {
   if (!A) return;
   A.key = o.display;
+  A.nopass = null;
   sheet('add');
 }
 
@@ -482,6 +516,7 @@ document.addEventListener('input', (e) => {
   const f = e.target.dataset && e.target.dataset.f;
   if (!f || !A) return;
   A[f] = e.target.value;
+  if (['host', 'port', 'user', 'sshPassword'].includes(f)) A.nopass = null;
   const go = $('aNext'), ok = addValid();
   if (go) { go.disabled = !ok; go.style.opacity = ok ? '' : '0.4'; go.style.boxShadow = ok ? '' : 'none'; }
   if (A.step === 1) sheet('add');  // keeps the duplicate-name hint current
@@ -502,8 +537,9 @@ function act(d) {
     case 'wSize': W2.size = d.val; return sheet('widget');
     case 'wServer': W2.server = d.val; return sheet('widget');
     case 'addWidget': post({ cmd: 'addWidget', size: W2.size, server: W2.server }); return closeSheet();
-    case 'aAuth': A.auth = d.val; return sheet('add');
+    case 'aAuth': A.auth = d.val; A.nopass = null; return sheet('add');
     case 'aSudo': A.sudo = d.val; return sheet('add');
+    case 'aRecheck': A.nopass = null; return sheet('add');
     case 'aWhen': A.when = d.val; return sheet('add');
     case 'aShow': A.show = !A.show; return sheet('add');
     case 'aTouch': A.touchID = !A.touchID; return sheet('add');

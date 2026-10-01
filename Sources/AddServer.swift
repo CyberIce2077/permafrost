@@ -27,6 +27,45 @@ struct Draft {
     }
 }
 
+/// Which of the app's admin commands sudo will run without a password, read from `sudo -n -l`.
+/// (With no passwordless rules at all, sudo won't even list without a password, so nothing is allowed.)
+enum Passwordless {
+    static let commands = [("reboot", "/usr/bin/systemctl reboot"), ("poweroff", "/usr/bin/systemctl poweroff"), ("apt", "/usr/bin/apt-get")]
+
+    static func allowed(_ listing: String) -> [String: Bool] {
+        // Entries after "NOPASSWD:" on each rule line, e.g. "ALL" or "/usr/bin/systemctl reboot".
+        let entries = listing.split(separator: "\n").compactMap { line -> [String]? in
+            guard let r = line.range(of: "NOPASSWD:") else { return nil }
+            return line[r.upperBound...].split(separator: ",").map {
+                $0.replacingOccurrences(of: "SETENV:", with: "").trimmingCharacters(in: .whitespaces)
+            }
+        }.flatMap { $0 }
+        func covers(_ cmd: String) -> Bool {
+            let path = String(cmd.split(separator: " ")[0])
+            return entries.contains { $0 == "ALL" || $0 == cmd || $0 == path || $0 == path.replacingOccurrences(of: "/usr/bin/", with: "/bin/") }
+        }
+        return Dictionary(uniqueKeysWithValues: commands.map { ($0.0, covers($0.1)) })
+    }
+
+    /// Signs in the way the wizard was told to and reads the server's passwordless rules.
+    static func check(_ d: Draft, done: @escaping ([String: Bool]?, String) -> Void) {
+        var args = ["-T", "-o", "ConnectTimeout=5", "-p", d.port]
+        var env: [String: String] = [:]
+        if d.auth == "pw" {
+            args += ["-o", "PubkeyAuthentication=no", "-o", "NumberOfPasswordPrompts=1"]
+            env = ["SSH_ASKPASS": Bundle.main.executablePath ?? "", "SSH_ASKPASS_REQUIRE": "force", "ICE_ASKPASS": d.sshPassword]
+        } else {
+            args += ["-o", "BatchMode=yes"] + d.keyArgs
+        }
+        Shell.run("/usr/bin/ssh", args + [d.target, "sudo -n -l; echo ICE_SSH_OK"], env: env) { _, out in
+            guard out.contains("ICE_SSH_OK") else {
+                return done(nil, out.split(separator: "\n").last.map(String.init) ?? "Couldn't sign in to \(d.host)")
+            }
+            done(allowed(out), "")
+        }
+    }
+}
+
 enum SSHKey {
     static let defaultPath = realHome + "/.ssh/id_ed25519"
 
@@ -156,7 +195,7 @@ final class Probe {
     private func sudo() {
         step(3, "running")
         switch (d.sudo, d.when) {
-        case ("remember", "now"):
+        case ("remember", "now"), ("always", "now"):
             Shell.run("/usr/bin/ssh", ssh + ["sudo -S -p '' -v"], input: d.sudoPassword) { [self] status, out in
                 guard !cancelled else { return }
                 guard status == 0, !out.contains("try again") else {
@@ -167,9 +206,13 @@ final class Probe {
                 read()
             }
         case ("nopass", _):
-            Shell.run("/usr/bin/ssh", ssh + ["sudo -n true || sudo -n -l /usr/bin/systemctl"]) { [self] status, out in
+            Shell.run("/usr/bin/ssh", ssh + ["sudo -n -l"]) { [self] _, out in
                 guard !cancelled else { return }
-                guard status == 0 else { return step(3, "fail", "sudo on \(d.name) still asks for a password") }
+                let names = ["reboot": "restart", "poweroff": "shut down", "apt": "updates"]
+                let missing = Passwordless.commands.map(\.0).filter { Passwordless.allowed(out)[$0] != true }
+                guard missing.isEmpty else {
+                    return step(3, "fail", "sudo on \(d.name) still asks for a password to " + missing.compactMap { names[$0] }.joined(separator: ", "))
+                }
                 step(3, "done", "OK")
                 read()
             }
