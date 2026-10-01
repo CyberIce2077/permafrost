@@ -8,6 +8,8 @@
 .light { width: 12px; height: 12px; padding: 0; border: 0; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
 .light svg { opacity: 0; }
 .lights:hover .light svg { opacity: 1; }
+.qe-field { box-sizing: border-box; width: 100%; height: 40px; padding: 0 12px; border-radius: 11px; border: 1px solid rgba(60,60,67,0.2); background: #FFFFFF; font-size: 14px; font-weight: 400; color: #1D1D1F; outline: none; }
+.qe-field:focus { border-color: #0066CC; box-shadow: 0 0 0 3px rgba(0,102,204,0.2); }
 </style>
 </head>
 <body>
@@ -41,6 +43,7 @@ Add Server
 </main>
 </div>
 
+<div id="qe"></div>
 <div id="sheet"></div>
 
 <script src="common.js"></script>
@@ -77,6 +80,8 @@ function render(state) {
   set($('head'), s ? header(s, lock) : '');
   set($('body'), !s ? empty() : LIVE.includes(s.phase) ? stats(s) : offline(s, lock));
   set($('upd'), s ? updates(s, lock) : '');
+  if (qe && (!s || qe.id !== s.id)) closeQe();
+  else if (qe && qe.saved !== s.saved) { qe.saved = s.saved; qeRender(); }
 }
 
 function row(r) {
@@ -105,7 +110,10 @@ function header(s, lock) {
   const on = s.phase !== 'off' && s.phase !== 'stopping';
   const cant = s.phase !== 'online' || lock;
   return `<div style="display: flex; flex-direction: column; gap: 6px; min-width: 0">
+<div style="display: flex; align-items: center; gap: 8px; min-width: 0">
 <h1 style="margin: 0; font-size: 30px; font-weight: 700; letter-spacing: -0.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">${esc(s.name)}</h1>
+<button data-cmd="qeToggle" aria-label="Settings for ${esc(s.name)}" aria-expanded="${!!qe}" title="Server settings" style="width: 36px; height: 36px; flex-shrink: 0; border-radius: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: ${qe ? '#FFFFFF' : 'var(--text)'}; background: ${qe ? 'var(--accent)' : 'rgba(255,255,255,calc(0.7 * var(--wk)))'}; border: 1px solid rgba(255,255,255,calc(0.9 * var(--wk))); box-shadow: 0 2px 8px rgba(20,40,80,0.08)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"></path><circle cx="16" cy="6" r="2"></circle><circle cx="10" cy="12" r="2"></circle><circle cx="18" cy="18" r="2"></circle></svg></button>
+</div>
 <div style="display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--sub)">
 <span style="display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 12px; font-size: 12px; font-weight: 600; color: ${c[0]}; background: ${c[1]}">${busy ? ICON.spin : `<span style="width: 7px; height: 7px; border-radius: 4px; background: ${c[2]}"></span>`}${LABELS[s.phase]}</span>
 <span>${s.phase === 'online' ? 'Up ' + uptime(s.uptime) : ''}</span>
@@ -259,6 +267,79 @@ ${s.phase === 'updating' ? `<div style="height: 8px; border-radius: 4px; backgro
 ${idle && s.updates > 0 ? `<button data-cmd="install" ${cant ? 'disabled' : ''} style="${BLUE}">Update Now</button>` : ''}
 ${idle && !(s.updates > 0) ? `<button data-cmd="check" ${cant ? 'disabled' : ''} style="${CAPSULE}${cant ? ' opacity: 0.45; cursor: default;' : ''}">${s.updates == null ? 'Check Now' : 'Check Again'}</button>` : ''}`;
 }
+
+// ---- Quick server settings (design: Main › qe popover) ----
+// Rendered only on its own actions, so the stats refresh never interrupts typing.
+
+let qe = null;
+
+function openQe() {
+  const s = S.servers.find((x) => x.id === sel);
+  if (!s) return;
+  qe = { id: s.id, confirming: false, saved: s.saved, d: { name: s.name, host: s.host, user: s.user, port: s.port, color: s.color, widgets: s.widgets, menu: s.menu } };
+  qeRender();
+  render();
+}
+
+function closeQe() {
+  qe = null;
+  $('qe').innerHTML = '';
+  render();
+}
+
+const qeValid = () => qe.d.name.trim() && qe.d.host.trim() && !S.servers.some((x) => x.id !== qe.id && x.name === qe.d.name.trim());
+
+function qeRender() {
+  const s = S.servers.find((x) => x.id === qe.id) || {}, d = qe.d, ok = qeValid();
+  const label = (text, f, extra = '') => `<label style="display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 600; color: #56565B">${text}<input class="qe-field" data-q="${f}" type="text" value="${esc(d[f])}" ${extra}></label>`;
+  const focused = document.activeElement && document.activeElement.dataset && document.activeElement.dataset.q;
+  $('qe').innerHTML = `<div role="dialog" aria-label="${qe.confirming ? 'Remove ' + esc(s.name) + '?' : esc(s.name) + ' settings'}" style="position: fixed; left: 291px; top: 75px; width: 380px; box-sizing: border-box; padding: 18px; display: flex; flex-direction: column; gap: 12px; border-radius: 24px; background: rgba(250,251,253,0.92); backdrop-filter: blur(44px) saturate(180%); -webkit-backdrop-filter: blur(44px) saturate(180%); border: 1px solid rgba(255,255,255,0.95); box-shadow: 0 24px 60px rgba(8,28,60,0.32), inset 0 1px 0 rgba(255,255,255,1); z-index: 5; color: #1D1D1F">
+<div style="display: flex; align-items: center; justify-content: space-between">
+<h2 style="margin: 0; font-size: 16px; font-weight: 700">${qe.confirming ? 'Remove ' + esc(s.name) + '?' : esc(s.name) + ' settings'}</h2>
+<button data-cmd="qeClose" aria-label="Close" style="width: 32px; height: 32px; border-radius: 16px; border: 0; background: rgba(120,120,128,0.14); cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#3A3A3C" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+</div>
+${qe.confirming ? `<p style="margin: 0; font-size: 13px; line-height: 1.45; color: #3A3A3C">It disappears from the sidebar, menu bar and widgets${s.saved ? ', and its saved sudo password is deleted from your Keychain' : ''}. Nothing changes on the server itself.</p>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+<button data-cmd="qeCancelRemove" style="height: 40px; border-radius: 20px; border: 1px solid rgba(60,60,67,0.18); background: #FFFFFF; font-size: 13px; font-weight: 600; color: #1D1D1F; cursor: pointer">Cancel</button>
+<button data-cmd="qeRemove" style="height: 40px; border-radius: 20px; border: 0; background: #C4000F; font-size: 13px; font-weight: 600; color: #FFFFFF; cursor: pointer">Remove</button>
+</div>` : `${label('Name', 'name')}
+${label('Host or IP address', 'host', 'spellcheck="false"')}
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 90px; gap: 10px">
+${label('Username', 'user', 'spellcheck="false"')}${label('Port', 'port', 'inputmode="numeric"')}
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between">
+<span style="font-size: 12px; font-weight: 600; color: #56565B">Icon</span>
+<div style="display: flex; gap: 7px">${Object.keys(SERVER_COLORS).map((c) => `<button data-cmd="qeColor" data-val="${c}" aria-label="${c} icon" aria-pressed="${d.color === c}" style="width: 26px; height: 26px; padding: 0; border-radius: 8px; cursor: pointer; border: 2px solid #FFFFFF; background: ${SERVER_COLORS[c]}; box-shadow: ${d.color === c ? '0 0 0 2px #0066CC' : '0 1px 3px rgba(0,0,0,0.2)'}"></button>`).join('')}</div>
+</div>
+<div style="display: flex; flex-direction: column; border-radius: 14px; background: rgba(255,255,255,0.9); border: 1px solid rgba(60,60,67,0.12)">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 48px; padding: 0 12px">
+<span style="font-size: 13px; font-weight: 600">Show in widgets</span>
+<button data-cmd="qeWidgets" aria-label="Show in widgets" aria-pressed="${d.widgets}" style="position: relative; width: 52px; height: 30px; flex-shrink: 0; padding: 0; border: 0; border-radius: 15px; cursor: pointer; background: ${d.widgets ? '#248A3D' : 'rgba(120,120,128,0.36)'}"><span style="position: absolute; top: 2px; left: ${d.widgets ? '24px' : '2px'}; width: 26px; height: 26px; border-radius: 13px; background: #FFFFFF; box-shadow: 0 2px 6px rgba(0,0,0,0.22); transition: left 0.2s"></span></button>
+</div>
+<div style="box-sizing: content-box; display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 48px; padding: 0 12px; border-top: 1px solid rgba(60,60,67,0.1)">
+<div style="display: flex; flex-direction: column; gap: 1px"><span style="font-size: 13px; font-weight: 600">Sudo password</span><span style="font-size: 11px; color: #56565B">${s.sudo === 'nopass' ? 'Passwordless sudo' : s.saved ? 'Saved in Keychain' : 'Not saved · asks when needed'}</span></div>
+${s.sudo === 'nopass' ? '' : `<button data-cmd="${s.saved ? 'qeForget' : 'qeSavePw'}" style="height: 32px; padding: 0 12px; border-radius: 16px; border: 1px solid rgba(60,60,67,0.18); background: #FFFFFF; font-size: 12px; font-weight: 600; color: #0066CC; cursor: pointer">${s.saved ? 'Forget' : 'Save…'}</button>`}
+</div>
+</div>
+<div style="display: flex; align-items: center; gap: 8px">
+<button data-cmd="qeAskRemove" style="height: 40px; padding: 0 12px; border-radius: 20px; border: 0; background: transparent; font-size: 13px; font-weight: 600; color: #C4000F; cursor: pointer">Remove…</button>
+<a href="#" data-cmd="qeAll" style="font-size: 12px; font-weight: 600; color: #0066CC; text-decoration: none">All settings</a>
+<div style="flex-grow: 1"></div>
+<button id="qeSave" data-cmd="qeSave" ${ok ? '' : 'disabled'} style="height: 40px; padding: 0 20px; border: 0; border-radius: 20px; background: #0066CC; color: #FFFFFF; font-size: 13px; font-weight: 600; cursor: pointer;${ok ? '' : ' opacity: 0.4; cursor: default;'}">Save</button>
+</div>`}
+</div>`;
+  const input = focused && $('qe').querySelector(`[data-q="${focused}"]`);
+  if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+}
+
+document.addEventListener('input', (e) => {
+  const f = e.target.dataset && e.target.dataset.q;
+  if (!f || !qe) return;
+  qe.d[f] = e.target.value;
+  const b = $('qeSave'), ok = qeValid();
+  b.disabled = !ok;
+  b.style.opacity = ok ? '' : '0.4';
+});
 
 // ---- Add widget to desktop (design: Main › sheet) ----
 
@@ -524,6 +605,7 @@ document.addEventListener('input', (e) => {
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && openSheet && !pw) closeSheet();
+  else if (e.key === 'Escape' && qe && !pw) closeQe();
   if (e.key === 'Enter' && openSheet === 'add' && !pw && e.target.dataset && e.target.dataset.f) { const go = $('aNext'); if (go && !go.disabled) go.click(); }
 });
 
@@ -531,6 +613,21 @@ function act(d) {
   if (sheetAct(d)) return;
   switch (d.cmd) {
     case 'select': sel = d.id; return render();
+    case 'qeToggle': return qe ? closeQe() : openQe();
+    case 'qeClose': return closeQe();
+    case 'qeColor': qe.d.color = d.val; return qeRender();
+    case 'qeWidgets': qe.d.widgets = !qe.d.widgets; return qeRender();
+    case 'qeForget': return post({ cmd: 'forget', id: qe.id });
+    case 'qeSavePw': return post({ cmd: 'savePassword', id: qe.id });
+    case 'qeAskRemove': qe.confirming = true; return qeRender();
+    case 'qeCancelRemove': qe.confirming = false; return qeRender();
+    case 'qeRemove': post({ cmd: 'removeServer', id: qe.id, forget: true }); return closeQe();
+    case 'qeAll': closeQe(); return post({ cmd: 'showSettings', pane: 'servers' });
+    case 'qeSave':
+      if (!qeValid()) return;
+      post({ cmd: 'editServer', id: qe.id, ...qe.d });
+      toast({ text: 'Saved changes to ' + qe.d.name.trim() });
+      return closeQe();
     case 'showAdd': return showAdd();
     case 'showWidget': W2 = { size: 'M', server: S.servers.length > 1 ? 'all' : (S.servers[0] || {}).id }; return sheet('widget');
     case 'closeSheet': return closeSheet();

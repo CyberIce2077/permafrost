@@ -21,6 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var renderQueued = false
     private var reloadQueued = false
     private var selectID: String?
+    private var settingsPane: String?
     private var pendingURLs: [URL] = []
     private var probe: Probe?
 
@@ -92,6 +93,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.selectID = nil
             }
             self.main.render(state)
+            if let pane = self.settingsPane, self.settings?.loaded == true {
+                state["pane"] = pane
+                self.settingsPane = nil
+            }
             self.settings?.render(state)
             self.menuBar.update()
             self.widgetEditor?.render(["servers": list, "prefs": self.prefs.json, "widgets": ["S", "M", "L", "XL"].reduce(into: [String: Any]()) {
@@ -148,6 +153,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         switch cmd {
         case "ready":
+            p.loaded = true
             changed()
             p.window.invalidateShadow()
             showPasswordSheet()
@@ -209,7 +215,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             config.touchID = m["on"] as? Bool ?? false
             save()
             changed()
-        case "showSettings": showSettings()
+        case "showSettings":
+            settingsPane = m["pane"] as? String
+            showSettings()
+            changed()
         case "showWidgets": showWidgetEditor()
         case "showAdd":
             showMain()
@@ -499,6 +508,7 @@ final class Web: WKWebView {
 final class Panel: NSObject, WKScriptMessageHandler, NSWindowDelegate {
     let window: NSWindow
     let web: Web
+    var loaded = false
 
     init(page: String, size: NSSize, radius: CGFloat, resizable: Bool = false, glass: Bool = true) {
         var style: NSWindow.StyleMask = [.borderless, .closable, .miniaturizable]

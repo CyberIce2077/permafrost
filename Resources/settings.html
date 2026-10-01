@@ -30,6 +30,7 @@ const ACCENT_NAMES = { blue: 'Blue', teal: 'Teal', purple: 'Purple', pink: 'Pink
 
 function render(state) {
   if (state) S = state;
+  if (state && state.pane) pane = state.pane;  // opened from a server's quick settings
   if (!S) return;
   const P = { ...S.prefs, ...drag };
   Object.assign(UNITS, { unit: P.unit, net: P.net });
