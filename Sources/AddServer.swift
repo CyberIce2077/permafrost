@@ -201,7 +201,7 @@ final class Probe {
                 guard status == 0, !out.contains("try again") else {
                     return step(3, "fail", "Incorrect password. sudo on \(d.name) rejected it. Nothing was saved.")
                 }
-                Keychain.set(d.id, d.sudoPassword)
+                if d.sudo == "always" { LocalSecrets.set(d.id, d.sudoPassword) } else { Keychain.set(d.id, d.sudoPassword) }
                 step(3, "done", "Saved")
                 read()
             }

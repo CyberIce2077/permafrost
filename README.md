@@ -48,8 +48,10 @@ color, chooses whether it appears in widgets and the menu bar, and removes it (w
 Shutting down, restarting and updating need sudo. For each server you choose:
 
 - **Ask once, remember securely**: kept in your macOS Keychain, optionally behind Touch ID.
-- **Remember, never ask**: kept in your Keychain and used without Touch ID or your Mac's password.
-  Anyone using your Mac while it's unlocked can then restart, shut down or update the server.
+- **Remember, never ask**: kept outside the Keychain, so macOS never asks: encrypted (AES-GCM) with a
+  key derived from this Mac's hardware UUID, in `~/Library/Application Support/Ice Servers/sudo-passwords`
+  (readable only by you). A copy of that file is useless on another Mac, but any app running as you on
+  this Mac could decrypt it, and anyone using your unlocked Mac can restart, shut down or update the server.
 - **Ask every time**: never saved.
 - **Passwordless sudo**: for servers that allow these commands without a password. Add Server
   checks the server's rules for each command and shows which ones still ask for a password.
@@ -105,7 +107,7 @@ NVMe drives work out of the box.
 ## Where things live
 
 - Settings: `~/Library/Application Support/Ice Servers/config.json`
-- sudo passwords: Keychain, service "Ice Servers sudo"
+- sudo passwords: Keychain, service "Ice Servers sudo"; "never ask" ones in `sudo-passwords` (see above)
 
 ## License
 

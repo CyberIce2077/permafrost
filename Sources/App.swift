@@ -341,7 +341,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let u = undo else { return }
         u.timer.invalidate()
         undo = nil
-        if u.forget { Keychain.delete(u.server.cfg.id) }
+        if u.forget { u.server.forgetPassword() }
         for (size, w) in config.widgets where w.server == u.server.cfg.id { config.widgets[size]?.server = "all" }
         save()
     }

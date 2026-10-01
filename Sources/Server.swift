@@ -232,12 +232,18 @@ final class Server {
         reconnect()
     }
 
-    var hasSavedPassword: Bool { password != nil && sudoMode != "every" || Keychain.has(cfg.id) }
+    /// "Remember, never ask" keeps its password in `LocalSecrets` and never touches the Keychain,
+    /// so macOS never asks before it's used.
+    private var neverAsk: Bool { sudoMode == "always" }
+
+    var hasSavedPassword: Bool {
+        password != nil && sudoMode != "every" || (neverAsk ? LocalSecrets.has(cfg.id) : Keychain.has(cfg.id))
+    }
 
     func forgetPassword() {
         password = nil
         triedKeychain = true
-        Keychain.delete(cfg.id)
+        if neverAsk { LocalSecrets.delete(cfg.id) } else { Keychain.delete(cfg.id) }
     }
 
     private static func needsPassword(_ out: String) -> Bool {
@@ -277,7 +283,9 @@ final class Server {
         case "nopass":
             run(nil)
         default:
-            if password == nil, !triedKeychain {
+            if password == nil, neverAsk {
+                password = LocalSecrets.get(cfg.id)
+            } else if password == nil, !triedKeychain {
                 if Keychain.has(cfg.id) {
                     // macOS may ask whether this app may read it. Deny means "don't", so nothing runs
                     // (no fallback to asking for the password), and macOS asks again next time.
@@ -319,7 +327,7 @@ final class Server {
                 }
                 if keep {
                     password = pw
-                    Keychain.set(cfg.id, pw)
+                    if neverAsk { LocalSecrets.set(cfg.id, pw) } else { Keychain.set(cfg.id, pw) }
                     if sudoMode == "every" || sudoMode == "nopass" {
                         cfg.sudo = "remember"
                         ice.save()

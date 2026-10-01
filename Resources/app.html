@@ -319,7 +319,7 @@ ${label('Username', 'user', 'spellcheck="false"')}${label('Port', 'port', 'input
 <button data-cmd="qeWidgets" aria-label="Show in widgets" aria-pressed="${d.widgets}" style="position: relative; width: 52px; height: 30px; flex-shrink: 0; padding: 0; border: 0; border-radius: 15px; cursor: pointer; background: ${d.widgets ? '#248A3D' : 'rgba(120,120,128,0.36)'}"><span style="position: absolute; top: 2px; left: ${d.widgets ? '24px' : '2px'}; width: 26px; height: 26px; border-radius: 13px; background: #FFFFFF; box-shadow: 0 2px 6px rgba(0,0,0,0.22); transition: left 0.2s"></span></button>
 </div>
 <div style="box-sizing: content-box; display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 48px; padding: 0 12px; border-top: 1px solid rgba(60,60,67,0.1)">
-<div style="display: flex; flex-direction: column; gap: 1px"><span style="font-size: 13px; font-weight: 600">Sudo password</span><span style="font-size: 11px; color: #56565B">${s.sudo === 'nopass' ? 'Passwordless sudo' : s.saved ? 'Saved in Keychain' : 'Not saved · asks when needed'}</span></div>
+<div style="display: flex; flex-direction: column; gap: 1px"><span style="font-size: 13px; font-weight: 600">Sudo password</span><span style="font-size: 11px; color: #56565B">${s.sudo === 'nopass' ? 'Passwordless sudo' : s.saved ? (s.sudo === 'always' ? 'Saved on this Mac · never asks' : 'Saved in Keychain') : 'Not saved · asks when needed'}</span></div>
 ${s.sudo === 'nopass' ? '' : `<button data-cmd="${s.saved ? 'qeForget' : 'qeSavePw'}" style="height: 32px; padding: 0 12px; border-radius: 16px; border: 1px solid rgba(60,60,67,0.18); background: #FFFFFF; font-size: 12px; font-weight: 600; color: #0066CC; cursor: pointer">${s.saved ? 'Forget' : 'Save…'}</button>`}
 </div>
 </div>
@@ -395,11 +395,11 @@ ${A.auth === 'key' ? `<div style="display: flex; align-items: center; gap: 12px;
 </div>`;
   if (A.step === 3) {
     const defs = [['remember', 'Ask once, remember securely', 'Recommended', 'Saved in your Keychain on this Mac. You won’t be asked again.'],
-      ['always', 'Remember, never ask', 'Not recommended', 'Saved in your Keychain. Sudo runs without Touch ID or your Mac password.'],
+      ['always', 'Remember, never ask', 'Not recommended', 'Saved encrypted on this Mac, outside the Keychain. Never asks for Touch ID or your Mac password.'],
       ['every', 'Ask every time', '', 'Never saved. You type it for each power, restart or update.'],
       ['nopass', 'Passwordless sudo', 'Advanced', 'The server already allows these commands without a password.']];
     const notes = { remember: `Stored in the macOS Keychain, encrypted and readable only by Ice Servers on this Mac while it’s unlocked. It is never synced to iCloud, written to logs, or sent anywhere except to sudo on ${esc(name)} over SSH. Forget it anytime in Settings.`,
-      always: `Stored in the macOS Keychain on this Mac, like the option above, but admin actions run without asking you first: anyone using this Mac while it’s unlocked can restart, shut down or update ${esc(name)}.`,
+      always: `Encrypted with a key tied to this Mac, in a file only your user can read, outside the Keychain so macOS never asks. Admin actions run without asking you first: any app running as you, or anyone using this Mac while it’s unlocked, can restart, shut down or update ${esc(name)}.`,
       every: 'The password is held in memory only for the command you run, then discarded.',
       nopass: 'Only for servers where you’ve limited passwordless sudo to the power, reboot and update commands in sudoers.' };
     body = `<div style="display: flex; flex-direction: column; gap: 14px">
@@ -439,7 +439,7 @@ ${LOCK(18, '#0058B0').replace('<svg ', '<svg style="flex-shrink: 0; margin-top: 
   }
   if (A.step === 4) {
     const save = A.when === 'now' ? 'Saving sudo password to Keychain' : 'sudo password will be asked on first use';
-    const sudoLabel = { remember: save, always: save, every: 'sudo will ask each time', nopass: 'Checking passwordless sudo' }[A.sudo];
+    const sudoLabel = { remember: save, always: A.when === 'now' ? 'Saving sudo password on this Mac' : save, every: 'sudo will ask each time', nopass: 'Checking passwordless sudo' }[A.sudo];
     const labels = [`Reaching ${esc(host)}:${esc(A.port)}`, 'Verifying host key', `Signing in as ${esc(user)}`, sudoLabel, 'Reading CPU, memory, disk and temperature'];
     body = `<div style="display: flex; flex-direction: column; gap: 10px">${A.checks.map((c, i) => {
       const active = c.state !== 'pending';
@@ -463,7 +463,7 @@ ${c.state === 'trust' ? `<div style="display: flex; align-items: center; gap: 12
     }).join('')}</div>`;
   }
   if (A.step === 5) {
-    const note = A.sudo === 'always' ? (A.when === 'now' ? 'Its sudo password is in your Keychain. Admin actions run without asking.' : 'You’ll be asked for the sudo password once, the first time you use power, restart or updates. After that, never.')
+    const note = A.sudo === 'always' ? (A.when === 'now' ? 'Its sudo password is saved on this Mac. Admin actions run without asking.' : 'You’ll be asked for the sudo password once, the first time you use power, restart or updates. After that, never.')
       : A.sudo === 'remember' ? (A.when === 'now' ? 'Its sudo password is in your Keychain' + (A.touchID ? ', unlocked with Touch ID when needed.' : '.') : 'You’ll be asked for the sudo password once, the first time you use power, restart or updates.')
       : A.sudo === 'every' ? 'You’ll be asked for the sudo password each time you run an admin action.' : 'Admin actions will run with passwordless sudo.';
     body = `<div style="display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 18px 0 6px; text-align: center">
