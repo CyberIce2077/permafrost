@@ -1,8 +1,11 @@
 * { box-sizing: border-box; }
+/* Theme: the design's light values. common.js › applyLook() swaps them for dark mode and Settings › Appearance. */
+:root { --win: rgba(244,247,251,0.66); --wk: 1; --hair: 60,60,67; --sheet: 248,250,253; --solid: #FFFFFF;
+  --text: #1D1D1F; --sub: #5E5E63; --sub2: #56565B; --sub3: #6E6E73; --accent: #0066CC; --accent-rgb: 0,102,204; }
 html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
-  color: #1D1D1F;
+  color: var(--text);
   font-variant-numeric: tabular-nums;
   -webkit-user-select: none;
   user-select: none;
@@ -14,8 +17,8 @@ input { -webkit-user-select: text; user-select: text; }
 @keyframes icespin { to { transform: rotate(360deg); } }
 .icespin { animation: icespin 0.9s linear infinite; transform-origin: 50% 50%; }
 input { font-family: inherit; }
-.icefield { box-sizing: border-box; width: 100%; height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid rgba(60,60,67,0.2); background: rgba(255,255,255,0.9); font-size: 14px; color: #1D1D1F; outline: none; }
-.icefield:focus { border-color: #0066CC; box-shadow: 0 0 0 3px rgba(0,102,204,0.2); }
+.icefield { box-sizing: border-box; width: 100%; height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid rgba(var(--hair),0.2); background: rgba(255,255,255,calc(0.9 * var(--wk))); font-size: 14px; color: var(--text); outline: none; }
+.icefield:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(var(--accent-rgb),0.2); }
 .icefield::placeholder { color: #8A8A8E; }
 .icefield:disabled { opacity: 0.6; }
 @keyframes shake { 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }

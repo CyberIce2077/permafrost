@@ -6,7 +6,10 @@ A small macOS app for watching and controlling the Linux servers on your home ne
 - Power on (Wake-on-LAN), shut down and restart
 - Check for and install `apt` updates, with progress
 - Real macOS widgets (WidgetKit) in four sizes, three styles and three looks; they keep working when the app is closed
-- Add and remove servers at any time
+- Add, edit and remove servers at any time
+- A menu bar item with status dots and quick actions, and notifications (offline, high CPU or
+  temperature, disk almost full, updates)
+- Light, dark or automatic theme, glass strength, tint and accent color
 
 Everything goes over plain SSH. Nothing is installed on the servers.
 
@@ -37,7 +40,8 @@ the host key (you confirm its fingerprint the first time), signing in, sudo and 
 Signing in with a password uses it once to add this Mac's SSH key (`~/.ssh/id_ed25519`, created
 if needed) to the server; after that everything, including the widgets, uses the key.
 
-Right-click a server in the sidebar to remove it.
+**Settings › Servers** (the gear in the sidebar, or ⌘,) edits a server's name, address, port and icon
+color, chooses whether it appears in widgets and the menu bar, and removes it (with Undo).
 
 ## sudo
 
@@ -75,6 +79,16 @@ Add them like any other widget: right-click the desktop, choose **Edit Widgets�
 The widget runs in the macOS sandbox. It can read `~/.ssh` and the app's settings, nothing else.
 The app passes it each server's resolved SSH settings, so `Include`s in `~/.ssh/config` don't need to be readable.
 SSH keys used by the widget can't have a passphrase.
+
+## Settings
+
+- **General**: open at login, menu bar item (while it's on, closing the window keeps the app running
+  for the menu bar and notifications), refresh rate, °C/°F, MB/s or Mbit/s, confirm before power off.
+- **Appearance**: glass effect, background blur (0 turns the glass off), theme, tint, accent color,
+  reduce transparency.
+- **Notifications**: server offline, CPU above a limit for 5 minutes, temperature, disk space and
+  daily update reminders. They come from the app, so they need it running (in the menu bar is enough).
+- **Passwords**: saved sudo passwords and Touch ID.
 
 ## Temperatures
 

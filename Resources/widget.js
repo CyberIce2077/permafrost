@@ -18,11 +18,46 @@ const DIMS = { S: [172, 172, 26], M: [364, 172, 26], L: [364, 384, 28], XL: [748
 
 function widgetPreview(w, servers) {
   const L = LOOKS[w.look] || LOOKS.glass, d = DIMS[w.size];
-  const picked = servers.filter((s) => s.id === w.server);
-  const list = picked.length ? picked : servers;
+  const one = servers.find((s) => s.id === w.server);
+  const list = one ? [one] : servers.filter((s) => s.widgets !== false);
   const box = `box-sizing: border-box; width: ${d[0]}px; height: ${d[1]}px; padding: ${w.size === 'S' ? '14px' : '16px'}; display: flex; border-radius: ${d[2]}px; background: ${L.bg}; backdrop-filter: blur(36px) saturate(180%); -webkit-backdrop-filter: blur(36px) saturate(180%); border: 1px solid ${L.border}; box-shadow: 0 16px 40px rgba(8,28,60,0.25), inset 0 1px 0 rgba(255,255,255,0.6); transition: width 0.25s, height 0.25s`;
   if (!list.length) return `<section aria-label="Widget preview" style="${box}; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: ${L.sub}">Add a server in Ice Servers</section>`;
-  return widget(w, L, list, box);
+  return one ? widget(w, L, list, box) : allServers(w, L, list, box);
+}
+
+// "All servers": one compact row per server (design: WidgetOptions › allMode).
+function allServers(w, L, list, box) {
+  const picked = METRICS.filter((m) => w.metrics[m.k]).slice(0, { S: 1, M: 2, L: 3, XL: 4 }[w.size]);
+  const tall = w.size === 'L' || w.size === 'XL';
+  const cols = `minmax(0, 1.4fr) repeat(${picked.length}, minmax(0, 1fr))${w.size === 'XL' ? ' 44px' : ''}`;
+  const online = list.filter((s) => LIVE.includes(s.phase)).length;
+  const rows = list.map((s) => {
+    const live = LIVE.includes(s.phase), off = !live;
+    const t = s.temp.length ? last(s.temp) : null, nm = netMax(s);
+    const v = { cpu: last(s.cpu), mem: last(s.mem), net: last(s.down) / nm * 100, disk: s.disk, temp: t || 0 };
+    const text = { cpu: Math.round(last(s.cpu)) + '%', mem: s.memUsed.toFixed(1) + ' GB', net: rate(last(s.down)), disk: Math.round(s.disk) + '%', temp: deg(t) };
+    const hist = { cpu: s.cpu, mem: s.mem, net: s.down.map((x) => x / nm * 100), disk: s.cpu.map(() => s.disk), temp: s.temp.length > 1 ? s.temp : s.cpu.map(() => t || 0) };
+    const cells = picked.map((m) => {
+      const val = off ? 0 : v[m.k], txt = off ? (m.k === 'disk' && s.diskTotal ? text.disk : '—') : text[m.k];
+      const color = (m.k === 'disk' && val > 80) || (m.k === 'temp' && val >= 70) ? '#FF9F0A' : m.color;
+      return `<div style="display: flex; flex-direction: column; gap: 3px; min-width: 0">
+<span style="font-size: ${tall ? '12px' : '11px'}; font-weight: 700; white-space: nowrap; color: ${off ? L.sub : L.text}; text-shadow: ${L.shadow}">${tall && !off ? m.label.slice(0, 4) + ' ' + txt : txt}</span>
+${!off && w.size !== 'S' && w.style !== 'graph' ? `<span style="display: block; height: 5px; border-radius: 3px; background: ${L.track}"><span style="display: block; height: 100%; border-radius: 3px; width: ${Math.min(val, 100)}%; background: ${color}"></span></span>` : ''}
+${!off && w.size !== 'S' && w.style === 'graph' ? `<svg viewBox="0 0 240 56" preserveAspectRatio="none" style="width: 100%; height: 14px; display: block" aria-hidden="true"><polyline points="${pts(hist[m.k], 100)}" fill="none" stroke="${m.color}" stroke-width="2" vector-effect="non-scaling-stroke"></polyline></svg>` : ''}
+</div>`;
+    }).join('');
+    return `<div style="display: grid; grid-template-columns: ${cols}; column-gap: 12px; align-items: center; box-sizing: border-box; min-height: ${{ XL: '58px', L: '64px', M: '24px', S: '20px' }[w.size]}; padding: ${tall ? '6px 12px' : '0'}; border-radius: 14px; background: ${tall ? L.tile : 'transparent'}">
+<div style="display: flex; align-items: center; gap: 8px; min-width: 0"><span style="width: 7px; height: 7px; border-radius: 4px; flex-shrink: 0; background: ${live ? '#30D158' : '#8E8E93'}"></span><span style="font-size: ${tall ? '14px' : '12px'}; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: ${L.text}; text-shadow: ${L.shadow}">${esc(s.name)}</span></div>
+${cells}
+${w.size === 'XL' ? `<button data-cmd="power" data-id="${s.id}" aria-label="${off ? 'Turn on ' : 'Turn off '}${esc(s.name)}" style="width: 44px; height: 44px; border-radius: 22px; border: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; background: ${off ? L.track : '#248A3D'}">${ICON.power(16, off ? L.text : '#FFFFFF', 2.2)}</button>` : ''}
+</div>`;
+  }).join('');
+  return `<section aria-label="Widget preview" style="${box}; flex-direction: column; gap: 12px">
+<div style="display: flex; flex-direction: column; width: 100%; min-width: 0; gap: ${w.size === 'S' || w.size === 'M' ? '5px' : '8px'}">
+<div style="display: flex; justify-content: space-between; align-items: baseline; gap: 8px"><span style="font-size: ${w.size === 'XL' ? '17px' : '14px'}; font-weight: 700; color: ${L.text}; text-shadow: ${L.shadow}">${w.size === 'S' ? 'Servers' : 'All servers'}</span><span style="font-size: 11px; font-weight: 600; white-space: nowrap; color: ${L.sub}; text-shadow: ${L.shadow}">${online} of ${list.length} online</span></div>
+${rows}
+</div>
+</section>`;
 }
 
 function widget(w, L, list, box) {
@@ -41,7 +76,7 @@ function widget(w, L, list, box) {
     const nm = netMax(s);
     const t = s.temp.length ? last(s.temp) : null;
     const v = { cpu: last(s.cpu), mem: last(s.mem), net: last(s.down) / nm * 100, disk: s.disk, temp: t || 0 };
-    const text = { cpu: Math.round(last(s.cpu)) + '%', mem: s.memUsed.toFixed(1) + ' GB', net: rate(last(s.down)), disk: Math.round(s.disk) + '%', temp: t == null ? '—' : Math.round(t) + '°C' };
+    const text = { cpu: Math.round(last(s.cpu)) + '%', mem: s.memUsed.toFixed(1) + ' GB', net: rate(last(s.down)), disk: Math.round(s.disk) + '%', temp: deg(t) };
     const hist = { cpu: s.cpu, mem: s.mem, net: s.down.map((x) => x / nm * 100), disk: s.cpu.map(() => s.disk), temp: s.temp.length > 1 ? s.temp : s.cpu.map(() => t || 0) };
     const c = colorsFor(s.phase);
     const on = s.phase !== 'off' && s.phase !== 'stopping';

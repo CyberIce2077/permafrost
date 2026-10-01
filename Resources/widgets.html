@@ -39,8 +39,9 @@ const SIZES = [['S', 'Small'], ['M', 'Medium'], ['L', 'Large'], ['XL', 'X-Large'
 
 function render(state) {
   if (state) S = state;
+  if (S.prefs) Object.assign(UNITS, { unit: S.prefs.unit, net: S.prefs.net });
   const w = { ...S.widgets[editing], size: editing }, n = S.servers.length;
-  const server = S.servers.some((s) => s.id === w.server) ? w.server : n === 1 ? S.servers[0].id : 'all';
+  const server = S.servers.some((s) => s.id === w.server) ? w.server : 'all';
   const group = (label, key, track, style, opts, current) => `<div style="display: flex; flex-direction: column; gap: 8px">
 <div style="font-size: 12px; font-weight: 600; color: #56565B; letter-spacing: 0.02em">${label}</div>
 <div style="${track}">${opts.map(([val, text]) => {
@@ -50,7 +51,7 @@ function render(state) {
 </div>`;
   set($('groups'), [
     group('Size', 'size', SEG_TRACK, seg, SIZES, (v) => editing === v),
-    group('Server', 'server', SEG_TRACK, seg, [...S.servers.map((s) => [s.id, s.name]), ...(n > 1 ? [['all', n === 2 ? 'Both' : 'All']] : [])], (v) => server === v),
+    group('Servers', 'server', CHIP_TRACK, chip, [['all', 'All servers'], ...S.servers.map((s) => [s.id, s.name])], (v) => server === v),
     group('Show (up to 4)', 'metric', CHIP_TRACK, chip, [['cpu', 'CPU'], ['mem', 'Memory'], ['net', 'Network'], ['disk', 'Disk'], ['temp', 'Temperature']], (v) => w.metrics[v]),
     group('Style', 'style', SEG_TRACK, seg, [['bars', 'Bars'], ['rings', 'Rings'], ['graph', 'Graphs']], (v) => w.style === v),
     group('Appearance', 'look', SEG_TRACK, seg, [['glass', 'Glass'], ['tinted', 'Tinted'], ['clear', 'Clear']], (v) => w.look === v),

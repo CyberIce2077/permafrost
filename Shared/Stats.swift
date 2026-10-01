@@ -33,8 +33,10 @@ enum Remote {
         else echo upd $(apt list --upgradable 2>/dev/null | grep -c upgradable); fi
         """
 
-    /// Endless: a sample every 2 seconds, for the app.
-    static let stream = iface + "\necho mac $(cat /sys/class/net/$i/address)\nwhile :; do\n" + sample + "\nsleep 2\ndone"
+    /// Endless: a sample every `seconds`, for the app.
+    static func stream(every seconds: Double) -> String {
+        iface + "\necho mac $(cat /sys/class/net/$i/address)\nwhile :; do\n" + sample + "\nsleep \(seconds)\ndone"
+    }
 
     /// About 3 seconds of samples plus the update count, for a widget refresh.
     static let snapshot = iface + "\nfor n in 1 2 3 4 5 6 7 8 9 10 11 12; do\n" + sample + "\nsleep 0.25\ndone\n" + updates

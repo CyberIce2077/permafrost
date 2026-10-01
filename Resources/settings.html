@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Settings</title>
+<link rel="stylesheet" href="common.css">
+<style>
+input[type=range] { width: 100%; height: 28px; margin: 0; cursor: pointer; }
+.icefield.solid { background: #FFFFFF; font-weight: 400; color: #1D1D1F; border-color: rgba(60,60,67,0.2); }
+</style>
+</head>
+<body>
+<div id="win"></div>
+<div id="sheet"></div>
+<script src="common.js"></script>
+<script>
+// design: Settings. Pane, slider drags and the open sheets live here; everything else comes from Swift.
+let S = null, pane = 'general', drag = {}, edit = null, confirmFor = null, forget = true;
+window.SETTINGS_TOAST = true;
+
+const PANES = [
+  ['general', 'General', '#8E8E93', 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.8 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.8-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 14H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 3V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.8 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 21 10h0a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z'],
+  ['appearance', 'Appearance', '#0A84FF', 'M12 3a9 9 0 1 0 0 18c1 0 1.5-.7 1.5-1.5 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1 0-.8.7-1.5 1.5-1.5H16a5 5 0 0 0 5-5c0-4.4-4-7.8-9-7.8zM7.5 12.5h.01M10 8h.01M15 8h.01'],
+  ['servers', 'Servers', '#30B0C7', 'M3 4h18v7H3zM3 13h18v7H3zM7 7.5h.01M7 16.5h.01'],
+  ['notifications', 'Notifications', '#FF3B30', 'M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0'],
+  ['passwords', 'Passwords', '#5E5CE6', 'M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4'],
+];
+const TINT_NAMES = { none: 'No tint', ice: 'Ice', graphite: 'Graphite', warm: 'Warm' };
+const ACCENT_NAMES = { blue: 'Blue', teal: 'Teal', purple: 'Purple', pink: 'Pink', orange: 'Orange', graphite: 'Graphite' };
+
+function render(state) {
+  if (state) S = state;
+  if (!S) return;
+  const P = { ...S.prefs, ...drag };
+  Object.assign(UNITS, { unit: P.unit, net: P.net });
+  applyLook(P);
+  set($('win'), page(P));
+  set($('sheet'), edit ? editSheet() : confirmFor ? confirmSheet() : '');
+}
+
+function page(P) {
+  const L = look(P), dark = L.dark, acc = L.acc, blur = P.reduce ? 0 : P.blur;
+  const text = dark ? '#F5F5F7' : '#1D1D1F', sub = dark ? '#B4B4BA' : '#56565B';
+  const cardBg = dark ? `rgba(255,255,255,${P.reduce ? 0.06 : 0.08})` : `rgba(255,255,255,${(P.reduce ? 1 : 0.35 + P.glass / 100 * 0.4).toFixed(2)})`;
+  const cardBorder = dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.85)';
+  const hair = dark ? 'rgba(255,255,255,0.1)' : 'rgba(60,60,67,0.12)';
+  const shadow = P.glass < 40 && !P.reduce ? '0 1px 2px rgba(0,0,0,0.25)' : 'none';
+  const ui = {
+    label: `font-size: 14px; font-weight: 600; color: ${text}; text-shadow: ${shadow}`,
+    sub: `font-size: 12px; color: ${sub}; text-shadow: ${shadow}`,
+    small: `font-size: 11px; font-weight: 600; color: ${sub}`,
+    card: `box-sizing: border-box; padding: 18px 20px; border-radius: 22px; background: ${cardBg}; border: 1px solid ${cardBorder}`,
+    segTrack: `display: flex; gap: 2px; padding: 3px; border-radius: 20px; background: ${dark ? 'rgba(255,255,255,0.08)' : 'rgba(120,120,128,0.14)'}`,
+    ghost: `cursor: pointer; font-size: 13px; font-weight: 600; color: ${text}; background: ${dark ? 'rgba(255,255,255,0.1)' : '#FFFFFF'}; border: 1px solid ${hair}`,
+  };
+  const seg = (label, on, cmd, val) => `<button data-cmd="${cmd}" data-val="${val}" aria-pressed="${on}" style="flex: 1 1 0; height: 34px; padding: 0 10px; border-radius: 17px; cursor: pointer; font-size: 13px; font-weight: 600; white-space: nowrap; color: ${on ? (dark ? '#FFFFFF' : '#1D1D1F') : text}; border: 0; background: ${on ? (dark ? 'rgba(255,255,255,0.22)' : '#FFFFFF') : 'transparent'}; box-shadow: ${on ? '0 2px 8px rgba(0,0,0,0.14)' : 'none'}">${label}</button>`;
+  const sw = (on, cmd, val, label) => `<button data-cmd="${cmd}" data-val="${val}" aria-label="${esc(label)}" aria-pressed="${on}" style="position: relative; width: 52px; height: 30px; flex-shrink: 0; padding: 0; border: 0; border-radius: 15px; cursor: pointer; transition: background 0.2s; background: ${on ? acc : (dark ? 'rgba(255,255,255,0.2)' : 'rgba(120,120,128,0.36)')}"><span style="position: absolute; top: 2px; left: ${on ? '24px' : '2px'}; width: 26px; height: 26px; border-radius: 13px; background: #FFFFFF; box-shadow: 0 2px 6px rgba(0,0,0,0.22); transition: left 0.2s"></span></button>`;
+  const rowStyle = (i) => `box-sizing: content-box; display: flex; align-items: center; gap: 16px; min-height: 64px; padding: 10px 18px;${i > 0 ? ` border-top: 1px solid ${hair};` : ''}`;
+  const head = (label, desc) => `<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px"><span style="${ui.label}">${esc(label)}</span><span style="${ui.sub}">${esc(desc)}</span></div>`;
+  const toggleRow = (label, desc, key) => (i) => `<div style="${rowStyle(i)}">${head(label, desc)}${sw(P[key], 'pref', key, label)}</div>`;
+  const segRow = (label, desc, key, opts) => (i) => `<div style="${rowStyle(i)}">${head(label, desc)}<div style="${ui.segTrack}; box-sizing: content-box; width: ${opts.length * 74}px; flex-shrink: 0">${opts.map(([v, t]) => seg(t, P[key] === (typeof P[key] === 'number' ? +v : v), 'pref:' + key, v)).join('')}</div></div>`;
+  const stepRow = (label, desc, key, unit) => (i) => {
+    const shown = key === 'tempAt' && P.unit === 'F' ? Math.round(P[key] * 9 / 5 + 32) + '°F' : P[key] + unit;
+    const btn = (d, t, l) => `<button data-cmd="step" data-key="${key}" data-val="${d}" aria-label="${l} ${esc(label)}" style="width: 36px; height: 36px; border-radius: 18px; cursor: pointer; font-size: 18px; font-weight: 600; line-height: 1; color: ${text}; background: ${dark ? 'rgba(255,255,255,0.12)' : '#FFFFFF'}; border: 1px solid ${hair}">${t}</button>`;
+    return `<div style="${rowStyle(i)}">${head(label, desc)}<div style="display: flex; align-items: center; gap: 6px">${btn(-5, '−', 'Lower')}<span style="min-width: 58px; text-align: center; font-size: 14px; font-weight: 700; color: ${text}">${shown}</span>${btn(5, '+', 'Raise')}</div></div>`;
+  };
+
+  let rows = [];
+  if (pane === 'general') rows = [
+    toggleRow('Open at login', 'Start Ice Servers when you log in to your Mac.', 'login'),
+    toggleRow('Show in menu bar', 'Status dots and quick actions from the menu bar.', 'menubar'),
+    segRow('Refresh stats every', 'Faster refresh uses a little more network.', 'refresh', [['1', '1 s'], ['2', '2 s'], ['5', '5 s'], ['10', '10 s']]),
+    segRow('Temperature', 'Used in the app and widgets.', 'unit', [['C', '°C'], ['F', '°F']]),
+    segRow('Network speed', 'Units for in/out traffic.', 'net', [['MBs', 'MB/s'], ['Mbit', 'Mbit/s']]),
+    toggleRow('Confirm before power off', 'Ask before shutting a server down.', 'confirmOff'),
+  ];
+  if (pane === 'notifications') {
+    rows = [toggleRow('Server goes offline', 'Alert when a server stops responding.', 'nOffline'), toggleRow('High CPU', 'When CPU stays above the limit for 5 minutes.', 'nCpu')];
+    if (P.nCpu) rows.push(stepRow('CPU limit', 'Sustained usage threshold.', 'cpuAt', '%'));
+    rows.push(toggleRow('High temperature', 'When the CPU runs hotter than the limit.', 'nTemp'));
+    if (P.nTemp) rows.push(stepRow('Temperature limit', 'CPU package temperature.', 'tempAt', '°C'));
+    rows.push(toggleRow('Disk almost full', 'When used space passes the limit.', 'nDisk'));
+    if (P.nDisk) rows.push(stepRow('Disk limit', 'Used space threshold.', 'diskAt', '%'));
+    rows.push(toggleRow('Updates available', 'Once a day, if a server has updates.', 'nUpd'));
+  }
+  if (pane === 'servers') rows = S.servers.map((s) => (i) => {
+    const where = [s.widgets ? 'widgets' : '', s.menu ? 'menu bar' : ''].filter(Boolean).join(' & ');
+    const desc = `${s.user}@${s.host}${s.port !== '22' ? ':' + s.port : ''} · ${s.saved ? 'sudo saved' : 'sudo asks'}${where ? ' · in ' + where : ''}`;
+    return `<div style="${rowStyle(i)}"><span style="width: 36px; height: 36px; flex-shrink: 0; border-radius: 11px; display: flex; align-items: center; justify-content: center; background: ${SERVER_COLORS[s.color] || SERVER_COLORS.blue}">${ICON.server}</span>${head(s.name, desc)}
+<div style="display: flex; gap: 8px"><button data-cmd="edit" data-id="${s.id}" aria-label="Edit ${esc(s.name)}" style="height: 36px; padding: 0 14px; border-radius: 18px; ${ui.ghost}">Edit…</button><button data-cmd="remove" data-id="${s.id}" aria-label="Remove ${esc(s.name)}" style="height: 36px; padding: 0 14px; border-radius: 18px; cursor: pointer; font-size: 13px; font-weight: 600; color: ${dark ? '#FF6961' : '#C4000F'}; background: ${dark ? 'rgba(255,255,255,0.1)' : '#FFFFFF'}; border: 1px solid rgba(215,0,21,0.35)">Remove</button></div></div>`;
+  });
+  if (pane === 'passwords') {
+    rows = S.servers.map((s) => (i) => `<div style="${rowStyle(i)}">${head(s.name, s.sudo === 'nopass' ? 'Passwordless sudo' : s.saved ? 'Sudo password saved in Keychain' + (S.touchID ? ' · Touch ID required' : '') : 'Not saved · asks when needed')}
+${s.sudo === 'nopass' ? '' : `<button data-cmd="${s.saved ? 'forget' : 'savePassword'}" data-id="${s.id}" style="height: 36px; padding: 0 16px; border-radius: 18px; cursor: pointer; font-size: 13px; font-weight: 600; background: ${dark ? 'rgba(255,255,255,0.1)' : '#FFFFFF'}; border: 1px solid ${s.saved ? 'rgba(215,0,21,0.35)' : hair}; color: ${s.saved ? (dark ? '#FF6961' : '#C4000F') : acc}">${s.saved ? 'Forget' : 'Save Password…'}</button>`}</div>`);
+    rows.push((i) => `<div style="${rowStyle(i)}">${head('Require Touch ID', 'Confirm before a saved sudo password is used.')}${sw(S.touchID, 'touchID', '', 'Require Touch ID')}</div>`);
+  }
+
+  const swatch = (fill, on, label, cmd, val) => `<button data-cmd="${cmd}" data-val="${val}" aria-label="${label}" aria-pressed="${on}" style="width: 32px; height: 32px; padding: 0; border-radius: 16px; cursor: pointer; background: ${fill}; border: 2px solid ${dark ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.95)'}; box-shadow: ${on ? '0 0 0 2px ' + acc : '0 1px 3px rgba(0,0,0,0.2)'}"></button>`;
+  const glassName = P.reduce ? 'Off' : P.glass < 30 ? 'Clear' : P.glass < 70 ? 'Balanced' : 'Frosted';
+  const appearance = `<div style="display: flex; flex-direction: column; gap: 14px">
+<section aria-label="Glass" style="${ui.card}">
+<div style="display: flex; gap: 22px; align-items: stretch">
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; justify-content: space-between; align-items: baseline"><span style="${ui.label}">Glass effect</span><span id="glassName" style="${ui.sub}">${glassName}</span></div>
+<input type="range" data-pref="glass" min="0" max="100" step="1" aria-label="Glass effect, clear to frosted" value="${P.glass}" ${P.reduce ? 'disabled' : ''} style="accent-color: ${acc}${P.reduce ? '; opacity: 0.4' : ''}">
+<div style="display: flex; justify-content: space-between"><span style="${ui.small}">Clear</span><span style="${ui.small}">Frosted</span></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; justify-content: space-between; align-items: baseline"><span style="${ui.label}">Background blur</span><span id="blurValue" style="${ui.sub}">${blur} px</span></div>
+<input type="range" data-pref="blur" min="0" max="60" step="1" aria-label="Background blur" value="${blur}" ${P.reduce ? 'disabled' : ''} style="accent-color: ${acc}${P.reduce ? '; opacity: 0.4' : ''}">
+</div>
+${!P.reduce && P.glass < 25 ? `<div role="note" style="font-size: 12px; font-weight: 600; padding: 8px 12px; border-radius: 12px; color: ${dark ? '#FFD08A' : '#7A3300'}; background: rgba(255,159,10,0.18)">Very clear glass can make text hard to read over bright wallpapers.</div>` : ''}
+</div>
+<div aria-label="Preview" style="width: 230px; flex-shrink: 0; box-sizing: border-box; padding: 16px; border-radius: 18px; display: flex; align-items: center; justify-content: center; background-color: #3B6FA0; background-image: radial-gradient(circle at 20% 20%, #BFE3F7 0%, rgba(191,227,247,0) 55%), radial-gradient(circle at 85% 80%, #7C8CE0 0%, rgba(124,140,224,0) 60%)">
+<div id="previewCard" style="width: 100%; box-sizing: border-box; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; border-radius: 18px; color: ${text}; background: ${L.bg}; backdrop-filter: blur(${blur}px); -webkit-backdrop-filter: blur(${blur}px); border: 1px solid ${dark ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.8)'}; box-shadow: 0 10px 24px rgba(8,28,60,0.25)">
+<div style="display: flex; justify-content: space-between; align-items: baseline"><span style="font-size: 12px; font-weight: 700; color: ${text}">${esc((S.servers[0] || { name: 'iceserver' }).name)}</span><span style="font-size: 11px; font-weight: 600; color: ${dark ? '#7CF0A0' : '#1E7A34'}">● Online</span></div>
+<div style="font-size: 26px; font-weight: 700; letter-spacing: -0.02em; text-shadow: ${shadow}">34%</div>
+<svg viewBox="0 0 240 56" preserveAspectRatio="none" style="width: 100%; height: 40px; display: block" aria-hidden="true"><polyline points="0,38 24,34 48,36 72,28 96,31 120,22 144,26 168,30 192,20 216,24 240,18" fill="none" stroke="${acc}" stroke-width="2.4" vector-effect="non-scaling-stroke"></polyline></svg>
+<div style="height: 30px; border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #FFFFFF; background: ${acc}">Restart</div>
+</div>
+</div>
+</div>
+</section>
+<section aria-label="Tint and theme" style="${ui.card}">
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px">
+<div style="display: flex; flex-direction: column; gap: 8px"><span style="${ui.label}">Theme</span><div style="${ui.segTrack}">${[['light', 'Light'], ['dark', 'Dark'], ['auto', 'Auto']].map(([v, t]) => seg(t, P.theme === v, 'pref:theme', v)).join('')}</div></div>
+<div style="display: flex; flex-direction: column; gap: 8px"><span style="${ui.label}">Glass tint</span><div style="display: flex; gap: 10px">${Object.keys(TINTS).map((k) => swatch(`rgb(${TINTS[k][0].join(',')})`, P.tint === k, TINT_NAMES[k] + ' tint', 'pref:tint', k)).join('')}</div></div>
+<div style="display: flex; flex-direction: column; gap: 8px"><span style="${ui.label}">Accent color</span><div style="display: flex; gap: 10px">${Object.keys(ACCENTS).map((k) => swatch(ACCENTS[k][dark ? 1 : 0], P.accent === k, ACCENT_NAMES[k] + ' accent', 'pref:accent', k)).join('')}</div></div>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px"><div style="display: flex; flex-direction: column; gap: 2px"><span style="${ui.label}">Reduce transparency</span><span style="${ui.sub}">Solid panels, no glass.</span></div>${sw(P.reduce, 'pref', 'reduce', 'Reduce transparency')}</div>
+</div>
+</section>
+<div style="display: flex; justify-content: flex-end"><button data-cmd="resetLook" style="height: 40px; padding: 0 18px; border-radius: 20px; ${ui.ghost}; background: ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.8)'}">Restore Defaults</button></div>
+</div>`;
+
+  const list = `<div style="display: flex; flex-direction: column; border-radius: 22px; overflow: hidden; background: ${cardBg}; border: 1px solid ${cardBorder}">${rows.map((r, i) => r(i)).join('')}</div>
+${pane === 'servers' ? `${S.servers.length ? '' : `<div style="${ui.sub}">No servers yet. Add one to start monitoring.</div>`}<div style="display: flex; justify-content: flex-end"><button data-cmd="showAdd" style="height: 40px; padding: 0 18px; border-radius: 20px; border: 0; cursor: pointer; font-size: 13px; font-weight: 600; color: #FFFFFF; background: ${acc}">+ Add Server…</button></div>` : ''}`;
+
+  return `<div id="winBox" style="position: fixed; inset: 0; box-sizing: border-box; padding: 10px; display: flex; gap: 10px; border-radius: 28px; color: ${text}; background: ${L.bg}; border: 1px solid ${dark ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.7)'}; box-shadow: inset 0 1px 0 ${dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.9)'}; transition: background 0.2s">
+<nav aria-label="Settings sections" style="width: 230px; flex-shrink: 0; box-sizing: border-box; padding: 16px 10px; display: flex; flex-direction: column; gap: 4px; border-radius: 20px; background: ${dark ? 'rgba(255,255,255,0.05)' : `rgba(255,255,255,${P.reduce ? 0.6 : 0.35})`}; border: 1px solid ${cardBorder}">
+<div style="display: flex; gap: 8px; padding: 0 6px 18px"><button data-cmd="close" aria-label="Close settings" style="display: block; width: 12px; height: 12px; padding: 0; border: 0; border-radius: 6px; background: #FF5F57; cursor: pointer"></button><button data-cmd="minimize" aria-label="Minimize" style="width: 12px; height: 12px; padding: 0; border: 0; border-radius: 6px; background: #FEBC2E"></button><span style="width: 12px; height: 12px; border-radius: 6px; background: #28C840"></span></div>
+${PANES.map(([k, label, color, icon]) => {
+    const on = pane === k;
+    return `<button data-cmd="pane" data-val="${k}" aria-current="${on ? 'page' : 'false'}" style="display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 6px 10px; border-radius: 12px; border: 0; cursor: pointer; font-size: 14px; font-weight: 600; text-align: left; color: ${text}; text-shadow: ${shadow}; background: ${on ? (dark ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.85)') : 'transparent'}"><span style="width: 26px; height: 26px; flex-shrink: 0; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: ${color}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${icon}"></path></svg></span>${label}</button>`;
+  }).join('')}
+</nav>
+<main style="flex-grow: 1; min-width: 0; box-sizing: border-box; padding: 22px 26px; display: flex; flex-direction: column; gap: 16px; overflow: hidden">
+<h1 style="margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; text-shadow: ${shadow}">${PANES.find((p) => p[0] === pane)[1]}</h1>
+${pane === 'appearance' ? appearance : list}
+</main>
+</div>`;
+}
+
+const SHEET = 'position: fixed; inset: 0; border-radius: 28px; background: rgba(10,25,50,0.32); display: flex; align-items: center; justify-content: center';
+const sheetSwitch = (on, cmd, label) => `<button data-cmd="${cmd}" aria-label="${label}" aria-pressed="${on}" style="position: relative; width: 52px; height: 30px; flex-shrink: 0; padding: 0; border: 0; border-radius: 15px; cursor: pointer; transition: background 0.2s; background: ${on ? look(S.prefs).acc : 'rgba(120,120,128,0.36)'}"><span style="position: absolute; top: 2px; left: ${on ? '24px' : '2px'}; width: 26px; height: 26px; border-radius: 13px; background: #FFFFFF; box-shadow: 0 2px 6px rgba(0,0,0,0.22); transition: left 0.2s"></span></button>`;
+const editValid = () => edit.name.trim() && edit.host.trim() && !S.servers.some((x) => x.id !== edit.id && x.name === edit.name.trim());
+
+function editSheet() {
+  const d = edit, s = S.servers.find((x) => x.id === d.id) || {};
+  const ok = editValid();
+  const field = (label, k, extra = '') => `<label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600">${label}<input class="icefield solid" data-f="${k}" type="text" value="${esc(d[k])}" ${extra}></label>`;
+  return `<div style="${SHEET}">
+<div role="dialog" aria-label="Edit ${esc(s.name)}" style="width: 560px; box-sizing: border-box; padding: 24px 26px; display: flex; flex-direction: column; gap: 16px; border-radius: 30px; background: rgba(248,250,253,0.95); backdrop-filter: blur(50px) saturate(180%); -webkit-backdrop-filter: blur(50px) saturate(180%); border: 1px solid rgba(255,255,255,0.95); box-shadow: 0 30px 80px rgba(8,28,60,0.4); color: #1D1D1F">
+<h2 style="margin: 0; font-size: 20px; font-weight: 700">Edit ${esc(s.name)}</h2>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px">
+${field('Name', 'name')}${field('Username', 'user', 'spellcheck="false"')}${field('Host or IP address', 'host', 'spellcheck="false"')}${field('SSH port', 'port', 'inputmode="numeric"')}
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+<span style="font-size: 13px; font-weight: 600">Icon color</span>
+<div style="display: flex; gap: 8px">${Object.keys(SERVER_COLORS).map((k) => `<button data-cmd="color" data-val="${k}" aria-label="${k} icon" aria-pressed="${d.color === k}" style="width: 32px; height: 32px; padding: 0; border-radius: 10px; cursor: pointer; border: 2px solid #FFFFFF; background: ${SERVER_COLORS[k]}; box-shadow: ${d.color === k ? '0 0 0 2px #0066CC' : '0 1px 3px rgba(0,0,0,0.2)'}"></button>`).join('')}</div>
+</div>
+<div style="display: flex; flex-direction: column; border-radius: 16px; background: rgba(255,255,255,0.85); border: 1px solid rgba(60,60,67,0.12)">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px"><span style="font-size: 13px; font-weight: 600">Show in desktop widgets</span>${sheetSwitch(d.widgets, 'flipW', 'Show in desktop widgets')}</div>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-top: 1px solid rgba(60,60,67,0.12)"><span style="font-size: 13px; font-weight: 600">Show in menu bar</span>${sheetSwitch(d.menu, 'flipM', 'Show in menu bar')}</div>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-top: 1px solid rgba(60,60,67,0.12)"><div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 13px; font-weight: 600">Sudo password</span><span style="font-size: 12px; color: #56565B">${s.saved ? 'Saved in Keychain' : 'Not saved · asks when needed'}</span></div><button data-cmd="${s.saved ? 'forget' : 'savePassword'}" data-id="${d.id}" style="height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid rgba(60,60,67,0.18); background: #FFFFFF; font-size: 13px; font-weight: 600; color: #0066CC; cursor: pointer">${s.saved ? 'Forget' : 'Save…'}</button></div>
+</div>
+<div style="display: flex; align-items: center; gap: 10px">
+<button data-cmd="remove" data-id="${d.id}" style="height: 44px; padding: 0 16px; border-radius: 22px; border: 1px solid rgba(215,0,21,0.3); background: #FFFFFF; font-size: 14px; font-weight: 600; color: #C4000F; cursor: pointer">Remove Server…</button>
+<div style="flex-grow: 1"></div>
+<button data-cmd="cancelEdit" style="height: 44px; padding: 0 20px; border-radius: 22px; border: 1px solid rgba(60,60,67,0.18); background: #FFFFFF; font-size: 14px; font-weight: 600; color: #1D1D1F; cursor: pointer">Cancel</button>
+<button id="saveEdit" data-cmd="saveEdit" ${ok ? '' : 'disabled'} style="height: 44px; padding: 0 22px; border: 0; border-radius: 22px; background: #0066CC; color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer;${ok ? '' : ' opacity: 0.4; cursor: default;'}">Save</button>
+</div>
+</div>
+</div>`;
+}
+
+function confirmSheet() {
+  const s = S.servers.find((x) => x.id === confirmFor) || {};
+  return `<div style="${SHEET}">
+<div role="alertdialog" aria-label="Remove ${esc(s.name)}?" style="width: 420px; box-sizing: border-box; padding: 26px; display: flex; flex-direction: column; align-items: center; gap: 14px; border-radius: 30px; background: rgba(248,250,253,0.94); backdrop-filter: blur(50px) saturate(180%); -webkit-backdrop-filter: blur(50px) saturate(180%); border: 1px solid rgba(255,255,255,0.95); box-shadow: 0 30px 80px rgba(8,28,60,0.4); text-align: center; color: #1D1D1F">
+<span style="width: 56px; height: 56px; border-radius: 28px; background: rgba(255,59,48,0.12); display: flex; align-items: center; justify-content: center"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#C4000F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M5 7l1 13h12l1-13M9 7V4h6v3"></path></svg></span>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<h2 style="margin: 0; font-size: 19px; font-weight: 700">Remove ${esc(s.name)}?</h2>
+<p style="margin: 0; font-size: 13px; line-height: 1.45; color: #56565B">It disappears from the sidebar, the menu bar and any desktop widgets that show it. Nothing changes on the server itself.</p>
+</div>
+<button data-cmd="flipForget" role="checkbox" aria-checked="${forget}" style="align-self: stretch; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 4px; border: 0; background: transparent; cursor: pointer; text-align: left">
+<span style="width: 22px; height: 22px; flex-shrink: 0; box-sizing: border-box; border-radius: 7px; display: flex; align-items: center; justify-content: center; background: ${forget ? '#0066CC' : '#FFFFFF'}; border: 1.5px solid ${forget ? '#0066CC' : 'rgba(60,60,67,0.35)'}">${CHECK(12, 3.4)}</span>
+<span style="display: flex; flex-direction: column; gap: 1px"><span style="font-size: 13px; font-weight: 600">Also delete its saved passwords</span><span style="font-size: 12px; color: #56565B">${s.saved ? 'Removes its sudo password from your Keychain.' : 'No password is saved for it.'}</span></span>
+</button>
+<div style="align-self: stretch; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+<button data-cmd="cancelRemove" style="height: 44px; border-radius: 22px; border: 1px solid rgba(60,60,67,0.18); background: #FFFFFF; font-size: 14px; font-weight: 600; color: #1D1D1F; cursor: pointer">Cancel</button>
+<button data-cmd="confirmRemove" style="height: 44px; border-radius: 22px; border: 0; background: #C4000F; font-size: 14px; font-weight: 600; color: #FFFFFF; cursor: pointer; box-shadow: 0 6px 16px rgba(196,0,15,0.3)">Remove</button>
+</div>
+</div>
+</div>`;
+}
+
+// Sliders: the preview follows the drag; the setting is saved when it's let go.
+document.addEventListener('input', (e) => {
+  const k = e.target.dataset.pref;
+  if (k) {
+    // Re-rendering would replace the slider mid-drag, so only the preview, labels and window tint follow it.
+    drag[k] = +e.target.value;
+    const P = { ...S.prefs, ...drag }, L = look(P), blur = P.reduce ? 0 : P.blur;
+    $('glassName').textContent = P.reduce ? 'Off' : P.glass < 30 ? 'Clear' : P.glass < 70 ? 'Balanced' : 'Frosted';
+    $('blurValue').textContent = blur + ' px';
+    $('previewCard').style.background = L.bg;
+    $('previewCard').style.backdropFilter = $('previewCard').style.webkitBackdropFilter = `blur(${blur}px)`;
+    $('winBox').style.background = L.bg;
+  }
+  const f = e.target.dataset.f;
+  if (f && edit) {
+    edit[f] = e.target.value;
+    const ok = editValid(), b = $('saveEdit');
+    b.disabled = !ok;
+    b.style.opacity = ok ? '' : '0.4';
+  }
+});
+document.addEventListener('change', (e) => {
+  const k = e.target.dataset.pref;
+  if (k) { S.prefs[k] = +e.target.value; delete drag[k]; render(); post({ cmd: 'pref', key: k, value: S.prefs[k] }); }
+});
+addEventListener('keydown', (e) => { if (e.key === 'Escape' && !pw) { edit = null; confirmFor = null; render(); } });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => render());
+
+function act(d) {
+  if (sheetAct(d)) return;
+  const pref = (key, value) => { S.prefs[key] = value; render(); post({ cmd: 'pref', key, value }); };
+  if (d.cmd.startsWith('pref:')) {
+    const key = d.cmd.slice(5);
+    return pref(key, typeof S.prefs[key] === 'number' ? +d.val : d.val);
+  }
+  switch (d.cmd) {
+    case 'pane': pane = d.val; return render();
+    case 'pref': return pref(d.val, !S.prefs[d.val]);
+    case 'step': {
+      const lim = { cpuAt: [50, 100], tempAt: [50, 100], diskAt: [50, 99] }[d.key];
+      return pref(d.key, Math.min(lim[1], Math.max(lim[0], S.prefs[d.key] + +d.val)));
+    }
+    case 'touchID': return post({ cmd: 'touchID', on: !S.touchID });
+    case 'edit': {
+      const s = S.servers.find((x) => x.id === d.id);
+      edit = { id: s.id, name: s.name, user: s.user, host: s.host, port: s.port, color: s.color, widgets: s.widgets, menu: s.menu };
+      return render();
+    }
+    case 'color': edit.color = d.val; return render();
+    case 'flipW': edit.widgets = !edit.widgets; return render();
+    case 'flipM': edit.menu = !edit.menu; return render();
+    case 'cancelEdit': edit = null; return render();
+    case 'saveEdit': post({ cmd: 'editServer', ...edit }); edit = null; toast({ text: 'Changes saved' }); return render();
+    case 'remove': edit = null; confirmFor = d.id; forget = true; return render();
+    case 'flipForget': forget = !forget; return render();
+    case 'cancelRemove': confirmFor = null; return render();
+    case 'confirmRemove': post({ cmd: 'removeServer', id: confirmFor, forget }); confirmFor = null; return render();
+    default: post({ cmd: d.cmd, id: d.id });
+  }
+}
+</script>
+</body>
+</html>

@@ -11,6 +11,7 @@ final class Server {
     var progress = 0
 
     private var removed = false
+    private var quietDrop = false
     private var stream: Process?
     private var holdUntil = Date.distantPast
     private var deadline = Date.distantPast
@@ -31,6 +32,8 @@ final class Server {
             "uptime": s.uptime, "updates": s.updates ?? NSNull(), "progress": progress,
             "temp": s.temp, "tempDrive": s.tempDrive ?? NSNull(), "tempBoard": s.tempBoard ?? NSNull(),
             "user": sshUser, "saved": hasSavedPassword, "sudo": sudoMode,
+            "host": address.host, "port": address.port, "color": cfg.color ?? "blue",
+            "widgets": cfg.widgets ?? true, "menu": cfg.menu ?? true,
             "checkedAgo": checkedAt.map { -$0.timeIntervalSinceNow } ?? NSNull(),
         ]
     }
@@ -46,12 +49,19 @@ final class Server {
         }
         if cfg.resolved == nil { resolve() }
         parser = StatsParser(parser.stats)
-        stream = ssh(Remote.stream, line: { [weak self] in self?.parse($0) }) { [weak self] _, _ in self?.dropped() }
+        stream = ssh(Remote.stream(every: ice.prefs.refresh), line: { [weak self] in self?.parse($0) }) { [weak self] _, _ in self?.dropped() }
     }
 
     func disconnect() {
         removed = true
         stream?.terminate()
+    }
+
+    /// Restarts the stats stream (new refresh rate or new address) without showing the server as offline.
+    func reconnect() {
+        guard let stream else { return connect() }
+        quietDrop = true
+        stream.terminate()
     }
 
     /// Bakes ~/.ssh/config into plain arguments, because the sandboxed widget can't read everything it includes.
@@ -84,8 +94,15 @@ final class Server {
     private func dropped() {
         stream = nil
         guard !removed else { return }
+        if quietDrop {
+            quietDrop = false
+            return connect()
+        }
         let waiting = (phase == "starting" || phase == "restarting") && Date() < deadline
-        if !waiting { phase = "off" }
+        if !waiting {
+            if ["online", "updating", "checking"].contains(phase) { ice.alerts.offline(self) }
+            phase = "off"
+        }
         ice.changed()
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in self?.connect() }
     }
@@ -100,6 +117,7 @@ final class Server {
             phase = "online"
             countUpdates()
         }
+        ice.alerts.check(self)
         ice.changed()
     }
 
@@ -136,7 +154,10 @@ final class Server {
 
     func countUpdates(then: (() -> Void)? = nil) {
         ssh(Remote.updates, line: { [self] in _ = parser.feed($0) }, done: { [self] _, out in
-            if out.hasPrefix("upd") { checkedAt = Date() }
+            if out.hasPrefix("upd") {
+                checkedAt = Date()
+                ice.alerts.updates(self)
+            }
             then?()
             ice.changed()
         })
@@ -184,6 +205,29 @@ final class Server {
     var sshUser: String {
         let target = (cfg.resolved ?? cfg.ssh.split(separator: " ").map(String.init)).last ?? ""
         return target.contains("@") ? String(target.split(separator: "@")[0]) : "your user"
+    }
+
+    /// Host and port from the `ssh` arguments (for Settings › Servers › Edit).
+    var address: (host: String, port: String) {
+        let args = cfg.ssh.split(separator: " ").map(String.init)
+        let target = args.last ?? ""
+        let port = args.firstIndex(of: "-p").flatMap { $0 + 1 < args.count ? args[$0 + 1] : nil } ?? "22"
+        return (target.split(separator: "@").last.map(String.init) ?? target, port)
+    }
+
+    /// Settings › Servers › Edit: rewrites the address and reconnects; other ssh options are kept.
+    func edit(name: String, user: String, host: String, port: String) {
+        var args = cfg.ssh.split(separator: " ").map(String.init)
+        if !args.isEmpty { args.removeLast() }
+        if let i = args.firstIndex(of: "-p"), i + 1 < args.count { args.removeSubrange(i...(i + 1)) }
+        let new = ((port == "22" || port.isEmpty) ? [] : ["-p", port]) + args + ["\(user)@\(host)"]
+        let oldHost = address.host
+        cfg.name = name
+        guard new.joined(separator: " ") != cfg.ssh else { return }
+        cfg.ssh = new.joined(separator: " ")
+        cfg.resolved = nil
+        if host != oldHost { cfg.mac = nil }
+        reconnect()
     }
 
     var hasSavedPassword: Bool { password != nil && sudoMode == "remember" || Keychain.has(cfg.id) }

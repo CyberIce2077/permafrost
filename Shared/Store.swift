@@ -10,6 +10,11 @@ struct ServerConfig: Codable {
     var resolved: [String]?
     /// How sudo gets its password: "remember" (Keychain), "every" (ask each time) or "nopass".
     var sudo: String?
+    /// Icon color in the app ("blue", "teal", "purple", "orange", "pink", "graphite").
+    var color: String?
+    /// Shown in "All servers" widgets and in the menu bar (both default to yes).
+    var widgets: Bool?
+    var menu: Bool?
 }
 
 /// What the widgets of one size show. Keyed by size ("S", "M", "L", "XL") in `Config.widgets`.
@@ -25,6 +30,29 @@ struct Config: Codable {
     var widgets: [String: WidgetStyle] = [:]
     /// Ask for Touch ID (or the Mac's password) before a saved sudo password is used.
     var touchID: Bool?
+    var prefs: Prefs?
+}
+
+/// Settings › General, Notifications and Appearance. Missing keys fall back to the defaults,
+/// so new settings can be added without breaking older config files.
+struct Prefs: Codable {
+    var login = false, menubar = true, refresh = 2.0, unit = "C", net = "MBs", confirmOff = true
+    var nOffline = true, nCpu = true, cpuAt = 90.0, nTemp = true, tempAt = 80.0, nDisk = true, diskAt = 85.0, nUpd = false
+    var glass = 60.0, blur = 40.0, theme = "light", tint = "ice", accent = "blue", reduce = false
+
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        let all = try decoder.container(keyedBy: CodingKeys.self)
+        func v<T: Decodable>(_ key: CodingKeys, _ fallback: T) -> T { (try? all.decodeIfPresent(T.self, forKey: key)) ?? fallback }
+        login = v(.login, login); menubar = v(.menubar, menubar); refresh = v(.refresh, refresh)
+        unit = v(.unit, unit); net = v(.net, net); confirmOff = v(.confirmOff, confirmOff)
+        nOffline = v(.nOffline, nOffline); nCpu = v(.nCpu, nCpu); cpuAt = v(.cpuAt, cpuAt)
+        nTemp = v(.nTemp, nTemp); tempAt = v(.tempAt, tempAt); nDisk = v(.nDisk, nDisk)
+        diskAt = v(.diskAt, diskAt); nUpd = v(.nUpd, nUpd)
+        glass = v(.glass, glass); blur = v(.blur, blur); theme = v(.theme, theme)
+        tint = v(.tint, tint); accent = v(.accent, accent); reduce = v(.reduce, reduce)
+    }
 }
 
 /// The real home folder, also from inside the widget's sandbox (where $HOME is its container).

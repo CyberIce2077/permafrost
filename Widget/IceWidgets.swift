@@ -26,6 +26,9 @@ struct Entry: TimelineEntry {
     var size: String
     var style: WidgetStyle
     var servers: [Stats]
+    /// "All servers" (a compact row each) rather than one server.
+    var all = false
+    var prefs = Prefs()
 }
 
 struct Provider: TimelineProvider {
@@ -52,22 +55,22 @@ struct Provider: TimelineProvider {
         }
     }
 
-    private func pick(_ config: Config, _ size: String) -> (WidgetStyle, [ServerConfig]) {
+    private func pick(_ config: Config, _ size: String) -> (WidgetStyle, [ServerConfig], Bool) {
         let style = config.widgets[size] ?? WidgetStyle()
         let one = config.servers.filter { $0.id == style.server }
-        return (style, one.isEmpty ? config.servers : one)
+        return one.isEmpty ? (style, config.servers.filter { $0.widgets ?? true }, true) : (style, one, false)
     }
 
     private func fetch(_ context: Context) -> Entry {
         let config = Store.load() ?? Config()
-        let (style, servers) = pick(config, size(context))
+        let (style, servers, all) = pick(config, size(context))
         var results = [Stats](repeating: Stats(), count: servers.count)
         let lock = NSLock()
         DispatchQueue.concurrentPerform(iterations: servers.count) { i in
             let s = Self.stats(servers[i])
             lock.withLock { results[i] = s }
         }
-        return Entry(size: size(context), style: style, servers: results)
+        return Entry(size: size(context), style: style, servers: results, all: all, prefs: config.prefs ?? Prefs())
     }
 
     /// One short SSH session: ~3 s of samples plus the update count.
@@ -89,7 +92,7 @@ struct Provider: TimelineProvider {
 
     private func sample(_ context: Context) -> Entry {
         let config = Store.load() ?? Config()
-        let (style, servers) = pick(config, size(context))
+        let (style, servers, all) = pick(config, size(context))
         let names = servers.isEmpty ? ["server"] : servers.map(\.name)
         let demo = names.enumerated().map { i, name in
             let wave = (0..<12).map { 30 + 12 * sin(Double($0) * 0.9 + Double(i)) }
@@ -97,7 +100,7 @@ struct Provider: TimelineProvider {
                          down: wave.map { $0 / 2 }, up: wave.map { $0 / 5 }, temp: wave.map { $0 + 18 }, memUsed: 19.5, memTotal: 32,
                          diskUsed: 580, diskTotal: 1000, diskFree: 420, uptime: 1_036_800, updates: 0)
         }
-        return Entry(size: size(context), style: style, servers: demo)
+        return Entry(size: size(context), style: style, servers: demo, all: all, prefs: config.prefs ?? Prefs())
     }
 }
 

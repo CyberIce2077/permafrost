@@ -81,7 +81,9 @@ struct WidgetView: View {
     }
 
     @ViewBuilder private var content: some View {
-        if entry.servers.isEmpty {
+        if entry.all && !entry.servers.isEmpty {
+            allServers
+        } else if entry.servers.isEmpty {
             Text("Add a server in Ice Servers")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(L.sub)
@@ -175,22 +177,7 @@ struct WidgetView: View {
     }
 
     private func tile(_ m: Metric, _ s: Stats) -> some View {
-        let netMax = max(1, (s.down + s.up).max() ?? 1)
-        let history: [Double] = switch m.key {
-        case "cpu": s.cpu
-        case "mem": s.mem
-        case "net": s.down.map { $0 / netMax * 100 }
-        case "temp": s.temp.count > 1 ? s.temp : s.cpu.map { _ in s.temp.last ?? 0 }
-        default: s.cpu.map { _ in s.disk }
-        }
-        let value = s.online ? history.last ?? 0 : 0
-        let reading: String = switch m.key {
-        case "cpu": "\(Int((s.cpu.last ?? 0).rounded()))%"
-        case "mem": String(format: "%.1f GB", s.memUsed)
-        case "net": rate(s.down.last ?? 0)
-        case "temp": s.temp.last.map { "\(Int($0.rounded()))°C" } ?? "—"
-        default: "\(Int(s.disk.rounded()))%"
-        }
+        let (value, reading, history) = reading(m, s)
         let text = s.online ? reading : "—"
         let label = Text(m.label).font(.system(size: 11, weight: .semibold)).foregroundStyle(L.sub).lineLimit(1).textShadow(L)
         let valueText = Text(text)
@@ -232,7 +219,7 @@ struct WidgetView: View {
                         .overlay(alignment: .leading) {
                             GeometryReader { g in
                                 Capsule()
-                                    .fill((m.key == "disk" && value > 80) || (m.key == "temp" && value >= 70) ? hex(0xFF9F0A) : m.color)
+                                    .fill(warn(m, value) ? hex(0xFF9F0A) : m.color)
                                     .frame(width: g.size.width * min(value, 100) / 100)
                             }
                         }
@@ -246,6 +233,103 @@ struct WidgetView: View {
         .background(RoundedRectangle(cornerRadius: 14).fill(L.tile))
     }
 
+    // MARK: All servers (design: WidgetOptions › allMode)
+
+    private var allServers: some View {
+        let picked = Array(allMetrics.filter { entry.style.metrics[$0.key] ?? false }.prefix(["S": 1, "M": 2, "L": 3, "XL": 4][size] ?? 2))
+        let tall = size == "L" || size == "XL"
+        let online = entry.servers.filter(\.online).count
+        return VStack(alignment: .leading, spacing: size == "S" || size == "M" ? 5 : 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(small ? "Servers" : "All servers").font(.system(size: size == "XL" ? 17 : 14, weight: .bold)).foregroundStyle(L.text)
+                Spacer(minLength: 0)
+                Text("\(online) of \(entry.servers.count) online").font(.system(size: 11, weight: .semibold)).foregroundStyle(L.sub).lineLimit(1)
+            }
+            .textShadow(L)
+            ForEach(entry.servers.indices, id: \.self) { i in
+                allRow(entry.servers[i], picked, tall)
+            }
+        }
+        .padding(small ? 14 : 16)
+    }
+
+    private func allRow(_ s: Stats, _ picked: [Metric], _ tall: Bool) -> some View {
+        let xl = size == "XL"
+        return GeometryReader { g in
+            let gaps = CGFloat(picked.count + (xl ? 1 : 0)) * 12
+            let unit = (g.size.width - gaps - (xl ? 44 : 0) - (tall ? 24 : 0)) / (1.4 + CGFloat(picked.count))
+            HStack(spacing: 12) {
+                HStack(spacing: 8) {
+                    Circle().fill(s.online ? hex(0x30D158) : hex(0x8E8E93)).frame(width: 7, height: 7)
+                    Text(s.name).font(.system(size: tall ? 14 : 12, weight: .bold)).foregroundStyle(L.text).lineLimit(1).textShadow(L)
+                }
+                .frame(width: unit * 1.4, alignment: .leading)
+                ForEach(picked, id: \.key) { m in
+                    allCell(s, m, tall).frame(width: unit, alignment: .leading)
+                }
+                if xl {
+                    Link(destination: link("power", s)) {
+                        Icon.power.view(16, s.online ? .white : L.text, 2.2)
+                            .frame(width: 44, height: 44)
+                            .background(Circle().fill(s.online ? hex(0x248A3D) : L.track))
+                    }
+                }
+            }
+            .padding(.horizontal, tall ? 12 : 0)
+            .frame(maxHeight: .infinity)
+            .background(RoundedRectangle(cornerRadius: 14).fill(tall ? L.tile : .clear))
+        }
+        .frame(minHeight: ["XL": 58, "L": 64, "M": 24, "S": 20][size] ?? 24)
+    }
+
+    private func allCell(_ s: Stats, _ m: Metric, _ tall: Bool) -> some View {
+        let (value, text, history) = reading(m, s)
+        let shown = !s.online ? (m.key == "disk" && s.diskTotal > 0 ? text : "—") : tall ? String(m.label.prefix(4)) + " " + text : text
+        return VStack(alignment: .leading, spacing: 3) {
+            Text(shown).font(.system(size: tall ? 12 : 11, weight: .bold)).monospacedDigit()
+                .foregroundStyle(s.online ? L.text : L.sub).lineLimit(1).minimumScaleFactor(0.7).textShadow(L)
+            if s.online && size != "S" {
+                if entry.style.style == "graph" {
+                    Sparkline(values: history).stroke(m.color, lineWidth: 2).frame(height: 14)
+                } else {
+                    Capsule().fill(L.track).frame(height: 5).overlay(alignment: .leading) {
+                        GeometryReader { g in
+                            Capsule().fill(warn(m, value) ? hex(0xFF9F0A) : m.color).frame(width: g.size.width * min(value, 100) / 100)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func warn(_ m: Metric, _ value: Double) -> Bool {
+        (m.key == "disk" && value > 80) || (m.key == "temp" && value >= 70)
+    }
+
+    /// Current value (0–100 for bars), its text, and its history for one stat.
+    private func reading(_ m: Metric, _ s: Stats) -> (Double, String, [Double]) {
+        let netMax = max(1, (s.down + s.up).max() ?? 1)
+        let history: [Double] = switch m.key {
+        case "cpu": s.cpu
+        case "mem": s.mem
+        case "net": s.down.map { $0 / netMax * 100 }
+        case "temp": s.temp.count > 1 ? s.temp : s.cpu.map { _ in s.temp.last ?? 0 }
+        default: s.cpu.map { _ in s.disk }
+        }
+        let text: String = switch m.key {
+        case "cpu": "\(Int((s.cpu.last ?? 0).rounded()))%"
+        case "mem": String(format: "%.1f GB", s.memUsed)
+        case "net": rate(s.down.last ?? 0)
+        case "temp": s.temp.last.map(degrees) ?? "—"
+        default: "\(Int(s.disk.rounded()))%"
+        }
+        return (s.online ? history.last ?? 0 : 0, text, history)
+    }
+
+    private func degrees(_ c: Double) -> String {
+        entry.prefs.unit == "F" ? "\(Int((c * 9 / 5 + 32).rounded()))°F" : "\(Int(c.rounded()))°C"
+    }
+
     private func link(_ action: String, _ s: Stats) -> URL {
         URL(string: "iceservers://\(action)?id=\(s.id)")!
     }
@@ -254,8 +338,9 @@ struct WidgetView: View {
         sec < 60 ? "<1m" : sec < 3600 ? "\(Int(sec / 60))m" : sec < 86400 ? "\(Int(sec / 3600))h" : "\(Int(sec / 86400))d"
     }
 
-    private func rate(_ v: Double) -> String {
-        (v < 10 ? String(format: "%.1f", v) : String(Int(v.rounded()))) + " MB/s"
+    private func rate(_ mb: Double) -> String {
+        let v = entry.prefs.net == "Mbit" ? mb * 8 : mb
+        return (v < 10 ? String(format: "%.1f", v) : String(Int(v.rounded()))) + (entry.prefs.net == "Mbit" ? " Mbit/s" : " MB/s")
     }
 }
 

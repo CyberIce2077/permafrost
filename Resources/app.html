@@ -11,28 +11,33 @@
 </style>
 </head>
 <body>
-<div style="position: fixed; inset: 0; padding: 10px; display: flex; gap: 10px; border-radius: 28px; background: rgba(244,247,251,0.66); border: 1px solid rgba(255,255,255,0.65); box-shadow: inset 0 1px 0 rgba(255,255,255,0.9)">
+<div style="position: fixed; inset: 0; padding: 10px; display: flex; gap: 10px; border-radius: 28px; background: var(--win); border: 1px solid rgba(255,255,255,calc(0.65 * var(--wk))); box-shadow: inset 0 1px 0 rgba(255,255,255,calc(0.9 * var(--wk)))">
 
-<nav aria-label="Servers" style="width: 248px; flex-shrink: 0; box-sizing: border-box; padding: 16px 12px 12px; display: flex; flex-direction: column; gap: 6px; border-radius: 20px; background: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.75); box-shadow: 0 8px 24px rgba(20,40,80,0.08), inset 0 1px 0 rgba(255,255,255,0.95)">
+<nav aria-label="Servers" style="width: 248px; flex-shrink: 0; box-sizing: border-box; padding: 16px 12px 12px; display: flex; flex-direction: column; gap: 6px; border-radius: 20px; background: rgba(255,255,255,calc(0.5 * var(--wk))); border: 1px solid rgba(255,255,255,calc(0.75 * var(--wk))); box-shadow: 0 8px 24px rgba(20,40,80,0.08), inset 0 1px 0 rgba(255,255,255,calc(0.95 * var(--wk)))">
 <div class="lights" style="display: flex; gap: 8px; padding: 0 6px 18px">
 <button class="light" data-cmd="close" aria-label="Close" style="background: #FF5F57"><svg width="6" height="6" viewBox="0 0 6 6" stroke="rgba(0,0,0,0.5)" stroke-width="1.2" stroke-linecap="round"><path d="M1 1l4 4M5 1L1 5"></path></svg></button>
 <button class="light" data-cmd="minimize" aria-label="Minimize" style="background: #FEBC2E"><svg width="8" height="8" viewBox="0 0 8 8" stroke="rgba(0,0,0,0.5)" stroke-width="1.2" stroke-linecap="round"><path d="M1 4h6"></path></svg></button>
 <button class="light" data-cmd="zoom" aria-label="Zoom" style="background: #28C840"><svg width="6" height="6" viewBox="0 0 6 6" fill="rgba(0,0,0,0.5)"><path d="M0 0h4L0 4zM6 6H2l4-4z"></path></svg></button>
 </div>
-<div style="padding: 0 10px 6px; font-size: 12px; font-weight: 600; color: #5E5E63; letter-spacing: 0.02em">Servers</div>
+<div style="padding: 0 10px 6px; font-size: 12px; font-weight: 600; color: var(--sub); letter-spacing: 0.02em">Servers</div>
 <div id="list" style="display: contents"></div>
 <div style="flex-grow: 1"></div>
-<button data-cmd="showAdd" aria-label="Add server" style="display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; border: 0; border-radius: 12px; background: transparent; font-size: 13px; font-weight: 500; color: #0066CC; cursor: pointer">
+<div style="display: flex; align-items: center; gap: 6px">
+<button data-cmd="showAdd" aria-label="Add server" style="flex-grow: 1; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; border: 0; border-radius: 12px; background: transparent; font-size: 13px; font-weight: 600; color: var(--accent); cursor: pointer">
 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
 Add Server
 </button>
+<button data-cmd="showSettings" aria-label="Settings" title="Settings" style="box-sizing: content-box; width: 44px; height: 44px; flex-shrink: 0; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 22px; color: var(--text); background: rgba(255,255,255,calc(0.75 * var(--wk))); border: 1px solid rgba(255,255,255,calc(0.9 * var(--wk))); box-shadow: 0 2px 8px rgba(20,40,80,0.08), inset 0 1px 0 rgba(255,255,255,calc(1 * var(--wk))); cursor: pointer">
+<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.8 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.8-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 14a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.8 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 21 10a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg>
+</button>
+</div>
 </nav>
 
 <main style="flex-grow: 1; min-width: 0; box-sizing: border-box; padding: 18px 22px 18px 14px; display: flex; flex-direction: column; gap: 16px">
 <div id="lock" style="display: contents"></div>
 <header id="head" style="display: flex; align-items: center; justify-content: space-between; gap: 16px"></header>
 <div id="body" style="display: contents"></div>
-<section id="upd" aria-label="Software updates" style="box-sizing: border-box; min-height: 92px; padding: 16px 18px; display: flex; align-items: center; gap: 16px; border-radius: 22px; background: rgba(255,255,255,0.72); border: 1px solid rgba(255,255,255,0.9); box-shadow: 0 6px 20px rgba(20,40,80,0.07), inset 0 1px 0 rgba(255,255,255,1)"></section>
+<section id="upd" aria-label="Software updates" style="box-sizing: border-box; min-height: 92px; padding: 16px 18px; display: flex; align-items: center; gap: 16px; border-radius: 22px; background: rgba(255,255,255,calc(0.72 * var(--wk))); border: 1px solid rgba(255,255,255,calc(0.9 * var(--wk))); box-shadow: 0 6px 20px rgba(20,40,80,0.07), inset 0 1px 0 rgba(255,255,255,calc(1 * var(--wk)))"></section>
 </main>
 </div>
 
@@ -42,20 +47,23 @@ Add Server
 <script>
 let S = { servers: [] }, sel = null;
 
-const CARD = 'box-sizing: border-box; height: 164px; padding: 16px 18px; border-radius: 22px; background: rgba(255,255,255,0.72); border: 1px solid rgba(255,255,255,0.9); box-shadow: 0 6px 20px rgba(20,40,80,0.07), inset 0 1px 0 rgba(255,255,255,1)';
-const CARD_LABEL = 'display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #5E5E63';
+const CARD = 'box-sizing: border-box; height: 164px; padding: 16px 18px; border-radius: 22px; background: rgba(255,255,255,calc(0.72 * var(--wk))); border: 1px solid rgba(255,255,255,calc(0.9 * var(--wk))); box-shadow: 0 6px 20px rgba(20,40,80,0.07), inset 0 1px 0 rgba(255,255,255,calc(1 * var(--wk)))';
+const CARD_LABEL = 'display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--sub)';
 const BIG = 'font-size: 30px; font-weight: 700; letter-spacing: -0.02em';
-const UNIT = '<span style="font-size: 16px; font-weight: 600; color: #5E5E63">%</span>';
-const CAPSULE = 'display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 18px; border-radius: 22px; background: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.9); box-shadow: 0 4px 14px rgba(20,40,80,0.08), inset 0 1px 0 rgba(255,255,255,1); font-size: 13px; font-weight: 600; color: #1D1D1F; cursor: pointer;';
-const BLUE = 'height: 44px; padding: 0 20px; border: 0; border-radius: 22px; background: #0066CC; color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 6px 16px rgba(0,102,204,0.3), inset 0 1px 0 rgba(255,255,255,0.35)';
-const SEG = (on) => `flex: 1 1 0; min-width: 0; height: 38px; border-radius: 19px; cursor: pointer; font-size: 13px; font-weight: 600; color: #1D1D1F; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border: 1px solid ${on ? '#FFFFFF' : 'transparent'}; background: ${on ? '#FFFFFF' : 'transparent'}; box-shadow: ${on ? '0 2px 8px rgba(20,40,80,0.14)' : 'none'}`;
+const UNIT = '<span style="font-size: 16px; font-weight: 600; color: var(--sub)">%</span>';
+const CAPSULE = 'display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 18px; border-radius: 22px; background: rgba(255,255,255,calc(0.7 * var(--wk))); border: 1px solid rgba(255,255,255,calc(0.9 * var(--wk))); box-shadow: 0 4px 14px rgba(20,40,80,0.08), inset 0 1px 0 rgba(255,255,255,calc(1 * var(--wk))); font-size: 13px; font-weight: 600; color: var(--text); cursor: pointer;';
+const BLUE = 'height: 44px; padding: 0 20px; border: 0; border-radius: 22px; background: var(--accent); color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 6px 16px rgba(var(--accent-rgb),0.3), inset 0 1px 0 rgba(255,255,255,calc(0.35 * var(--wk)))';
+const SEG = (on) => `flex: 1 1 0; min-width: 0; height: 38px; border-radius: 19px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border: 1px solid ${on ? 'var(--solid)' : 'transparent'}; background: ${on ? 'var(--solid)' : 'transparent'}; box-shadow: ${on ? '0 2px 8px rgba(20,40,80,0.14)' : 'none'}`;
 const SEG_TRACK = 'display: flex; gap: 2px; padding: 3px; border-radius: 22px; background: rgba(120,120,128,0.14)';
 const SPIN = (px, w, stroke = 'currentColor', extra = '') => `<svg class="icespin" width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="${w}" stroke-linecap="round" aria-hidden="true" style="${extra}"><path d="M12 3a9 9 0 1 0 9 9"></path></svg>`;
 
+// The graphs hold 24 samples, one per refresh (Settings › General).
+const span = () => { const sec = 24 * ((S.prefs && S.prefs.refresh) || 2); return sec < 120 ? sec + ' seconds' : sec / 60 + ' minutes'; };
 const lockedBy = () => S.servers.find((x) => BUSY.includes(x.phase) && x.phase !== 'connecting');
 
 function render(state) {
   if (state) S = state;
+  if (state && state.prefs) { Object.assign(UNITS, { unit: S.prefs.unit, net: S.prefs.net }); applyLook(S.prefs); }
   if (state && state.select) sel = state.select;
   const list = S.servers;
   if (!list.some((s) => s.id === sel)) sel = list[0] ? list[0].id : null;
@@ -74,11 +82,11 @@ function render(state) {
 function row(r) {
   const on = r.id === sel;
   const sub = r.phase === 'online' ? 'Online · up ' + uptime(r.uptime) : LABELS[r.phase];
-  return `<button aria-label="Show ${esc(r.name)}" data-cmd="select" data-id="${r.id}" data-menu="${r.id}" style="display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 8px 10px; border-radius: 14px; text-align: left; cursor: pointer; border: 1px solid ${on ? 'rgba(255,255,255,0.95)' : 'transparent'}; background: ${on ? 'rgba(255,255,255,0.88)' : 'transparent'}; box-shadow: ${on ? '0 4px 14px rgba(20,40,80,0.10)' : 'none'};">
-<span style="width: 36px; height: 36px; flex-shrink: 0; border-radius: 11px; display: flex; align-items: center; justify-content: center; background: linear-gradient(160deg, #5AC8FA, #0A64D6); box-shadow: inset 0 1px 0 rgba(255,255,255,0.5)">${ICON.server}</span>
+  return `<button aria-label="Show ${esc(r.name)}" data-cmd="select" data-id="${r.id}" data-menu="${r.id}" style="display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 8px 10px; border-radius: 14px; text-align: left; cursor: pointer; border: 1px solid ${on ? 'rgba(255,255,255,calc(0.95 * var(--wk)))' : 'transparent'}; background: ${on ? 'rgba(255,255,255,calc(0.88 * var(--wk)))' : 'transparent'}; box-shadow: ${on ? '0 4px 14px rgba(20,40,80,0.10)' : 'none'};">
+<span style="width: 36px; height: 36px; flex-shrink: 0; border-radius: 11px; display: flex; align-items: center; justify-content: center; background: ${SERVER_COLORS[r.color] || SERVER_COLORS.blue}; box-shadow: inset 0 1px 0 rgba(255,255,255,0.5)">${ICON.server}</span>
 <span style="display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0">
-<span style="font-size: 14px; font-weight: 600; color: #1D1D1F; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">${esc(r.name)}</span>
-<span style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #5E5E63"><span style="width: 8px; height: 8px; border-radius: 4px; flex-shrink: 0; background: ${colorsFor(r.phase)[2]}"></span>${sub}</span>
+<span style="font-size: 14px; font-weight: 600; color: var(--text); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">${esc(r.name)}</span>
+<span style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--sub)"><span style="width: 8px; height: 8px; border-radius: 4px; flex-shrink: 0; background: ${colorsFor(r.phase)[2]}"></span>${sub}</span>
 </span>
 </button>`;
 }
@@ -98,7 +106,7 @@ function header(s, lock) {
   const cant = s.phase !== 'online' || lock;
   return `<div style="display: flex; flex-direction: column; gap: 6px; min-width: 0">
 <h1 style="margin: 0; font-size: 30px; font-weight: 700; letter-spacing: -0.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">${esc(s.name)}</h1>
-<div style="display: flex; align-items: center; gap: 10px; font-size: 13px; color: #5E5E63">
+<div style="display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--sub)">
 <span style="display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 12px; font-size: 12px; font-weight: 600; color: ${c[0]}; background: ${c[1]}">${busy ? ICON.spin : `<span style="width: 7px; height: 7px; border-radius: 4px; background: ${c[2]}"></span>`}${LABELS[s.phase]}</span>
 <span>${s.phase === 'online' ? 'Up ' + uptime(s.uptime) : ''}</span>
 </div>
@@ -106,8 +114,8 @@ function header(s, lock) {
 <div style="display: flex; align-items: center; gap: 12px">
 <button data-cmd="showWidget" aria-label="Add widget to desktop" style="${CAPSULE}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="2"></rect><rect x="13" y="3" width="8" height="8" rx="2"></rect><rect x="3" y="13" width="8" height="8" rx="2"></rect><path d="M17 13v8M13 17h8"></path></svg>Add Widget</button>
 <button data-cmd="restart" ${cant ? 'disabled' : ''} aria-label="Restart server" style="${CAPSULE}${cant ? ' opacity: 0.45; cursor: default;' : ''}">${ICON.restart(16, 2)}Restart</button>
-<div style="display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 8px 0 16px; border-radius: 22px; background: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.9); box-shadow: 0 4px 14px rgba(20,40,80,0.08), inset 0 1px 0 rgba(255,255,255,1)">
-${ICON.power(16, '#1D1D1F', 2)}
+<div style="display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 8px 0 16px; border-radius: 22px; background: rgba(255,255,255,calc(0.7 * var(--wk))); border: 1px solid rgba(255,255,255,calc(0.9 * var(--wk))); box-shadow: 0 4px 14px rgba(20,40,80,0.08), inset 0 1px 0 rgba(255,255,255,calc(1 * var(--wk)))">
+${ICON.power(16, 'var(--text)', 2)}
 <span style="font-size: 13px; font-weight: 600">Power</span>
 <button data-cmd="power" aria-label="Server power" aria-pressed="${on}" ${lock || s.phase === 'connecting' ? 'disabled' : ''} style="position: relative; width: 52px; height: 30px; flex-shrink: 0; padding: 0; border: 0; border-radius: 15px; cursor: pointer; transition: background 0.2s; background: ${on ? '#248A3D' : 'rgba(120,120,128,0.36)'}${lock ? '; opacity: 0.5; cursor: default' : ''}">
 <span style="position: absolute; top: 2px; left: ${on ? '24px' : '2px'}; width: 26px; height: 26px; border-radius: 13px; background: #FFFFFF; box-shadow: 0 2px 6px rgba(0,0,0,0.22); transition: left 0.2s"></span>
@@ -131,7 +139,7 @@ function stats(s) {
 <polygon points="${cpu} 240,56 0,56" fill="rgba(10,132,255,0.14)"></polygon>
 <polyline points="${cpu}" fill="none" stroke="#0A84FF" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"></polyline>
 </svg>
-<div style="font-size: 12px; color: #5E5E63">Last 48 seconds</div>
+<div style="font-size: 12px; color: var(--sub)">Last ${span()}</div>
 </section>
 
 <section aria-label="Memory" style="${CARD}; display: flex; align-items: center; gap: 22px">
@@ -145,7 +153,7 @@ function stats(s) {
 <div style="display: flex; flex-direction: column; gap: 6px">
 <div style="${CARD_LABEL}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5E5CE6" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="3" y="7" width="18" height="10" rx="2"></rect><path d="M7 7v10M11 7v10M15 7v10M7 20v-3M17 20v-3"></path></svg>Memory</div>
 <div style="font-size: 26px; font-weight: 700; letter-spacing: -0.02em">${s.memUsed.toFixed(1)} GB</div>
-<div style="font-size: 13px; color: #5E5E63">of ${Math.ceil(s.memTotal)} GB used</div>
+<div style="font-size: 13px; color: var(--sub)">of ${Math.ceil(s.memTotal)} GB used</div>
 </div>
 </section>
 
@@ -153,15 +161,15 @@ function stats(s) {
 <div style="display: flex; align-items: center; justify-content: space-between">
 <div style="${CARD_LABEL}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A64D6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"></path></svg>Network</div>
 <div style="display: flex; gap: 16px; font-size: 13px">
-<span style="display: flex; align-items: center; gap: 6px"><span style="width: 8px; height: 8px; border-radius: 4px; background: #0A84FF"></span><span style="color: #5E5E63">In</span> <strong style="font-weight: 700">${last(s.down).toFixed(1)} MB/s</strong></span>
-<span style="display: flex; align-items: center; gap: 6px"><span style="width: 8px; height: 8px; border-radius: 4px; background: #FF9F0A"></span><span style="color: #5E5E63">Out</span> <strong style="font-weight: 700">${last(s.up).toFixed(1)} MB/s</strong></span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 8px; height: 8px; border-radius: 4px; background: #0A84FF"></span><span style="color: var(--sub)">In</span> <strong style="font-weight: 700">${speed(last(s.down))}</strong></span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 8px; height: 8px; border-radius: 4px; background: #FF9F0A"></span><span style="color: var(--sub)">Out</span> <strong style="font-weight: 700">${speed(last(s.up))}</strong></span>
 </div>
 </div>
 <svg viewBox="0 0 240 56" preserveAspectRatio="none" style="width: 100%; height: 64px; display: block" aria-hidden="true">
 <polyline points="${pts(s.down, nm)}" fill="none" stroke="#0A84FF" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"></polyline>
 <polyline points="${pts(s.up, nm)}" fill="none" stroke="#FF9F0A" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"></polyline>
 </svg>
-<div style="font-size: 12px; color: #5E5E63">MB/s · last 48 seconds</div>
+<div style="font-size: 12px; color: var(--sub)">${netUnit()} · last ${span()}</div>
 </section>
 
 <section aria-label="Disk" style="${CARD}; display: flex; flex-direction: column; justify-content: space-between">
@@ -174,8 +182,8 @@ function stats(s) {
 <div style="height: 100%; border-radius: 7px; background: ${disk > 80 ? '#FF9F0A' : '#34C759'}; width: ${disk}%"></div>
 </div>
 <div style="display: flex; justify-content: space-between; font-size: 13px">
-<span><strong style="font-weight: 700">${size(s.diskUsed)}</strong> <span style="color: #5E5E63">of ${size(s.diskTotal)}</span></span>
-<span style="color: #5E5E63">${size(s.diskFree)} free</span>
+<span><strong style="font-weight: 700">${size(s.diskUsed)}</strong> <span style="color: var(--sub)">of ${size(s.diskTotal)}</span></span>
+<span style="color: var(--sub)">${size(s.diskFree)} free</span>
 </div>
 </div>
 </section>
@@ -187,10 +195,9 @@ ${temperature(s)}
 
 function temperature(s) {
   const has = s.temp.length > 0, now = has ? Math.round(last(s.temp)) : null;
-  const deg = (v) => v == null ? '—' : Math.round(v) + '°C';
   const line = s.temp.length > 1 ? s.temp.map((v, i) => (i * 240 / (s.temp.length - 1)).toFixed(1) + ',' + (54 - Math.max(0, Math.min(80, v - 20)) / 80 * 50).toFixed(1)).join(' ') : '';
   const state = now == null ? null : now >= 85 ? ['Hot', '#C4000F', 'rgba(255,59,48,0.14)'] : now >= 70 ? ['Warm', '#B33000', 'rgba(255,159,10,0.18)'] : ['Normal', '#1E7A34', 'rgba(52,199,89,0.16)'];
-  return `<section aria-label="Temperature" style="box-sizing: border-box; height: 88px; padding: 14px 18px; display: flex; align-items: center; gap: 22px; border-radius: 22px; background: rgba(255,255,255,0.72); border: 1px solid rgba(255,255,255,0.9); box-shadow: 0 6px 20px rgba(20,40,80,0.07), inset 0 1px 0 rgba(255,255,255,1)">
+  return `<section aria-label="Temperature" style="box-sizing: border-box; height: 88px; padding: 14px 18px; display: flex; align-items: center; gap: 22px; border-radius: 22px; background: rgba(255,255,255,calc(0.72 * var(--wk))); border: 1px solid rgba(255,255,255,calc(0.9 * var(--wk))); box-shadow: 0 6px 20px rgba(20,40,80,0.07), inset 0 1px 0 rgba(255,255,255,calc(1 * var(--wk)))">
 <div style="display: flex; flex-direction: column; gap: 4px; width: 150px; flex-shrink: 0">
 <div style="${CARD_LABEL}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D70015" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M14 14.8V5a2 2 0 1 0-4 0v9.8a4 4 0 1 0 4 0z"></path><path d="M12 9v7"></path></svg>Temperature</div>
 <div style="display: flex; align-items: baseline; gap: 8px">
@@ -202,14 +209,14 @@ ${state ? `<span style="height: 22px; padding: 0 9px; border-radius: 11px; displ
 ${line ? `<polygon points="${line} 240,56 0,56" fill="rgba(255,69,58,0.12)"></polygon><polyline points="${line}" fill="none" stroke="#FF453A" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"></polyline>` : ''}
 </svg>
 <div style="display: grid; grid-template-columns: auto auto; column-gap: 14px; row-gap: 4px; font-size: 13px; flex-shrink: 0">
-<span style="color: #5E5E63">CPU</span><strong style="font-weight: 700; text-align: right">${deg(now)}</strong>
-<span style="color: #5E5E63">Drives</span><strong style="font-weight: 700; text-align: right">${deg(s.tempDrive)}</strong>
-<span style="color: #5E5E63">Board</span><strong style="font-weight: 700; text-align: right">${deg(s.tempBoard)}</strong>
+<span style="color: var(--sub)">CPU</span><strong style="font-weight: 700; text-align: right">${deg(now)}</strong>
+<span style="color: var(--sub)">Drives</span><strong style="font-weight: 700; text-align: right">${deg(s.tempDrive)}</strong>
+<span style="color: var(--sub)">Board</span><strong style="font-weight: 700; text-align: right">${deg(s.tempBoard)}</strong>
 </div>
 </section>`;
 }
 
-const PANEL = 'box-sizing: border-box; height: 446px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; border-radius: 22px; background: rgba(255,255,255,0.55); border: 1px solid rgba(255,255,255,0.85); text-align: center';
+const PANEL = 'box-sizing: border-box; height: 446px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; border-radius: 22px; background: rgba(255,255,255,calc(0.55 * var(--wk))); border: 1px solid rgba(255,255,255,calc(0.85 * var(--wk))); text-align: center';
 const panelIcon = (svg) => `<div style="width: 64px; height: 64px; border-radius: 32px; display: flex; align-items: center; justify-content: center; background: rgba(120,120,128,0.16)">${svg}</div>`;
 
 function offline(s, lock) {
@@ -218,18 +225,18 @@ function offline(s, lock) {
     : s.hasMac ? 'Turn it on to see live CPU, memory, network and disk stats.'
     : 'It can be turned on with Wake-on-LAN once the app has seen it online.';
   return `<div style="${PANEL}">
-${panelIcon(ICON.power(30, '#5E5E63', 2))}
+${panelIcon(ICON.power(30, 'var(--sub)', 2))}
 <div style="font-size: 20px; font-weight: 700">${off ? esc(s.name) + ' is off' : LABELS[s.phase]}</div>
-<div style="font-size: 14px; color: #5E5E63; max-width: 340px">${body}</div>
-${off && s.hasMac ? `<button data-cmd="power" ${lock ? 'disabled' : ''} style="height: 44px; padding: 0 22px; border: 0; border-radius: 22px; background: #0066CC; color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 6px 16px rgba(0,102,204,0.35), inset 0 1px 0 rgba(255,255,255,0.35);${lock ? ' opacity: 0.4; cursor: default; box-shadow: none;' : ''}">Turn On</button>` : ''}
+<div style="font-size: 14px; color: var(--sub); max-width: 340px">${body}</div>
+${off && s.hasMac ? `<button data-cmd="power" ${lock ? 'disabled' : ''} style="height: 44px; padding: 0 22px; border: 0; border-radius: 22px; background: var(--accent); color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 6px 16px rgba(var(--accent-rgb),0.35), inset 0 1px 0 rgba(255,255,255,calc(0.35 * var(--wk)));${lock ? ' opacity: 0.4; cursor: default; box-shadow: none;' : ''}">Turn On</button>` : ''}
 </div>`;
 }
 
 function empty() {
   return `<div style="${PANEL}">
-${panelIcon(ICON.server.replace('#FFFFFF', '#5E5E63').replace('20" height="20"', '30" height="30"'))}
+${panelIcon(ICON.server.replace('#FFFFFF', 'var(--sub)').replace('20" height="20"', '30" height="30"'))}
 <div style="font-size: 20px; font-weight: 700">No servers yet</div>
-<div style="font-size: 14px; color: #5E5E63; max-width: 340px">Add a machine you can reach over SSH to see its stats and control it from here.</div>
+<div style="font-size: 14px; color: var(--sub); max-width: 340px">Add a machine you can reach over SSH to see its stats and control it from here.</div>
 <button data-cmd="showAdd" style="${BLUE}">Add Server</button>
 </div>`;
 }
@@ -243,11 +250,11 @@ function updates(s, lock) {
   else if (s.updates > 0) { title = `${s.updates} update${s.updates === 1 ? '' : 's'} available`; sub = 'Last checked ' + ago(s.checkedAgo); }
   else { title = 'Software is up to date'; sub = 'Last checked ' + ago(s.checkedAgo); }
   const idle = s.phase !== 'updating' && s.phase !== 'checking';
-  return `<div style="width: 44px; height: 44px; flex-shrink: 0; border-radius: 13px; display: flex; align-items: center; justify-content: center; background: linear-gradient(160deg, #8E8CF5, #5E5CE6); box-shadow: inset 0 1px 0 rgba(255,255,255,0.45)">${ICON.download(22, 2, '#FFFFFF')}</div>
+  return `<div style="width: 44px; height: 44px; flex-shrink: 0; border-radius: 13px; display: flex; align-items: center; justify-content: center; background: linear-gradient(160deg, #8E8CF5, #5E5CE6); box-shadow: inset 0 1px 0 rgba(255,255,255,calc(0.45 * var(--wk)))">${ICON.download(22, 2, '#FFFFFF')}</div>
 <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0">
 <div style="font-size: 15px; font-weight: 600">${title}</div>
 ${s.phase === 'updating' ? `<div style="height: 8px; border-radius: 4px; background: rgba(120,120,128,0.18); overflow: hidden"><div style="height: 100%; border-radius: 4px; background: #5E5CE6; transition: width 0.3s; width: ${s.progress}%"></div></div>` : ''}
-<div style="font-size: 13px; color: #5E5E63">${sub}</div>
+<div style="font-size: 13px; color: var(--sub)">${sub}</div>
 </div>
 ${idle && s.updates > 0 ? `<button data-cmd="install" ${cant ? 'disabled' : ''} style="${BLUE}">Update Now</button>` : ''}
 ${idle && !(s.updates > 0) ? `<button data-cmd="check" ${cant ? 'disabled' : ''} style="${CAPSULE}${cant ? ' opacity: 0.45; cursor: default;' : ''}">${s.updates == null ? 'Check Now' : 'Check Again'}</button>` : ''}`;
@@ -262,31 +269,31 @@ function widgetSheet() {
   const n = S.servers.length;
   const opts = [...S.servers.map((s) => [s.id, s.name]), ...(n > 1 ? [['all', n === 2 ? 'Both' : 'All']] : [])];
   return `<div style="${OVERLAY}; background: rgba(10,25,50,0.28)">
-<div role="dialog" aria-label="Add widget to desktop" style="width: 660px; padding: 26px; display: flex; flex-direction: column; gap: 20px; ${DIALOG}; background: rgba(248,250,253,0.86); border-color: rgba(255,255,255,0.9)">
+<div role="dialog" aria-label="Add widget to desktop" style="width: 660px; padding: 26px; display: flex; flex-direction: column; gap: 20px; ${DIALOG}; background: rgba(var(--sheet),0.86); border-color: rgba(255,255,255,calc(0.9 * var(--wk)))">
 <div style="display: flex; flex-direction: column; gap: 4px">
 <h2 style="margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.01em">Add widget to desktop</h2>
-<p style="margin: 0; font-size: 13px; color: #56565B">Pick a size and which server it shows. You can change it later with Edit Widget.</p>
+<p style="margin: 0; font-size: 13px; color: var(--sub2)">Pick a size and which server it shows. You can change it later with Edit Widget.</p>
 </div>
 <div style="display: flex; flex-direction: column; gap: 8px">
-<div style="font-size: 12px; font-weight: 600; color: #56565B">Size</div>
+<div style="font-size: 12px; font-weight: 600; color: var(--sub2)">Size</div>
 <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px">
 ${SIZES.map(([k, label, desc, w, h]) => {
     const on = W2.size === k;
-    return `<button data-cmd="wSize" data-val="${k}" aria-pressed="${on}" style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 8px 12px; border-radius: 18px; cursor: pointer; background: ${on ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.5)'}; border: 2px solid ${on ? '#0066CC' : 'rgba(255,255,255,0.8)'}; box-shadow: ${on ? '0 6px 18px rgba(0,102,204,0.18)' : 'none'}">
-<span style="height: 100px; display: flex; align-items: center; justify-content: center"><span style="display: block; width: ${w}px; height: ${h}px; border-radius: 12px; background: linear-gradient(160deg, #A9D8F5, #5B7FD6); box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 4px 10px rgba(20,40,80,0.15)"></span></span>
-<span style="font-size: 13px; font-weight: 600; color: #1D1D1F">${label}</span>
-<span style="font-size: 11px; color: #56565B">${desc}</span>
+    return `<button data-cmd="wSize" data-val="${k}" aria-pressed="${on}" style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 8px 12px; border-radius: 18px; cursor: pointer; background: ${on ? 'rgba(255,255,255,calc(0.95 * var(--wk)))' : 'rgba(255,255,255,calc(0.5 * var(--wk)))'}; border: 2px solid ${on ? 'var(--accent)' : 'rgba(255,255,255,calc(0.8 * var(--wk)))'}; box-shadow: ${on ? '0 6px 18px rgba(var(--accent-rgb),0.18)' : 'none'}">
+<span style="height: 100px; display: flex; align-items: center; justify-content: center"><span style="display: block; width: ${w}px; height: ${h}px; border-radius: 12px; background: linear-gradient(160deg, #A9D8F5, #5B7FD6); box-shadow: inset 0 1px 0 rgba(255,255,255,calc(0.6 * var(--wk))), 0 4px 10px rgba(20,40,80,0.15)"></span></span>
+<span style="font-size: 13px; font-weight: 600; color: var(--text)">${label}</span>
+<span style="font-size: 11px; color: var(--sub2)">${desc}</span>
 </button>`;
   }).join('')}
 </div>
 </div>
 <div style="display: flex; flex-direction: column; gap: 8px">
-<div style="font-size: 12px; font-weight: 600; color: #56565B">Server</div>
+<div style="font-size: 12px; font-weight: 600; color: var(--sub2)">Server</div>
 <div style="${SEG_TRACK}">${opts.map(([v, t]) => `<button data-cmd="wServer" data-val="${esc(v)}" aria-pressed="${W2.server === v}" style="${SEG(W2.server === v)}">${esc(t)}</button>`).join('')}</div>
 </div>
 <div style="display: flex; justify-content: flex-end; gap: 10px">
-<button data-cmd="closeSheet" style="height: 44px; padding: 0 20px; border-radius: 22px; border: 1px solid rgba(60,60,67,0.18); background: rgba(255,255,255,0.8); font-size: 14px; font-weight: 600; color: #1D1D1F; cursor: pointer">Cancel</button>
-<button data-cmd="addWidget" style="height: 44px; padding: 0 22px; border: 0; border-radius: 22px; background: #0066CC; color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 6px 16px rgba(0,102,204,0.3), inset 0 1px 0 rgba(255,255,255,0.35)">Add to Desktop</button>
+<button data-cmd="closeSheet" style="height: 44px; padding: 0 20px; border-radius: 22px; border: 1px solid rgba(var(--hair),0.18); background: rgba(255,255,255,calc(0.8 * var(--wk))); font-size: 14px; font-weight: 600; color: var(--text); cursor: pointer">Cancel</button>
+<button data-cmd="addWidget" style="height: 44px; padding: 0 22px; border: 0; border-radius: 22px; background: var(--accent); color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 6px 16px rgba(var(--accent-rgb),0.3), inset 0 1px 0 rgba(255,255,255,calc(0.35 * var(--wk)))">Add to Desktop</button>
 </div>
 </div>
 </div>`;
@@ -313,14 +320,14 @@ function addSheet() {
   const field = (label, f, extra = '') => `<label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600">${label}<input class="icefield" data-f="${f}" value="${esc(A[f])}" ${extra}></label>`;
   const steps = ['Server', 'Sign In', 'Admin', 'Test'].map((l, i) => {
     const n = i + 1, cur = n === A.step, done = n < A.step;
-    return `<li style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: ${cur ? '#1D1D1F' : '#6E6E73'}"><span style="width: 20px; height: 20px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: ${cur || done ? '#FFFFFF' : '#56565B'}; background: ${cur ? '#0066CC' : (done ? '#248A3D' : 'rgba(120,120,128,0.2)')}">${done ? '✓' : n}</span>${l}</li>`;
+    return `<li style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: ${cur ? 'var(--text)' : 'var(--sub3)'}"><span style="width: 20px; height: 20px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: ${cur || done ? '#FFFFFF' : 'var(--sub2)'}; background: ${cur ? 'var(--accent)' : (done ? '#248A3D' : 'rgba(120,120,128,0.2)')}">${done ? '✓' : n}</span>${l}</li>`;
   }).join('');
   const seg = (cmd, opts, cur) => `<div style="${SEG_TRACK}">${opts.map(([v, t]) => `<button data-cmd="${cmd}" data-val="${v}" aria-pressed="${cur === v}" style="${SEG(cur === v)}">${t}</button>`).join('')}</div>`;
   const dup = A.step === 1 && S.servers.some((s) => s.name === (A.name.trim() || A.host.trim()));
 
   let body = '';
   if (A.step === 1) body = `<div style="display: flex; flex-direction: column; gap: 16px">
-<p style="margin: 0; font-size: 14px; color: #56565B">Ice Servers connects over SSH. Give the server a short name you'll recognise in the sidebar and widgets.</p>
+<p style="margin: 0; font-size: 14px; color: var(--sub2)">Ice Servers connects over SSH. Give the server a short name you'll recognise in the sidebar and widgets.</p>
 ${field('Name', 'name', 'type="text" placeholder="e.g. icecube" spellcheck="false"')}
 ${dup ? `<div role="alert" style="margin-top: -8px; font-size: 12px; font-weight: 600; color: #C4000F">There's already a server called ${esc(A.name.trim() || A.host.trim())}.</div>` : ''}
 <div style="display: grid; grid-template-columns: minmax(0, 1fr) 120px; gap: 12px">
@@ -334,12 +341,12 @@ ${field('Username', 'user', 'type="text" placeholder="e.g. admin" autocomplete="
 <div style="font-size: 13px; font-weight: 600">Sign in with</div>
 ${seg('aAuth', [['key', 'SSH key'], ['pw', 'Password']], A.auth)}
 </div>
-${A.auth === 'key' ? `<div style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,0.8); border: 1px solid rgba(60,60,67,0.14)">
+${A.auth === 'key' ? `<div style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,calc(0.8 * var(--wk))); border: 1px solid rgba(var(--hair),0.14)">
 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0A64D6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"></circle><path d="M10.8 12.2L20 3M16 7l3 3M14 9l2 2"></path></svg>
-<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0"><span style="font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">${esc(A.key)}</span><span style="font-size: 12px; color: #56565B">Recommended. Your private key never leaves this Mac.</span></div>
-<button data-cmd="chooseKey" style="height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid rgba(60,60,67,0.18); background: #FFFFFF; font-size: 13px; font-weight: 600; cursor: pointer">Choose…</button>
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0"><span style="font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">${esc(A.key)}</span><span style="font-size: 12px; color: var(--sub2)">Recommended. Your private key never leaves this Mac.</span></div>
+<button data-cmd="chooseKey" style="height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid rgba(var(--hair),0.18); background: var(--solid); font-size: 13px; font-weight: 600; cursor: pointer">Choose…</button>
 </div>` : `<label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600">SSH password<input class="icefield" data-f="sshPassword" type="password" placeholder="Password for this user" autocomplete="off" value="${esc(A.sshPassword)}"></label>
-<div style="font-size: 12px; color: #56565B; margin-top: -8px">Used once to add this Mac's SSH key to the server, then forgotten.</div>`}
+<div style="font-size: 12px; color: var(--sub2); margin-top: -8px">Used once to add this Mac's SSH key to the server, then forgotten.</div>`}
 </div>`;
   if (A.step === 3) {
     const defs = [['remember', 'Ask once, remember securely', 'Recommended', 'Saved in your Keychain on this Mac. You won’t be asked again.'],
@@ -349,34 +356,34 @@ ${A.auth === 'key' ? `<div style="display: flex; align-items: center; gap: 12px;
       every: 'The password is held in memory only for the command you run, then discarded.',
       nopass: 'Only for servers where you’ve limited passwordless sudo to the power, reboot and update commands in sudoers.' };
     body = `<div style="display: flex; flex-direction: column; gap: 14px">
-<p style="margin: 0; font-size: 14px; color: #56565B">Power, restart and updates run with <code style="font-family: ui-monospace, Menlo, monospace; font-size: 13px">sudo</code>. How should Ice Servers handle the password for <strong style="color: #1D1D1F">${esc(user)}</strong>?</p>
+<p style="margin: 0; font-size: 14px; color: var(--sub2)">Power, restart and updates run with <code style="font-family: ui-monospace, Menlo, monospace; font-size: 13px">sudo</code>. How should Ice Servers handle the password for <strong style="color: var(--text)">${esc(user)}</strong>?</p>
 <div role="radiogroup" aria-label="Sudo password" style="display: flex; flex-direction: column; gap: 8px">
 ${defs.map(([k, label, tag, desc]) => {
       const on = A.sudo === k;
-      return `<button role="radio" aria-checked="${on}" data-cmd="aSudo" data-val="${k}" style="display: flex; align-items: center; gap: 14px; width: 100%; min-height: 60px; padding: 10px 14px; border-radius: 16px; cursor: pointer; background: ${on ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.55)'}; border: 2px solid ${on ? '#0066CC' : 'rgba(255,255,255,0.8)'}">
-<span style="width: 20px; height: 20px; flex-shrink: 0; box-sizing: border-box; border-radius: 10px; display: flex; align-items: center; justify-content: center; border: 2px solid ${on ? '#0066CC' : 'rgba(60,60,67,0.3)'}"><span style="width: 10px; height: 10px; border-radius: 5px; background: ${on ? '#0066CC' : 'transparent'}"></span></span>
+      return `<button role="radio" aria-checked="${on}" data-cmd="aSudo" data-val="${k}" style="display: flex; align-items: center; gap: 14px; width: 100%; min-height: 60px; padding: 10px 14px; border-radius: 16px; cursor: pointer; background: ${on ? 'rgba(255,255,255,calc(0.95 * var(--wk)))' : 'rgba(255,255,255,calc(0.55 * var(--wk)))'}; border: 2px solid ${on ? 'var(--accent)' : 'rgba(255,255,255,calc(0.8 * var(--wk)))'}">
+<span style="width: 20px; height: 20px; flex-shrink: 0; box-sizing: border-box; border-radius: 10px; display: flex; align-items: center; justify-content: center; border: 2px solid ${on ? 'var(--accent)' : 'rgba(var(--hair),0.3)'}"><span style="width: 10px; height: 10px; border-radius: 5px; background: ${on ? 'var(--accent)' : 'transparent'}"></span></span>
 <span style="display: flex; flex-direction: column; gap: 2px; text-align: left">
-<span style="font-size: 14px; font-weight: 600; color: #1D1D1F">${label}${tag ? ` <span style="margin-left: 6px; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; color: ${k === 'remember' ? '#1E7A34' : '#56565B'}; background: ${k === 'remember' ? 'rgba(52,199,89,0.16)' : 'rgba(120,120,128,0.14)'}">${tag}</span>` : ''}</span>
-<span style="font-size: 12px; color: #56565B">${desc}</span>
+<span style="font-size: 14px; font-weight: 600; color: var(--text)">${label}${tag ? ` <span style="margin-left: 6px; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; color: ${k === 'remember' ? '#1E7A34' : 'var(--sub2)'}; background: ${k === 'remember' ? 'rgba(52,199,89,0.16)' : 'rgba(120,120,128,0.14)'}">${tag}</span>` : ''}</span>
+<span style="font-size: 12px; color: var(--sub2)">${desc}</span>
 </span>
 </button>`;
     }).join('')}
 </div>
-${A.sudo === 'remember' ? `<div style="display: flex; flex-direction: column; gap: 12px; padding: 14px; border-radius: 16px; background: rgba(255,255,255,0.75); border: 1px solid rgba(60,60,67,0.12)">
+${A.sudo === 'remember' ? `<div style="display: flex; flex-direction: column; gap: 12px; padding: 14px; border-radius: 16px; background: rgba(255,255,255,calc(0.75 * var(--wk))); border: 1px solid rgba(var(--hair),0.12)">
 <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
-<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 13px; font-weight: 600">Ask for it</span><span style="font-size: 12px; color: #56565B">Enter it now, or the first time an action needs it.</span></div>
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 13px; font-weight: 600">Ask for it</span><span style="font-size: 12px; color: var(--sub2)">Enter it now, or the first time an action needs it.</span></div>
 <div style="${SEG_TRACK}; width: 230px; flex-shrink: 0">${[['now', 'Now'], ['later', 'When needed']].map(([v, t]) => `<button data-cmd="aWhen" data-val="${v}" aria-pressed="${A.when === v}" style="${SEG(A.when === v)}">${t}</button>`).join('')}</div>
 </div>
 ${A.when === 'now' ? `<div style="display: flex; gap: 8px">
 <input class="icefield" data-f="sudoPassword" type="${A.show ? 'text' : 'password'}" aria-label="Sudo password" placeholder="Sudo password" autocomplete="off" value="${esc(A.sudoPassword)}">
-<button data-cmd="aShow" aria-label="${A.show ? 'Hide password' : 'Show password'}" style="width: 44px; height: 44px; flex-shrink: 0; border-radius: 12px; border: 1px solid rgba(60,60,67,0.2); background: #FFFFFF; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1D1D1F" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
+<button data-cmd="aShow" aria-label="${A.show ? 'Hide password' : 'Show password'}" style="width: 44px; height: 44px; flex-shrink: 0; border-radius: 12px; border: 1px solid rgba(var(--hair),0.2); background: var(--solid); display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
 </div>` : ''}
 <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
-<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 13px; font-weight: 600">Require Touch ID to use it</span><span style="font-size: 12px; color: #56565B">Confirm with your fingerprint before each sudo action.</span></div>
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 13px; font-weight: 600">Require Touch ID to use it</span><span style="font-size: 12px; color: var(--sub2)">Confirm with your fingerprint before each sudo action.</span></div>
 ${toggle(A.touchID, 'aTouch', 'Require Touch ID')}
 </div>
 </div>` : ''}
-<div style="display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 14px; background: rgba(0,102,204,0.08)">
+<div style="display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 14px; background: rgba(var(--accent-rgb),0.08)">
 ${LOCK(18, '#0058B0').replace('<svg ', '<svg style="flex-shrink: 0; margin-top: 1px" ')}
 <span style="font-size: 12px; line-height: 1.45; color: #1D3A5C">${notes[A.sudo]}</span>
 </div>
@@ -388,20 +395,20 @@ ${LOCK(18, '#0058B0').replace('<svg ', '<svg style="flex-shrink: 0; margin-top: 
     body = `<div style="display: flex; flex-direction: column; gap: 10px">${A.checks.map((c, i) => {
       const active = c.state !== 'pending';
       const mark = c.state === 'done' ? `<span style="width: 24px; height: 24px; flex-shrink: 0; border-radius: 12px; background: #248A3D; display: flex; align-items: center; justify-content: center">${CHECK(13, 3)}</span>`
-        : c.state === 'running' ? `<span style="width: 24px; height: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #0066CC">${SPIN(20, 2.6)}</span>`
+        : c.state === 'running' ? `<span style="width: 24px; height: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: var(--accent)">${SPIN(20, 2.6)}</span>`
         : c.state === 'fail' ? `<span style="width: 24px; height: 24px; flex-shrink: 0; border-radius: 12px; background: #C4000F; display: flex; align-items: center; justify-content: center; color: #FFFFFF; font-size: 15px; font-weight: 800">!</span>`
-        : `<span style="width: 24px; height: 24px; flex-shrink: 0; box-sizing: border-box; border-radius: 12px; border: 2px solid rgba(60,60,67,0.22)"></span>`;
-      return `<div style="display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,0.75); border: 1px solid rgba(60,60,67,0.1)">
+        : `<span style="width: 24px; height: 24px; flex-shrink: 0; box-sizing: border-box; border-radius: 12px; border: 2px solid rgba(var(--hair),0.22)"></span>`;
+      return `<div style="display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,calc(0.75 * var(--wk))); border: 1px solid rgba(var(--hair),0.1)">
 <div style="display: flex; align-items: center; gap: 12px">${mark}
-<span style="font-size: 14px; font-weight: 600; color: ${active ? '#1D1D1F' : '#6E6E73'}">${labels[i]}</span>
-<span style="margin-left: auto; font-size: 12px; color: ${c.state === 'fail' ? '#C4000F' : '#56565B'}; ${c.state === 'fail' ? 'font-weight: 600; max-width: 300px; text-align: right' : ''}">${esc(c.note)}</span>
+<span style="font-size: 14px; font-weight: 600; color: ${active ? 'var(--text)' : 'var(--sub3)'}">${labels[i]}</span>
+<span style="margin-left: auto; font-size: 12px; color: ${c.state === 'fail' ? '#C4000F' : 'var(--sub2)'}; ${c.state === 'fail' ? 'font-weight: 600; max-width: 300px; text-align: right' : ''}">${esc(c.note)}</span>
 </div>
 ${c.state === 'trust' ? `<div style="display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 36px; border-radius: 12px; background: rgba(255,159,10,0.12)">
 <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0">
 <span style="font-size: 13px; font-weight: 600">First connection. Is this the right server?</span>
 <span style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: #3A3A3C; overflow-wrap: anywhere; -webkit-user-select: text; user-select: text">${esc(c.fp)}</span>
 </div>
-<button data-cmd="addTrust" style="height: 36px; padding: 0 16px; border: 0; border-radius: 18px; background: #0066CC; color: #FFFFFF; font-size: 13px; font-weight: 600; cursor: pointer">Trust</button>
+<button data-cmd="addTrust" style="height: 36px; padding: 0 16px; border: 0; border-radius: 18px; background: var(--accent); color: #FFFFFF; font-size: 13px; font-weight: 600; cursor: pointer">Trust</button>
 </div>` : ''}
 </div>`;
     }).join('')}</div>`;
@@ -412,13 +419,13 @@ ${c.state === 'trust' ? `<div style="display: flex; align-items: center; gap: 12
     body = `<div style="display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 18px 0 6px; text-align: center">
 <span style="width: 64px; height: 64px; border-radius: 32px; background: #248A3D; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 24px rgba(36,138,61,0.35)">${CHECK(30, 2.8)}</span>
 <div style="font-size: 20px; font-weight: 700">${esc(name)} is ready</div>
-<div style="font-size: 14px; color: #56565B; max-width: 420px">${note}</div>
+<div style="font-size: 14px; color: var(--sub2); max-width: 420px">${note}</div>
 </div>`;
   }
   const nextLabel = A.step === 3 ? 'Test Connection' : A.step === 4 ? 'Add Server' : A.step === 5 ? 'Open ' + esc(name) : 'Continue';
   const ok = addValid();
   return `<div style="${OVERLAY}; background: rgba(10,25,50,0.3)">
-<div role="dialog" aria-label="Add server" style="width: 640px; padding: 26px 28px; display: flex; flex-direction: column; gap: 20px; ${DIALOG}; background: rgba(248,250,253,0.9)">
+<div role="dialog" aria-label="Add server" style="width: 640px; padding: 26px 28px; display: flex; flex-direction: column; gap: 20px; ${DIALOG}; background: rgba(var(--sheet),0.9)">
 <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px">
 <h1 style="margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.01em">${A.step === 5 ? 'Server added' : 'Add Server'}</h1>
 ${A.step < 5 ? `<ol aria-label="Steps" style="margin: 0; padding: 0; list-style: none; display: flex; align-items: center; gap: 6px">${steps}</ol>` : ''}
@@ -428,7 +435,7 @@ ${body}
 ${A.step > 1 && A.step < 5 ? `<button data-cmd="aBack" style="${GHOST}; padding: 0 20px">Back</button>` : ''}
 <div style="flex-grow: 1"></div>
 <button data-cmd="${A.step === 5 ? 'aAnother' : 'closeSheet'}" style="${GHOST}; padding: 0 20px">${A.step === 5 ? 'Add Another' : 'Cancel'}</button>
-<button id="aNext" data-cmd="aNext" ${ok ? '' : 'disabled'} style="${PRIMARY(ok)} padding: 0 22px; box-shadow: ${ok ? '0 6px 16px rgba(0,102,204,0.3), inset 0 1px 0 rgba(255,255,255,0.35)' : 'none'}">${nextLabel}</button>
+<button id="aNext" data-cmd="aNext" ${ok ? '' : 'disabled'} style="${PRIMARY(ok)} padding: 0 22px; box-shadow: ${ok ? '0 6px 16px rgba(var(--accent-rgb),0.3), inset 0 1px 0 rgba(255,255,255,calc(0.35 * var(--wk)))' : 'none'}">${nextLabel}</button>
 </div>
 </div>
 </div>`;
