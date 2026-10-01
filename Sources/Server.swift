@@ -278,8 +278,17 @@ final class Server {
             run(nil)
         default:
             if password == nil, !triedKeychain {
+                if Keychain.has(cfg.id) {
+                    // macOS may ask whether this app may read it. Deny means "don't", so nothing runs
+                    // (no fallback to asking for the password), and macOS asks again next time.
+                    let (saved, status) = Keychain.read(cfg.id)
+                    if Keychain.denied(status) {
+                        ice.toast("Keychain access denied · Nothing ran on \(cfg.name)")
+                        return done(nil, "")
+                    }
+                    password = saved
+                }
                 triedKeychain = true
-                if Keychain.has(cfg.id) { password = Keychain.get(cfg.id) }
             }
             guard let pw = password else { return run(nil) }
             // "always" means remembered and never confirmed on this Mac.

@@ -93,13 +93,18 @@ enum Keychain {
         [kSecClass: kSecClassGenericPassword, kSecAttrService: "Ice Servers sudo", kSecAttrAccount: account]
     }
 
-    static func get(_ account: String) -> String? {
+    static func get(_ account: String) -> String? { read(account).password }
+
+    /// The status tells "not saved" apart from "the user clicked Deny in macOS's Keychain prompt".
+    static func read(_ account: String) -> (password: String?, status: OSStatus) {
         var q = query(account)
         q[kSecReturnData] = true
         var out: AnyObject?
-        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let data = out as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
+        let status = SecItemCopyMatching(q as CFDictionary, &out)
+        return ((out as? Data).flatMap { String(data: $0, encoding: .utf8) }, status)
     }
+
+    static func denied(_ status: OSStatus) -> Bool { status == errSecAuthFailed || status == errSecUserCanceled }
 
     static func set(_ account: String, _ password: String) {
         let data = Data(password.utf8)
