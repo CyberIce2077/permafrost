@@ -9,7 +9,7 @@ TARGET="$(uname -m)-apple-macos14"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$WIDGET/Contents/MacOS"
 swiftc -O -target "$TARGET" Sources/*.swift Shared/*.swift -o "$APP/Contents/MacOS/IceServers"
-swiftc -O -target "$TARGET" -parse-as-library -application-extension Widget/*.swift Shared/*.swift -o "$WIDGET/Contents/MacOS/IceWidgets"
+swiftc -O -target "$TARGET" -parse-as-library -application-extension -Xlinker -e -Xlinker _NSExtensionMain Widget/*.swift Shared/*.swift -o "$WIDGET/Contents/MacOS/IceWidgets"
 cp Resources/* "$APP/Contents/Resources/"
 cp Info.plist "$APP/Contents/"
 cp Widget/Info.plist "$WIDGET/Contents/"
@@ -22,6 +22,9 @@ if [ "$1" = "--install" ]; then
   rm -rf "/Applications/Ice Servers.app"
   cp -R "$APP" /Applications/
   pluginkit -a "/Applications/Ice Servers.app/Contents/PlugIns/IceWidgets.appex"
+  /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -u "$APP" 2>/dev/null || true
+  rm -rf build
+  /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f -R "/Applications/Ice Servers.app"
   open "/Applications/Ice Servers.app"
   echo "Installed /Applications/Ice Servers.app"
 fi
