@@ -14,6 +14,10 @@ cp Resources/* "$APP/Contents/Resources/"
 swift tools/icon.swift build/AppIcon.iconset && iconutil -c icns build/AppIcon.iconset -o "$APP/Contents/Resources/AppIcon.icns" && rm -rf build/AppIcon.iconset
 cp Info.plist "$APP/Contents/"
 cp Widget/Info.plist "$WIDGET/Contents/"
+# A new build number each build, so macOS re-reads the widget list instead of using its cache.
+BUILD=$(date +%Y%m%d%H%M%S)
+plutil -replace CFBundleVersion -string "$BUILD" "$APP/Contents/Info.plist"
+plutil -replace CFBundleVersion -string "$BUILD" "$WIDGET/Contents/Info.plist"
 codesign --force --sign - --entitlements Widget/Widget.entitlements "$WIDGET"
 codesign --force --sign - "$APP"
 echo "Built $APP"

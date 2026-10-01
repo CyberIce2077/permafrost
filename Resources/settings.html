@@ -6,6 +6,8 @@
 <link rel="stylesheet" href="common.css">
 <style>
 input[type=range] { width: 100%; height: 28px; margin: 0; cursor: pointer; }
+main::-webkit-scrollbar { display: none; }
+main > * { flex-shrink: 0; }
 .icefield.solid { background: #FFFFFF; font-weight: 400; color: #1D1D1F; border-color: rgba(60,60,67,0.2); }
 </style>
 </head>
@@ -22,6 +24,7 @@ const PANES = [
   ['general', 'General', '#8E8E93', 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.8 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.8-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 14H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 3V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.8 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 21 10h0a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z'],
   ['appearance', 'Appearance', '#0A84FF', 'M12 3a9 9 0 1 0 0 18c1 0 1.5-.7 1.5-1.5 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1 0-.8.7-1.5 1.5-1.5H16a5 5 0 0 0 5-5c0-4.4-4-7.8-9-7.8zM7.5 12.5h.01M10 8h.01M15 8h.01'],
   ['servers', 'Servers', '#30B0C7', 'M3 4h18v7H3zM3 13h18v7H3zM7 7.5h.01M7 16.5h.01'],
+  ['widgets', 'Widgets', '#FF9500', 'M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z'],
   ['notifications', 'Notifications', '#FF3B30', 'M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0'],
   ['passwords', 'Passwords', '#5E5CE6', 'M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4'],
 ];
@@ -134,6 +137,65 @@ ${!P.reduce && P.glass < 25 ? `<div role="note" style="font-size: 12px; font-wei
 <div style="display: flex; justify-content: flex-end"><button data-cmd="resetLook" style="height: 40px; padding: 0 18px; border-radius: 20px; ${ui.ghost}; background: ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.8)'}">Restore Defaults</button></div>
 </div>`;
 
+  // Widgets (design: Settings › widgets), plus the custom widgets that the design leaves to Edit Widget.
+  const STATS = [['cpu', 'CPU', '#0A84FF'], ['mem', 'Memory', '#5E5CE6'], ['net', 'Network', '#FF9F0A'], ['disk', 'Disk', '#34C759'], ['temp', 'Temperature', '#FF453A']];
+  const chk = (on) => `width: 22px; height: 22px; flex-shrink: 0; box-sizing: border-box; border-radius: 7px; display: flex; align-items: center; justify-content: center; background: ${on ? acc : (dark ? 'rgba(255,255,255,0.08)' : '#FFFFFF')}; border: 1.5px solid ${on ? acc : (dark ? 'rgba(255,255,255,0.3)' : 'rgba(60,60,67,0.35)')}`;
+  const wRow = (i, extra = '') => `display: flex; align-items: center; gap: 12px; width: 100%; min-height: 46px; padding: 4px 18px; border: 0; background: transparent; cursor: pointer; text-align: left;${i > 0 ? ` border-top: 1px solid ${hair};` : ''}${extra}`;
+  const statOn = (k) => ['S', 'M', 'L', 'XL'].every((z) => S.widgets[z].metrics[k]);
+  const chosen = STATS.filter(([k]) => statOn(k));
+  const inW = S.servers.filter((x) => x.widgets);
+  const full = inW.length >= MAX_SERVERS;
+  const listCard = `display: flex; flex-direction: column; border-radius: 22px; overflow: hidden; background: ${cardBg}; border: 1px solid ${cardBorder}`;
+  const fmt = (k, x) => {
+    const off = !LIVE.includes(x.phase), t = x.temp.length ? last(x.temp) : null;
+    const v = { cpu: last(x.cpu), mem: last(x.mem), net: last(x.down), disk: x.disk, temp: t };
+    if (off) return [k === 'disk' && x.diskTotal ? Math.round(x.disk) + '%' : '—', k === 'disk' ? x.disk : 0];
+    if (k === 'temp') return [deg(t), t || 0];
+    if (k === 'net') return [rate(v.net), v.net / netMax(x) * 100];
+    return [Math.round(v[k]) + '%', v[k]];
+  };
+  const custom = S.custom || [];
+  const widgets = `<div style="display: flex; flex-direction: column; gap: 14px">
+<p style="${ui.sub}">These choices apply to the Servers widget on your desktop. Custom widgets, set up below, have their own servers and stats.</p>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start">
+<section aria-label="Servers in widgets" style="${listCard}">
+<div style="padding: 12px 18px 4px"><span style="${ui.label}">Servers</span><span style="float: right; line-height: 18px; ${ui.sub}">${inW.length} of ${MAX_SERVERS}</span></div>
+${S.servers.map((x, i) => {
+    const off = !x.widgets && full;
+    return `<button data-cmd="wServer" data-id="${x.id}" role="checkbox" aria-checked="${x.widgets}" ${off ? 'disabled' : ''} style="${wRow(i, off ? ' opacity: 0.45; cursor: default;' : '')}"><span style="${chk(x.widgets)}">${CHECK(12, 3.4)}</span><span style="width: 28px; height: 28px; flex-shrink: 0; border-radius: 9px; background: ${SERVER_COLORS[x.color] || SERVER_COLORS.blue}"></span><span style="display: flex; flex-direction: column; gap: 1px; text-align: left; min-width: 0"><span style="${ui.label}">${esc(x.name)}</span><span style="${ui.sub}">${off ? 'Up to ' + MAX_SERVERS + ' servers per widget' : LIVE.includes(x.phase) ? 'Online' : 'Offline'}</span></span></button>`;
+  }).join('')}
+</section>
+<section aria-label="Stats in widgets" style="${listCard}">
+<div style="padding: 12px 18px 4px; display: flex; justify-content: space-between; align-items: baseline"><span style="${ui.label}">Stats</span><span style="${ui.sub}">${chosen.length} of 5</span></div>
+${STATS.map(([k, name, color], i) => `<button data-cmd="wStat" data-val="${k}" role="checkbox" aria-checked="${statOn(k)}" style="${wRow(i)}"><span style="${chk(statOn(k))}">${CHECK(12, 3.4)}</span><span style="width: 10px; height: 10px; border-radius: 5px; flex-shrink: 0; background: ${color}"></span><span style="${ui.label}">${name}</span></button>`).join('')}
+</section>
+</div>
+<section aria-label="Widget preview" style="box-sizing: border-box; padding: 14px; border-radius: 22px; display: flex; justify-content: center; background-color: #3B6FA0; background-image: radial-gradient(circle at 20% 20%, #BFE3F7 0%, rgba(191,227,247,0) 55%), radial-gradient(circle at 85% 80%, #7C8CE0 0%, rgba(124,140,224,0) 60%)">
+<div style="width: 520px; box-sizing: border-box; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; border-radius: 24px; color: #1D1D1F; background: rgba(255,255,255,0.66); backdrop-filter: blur(30px) saturate(180%); -webkit-backdrop-filter: blur(30px) saturate(180%); border: 1px solid rgba(255,255,255,0.85); box-shadow: 0 12px 30px rgba(8,28,60,0.25)">
+<div style="display: flex; justify-content: space-between; align-items: baseline"><span style="font-size: 14px; font-weight: 700">All servers</span><span style="font-size: 11px; font-weight: 600; color: #4A4A4F">${inW.length} ${inW.length === 1 ? 'server' : 'servers'}</span></div>
+${inW.length ? '' : '<div style="font-size: 12px; color: #4A4A4F">Choose at least one server.</div>'}
+${inW.slice(0, MAX_SERVERS).map((x) => `<div style="display: grid; grid-template-columns: minmax(0, 1.3fr) repeat(${chosen.length}, minmax(0, 1fr)); column-gap: 12px; align-items: center; min-height: 34px">
+<span style="display: flex; align-items: center; gap: 7px; min-width: 0"><span style="width: 7px; height: 7px; border-radius: 4px; flex-shrink: 0; background: ${LIVE.includes(x.phase) ? '#30D158' : '#8E8E93'}"></span><span style="font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">${esc(x.name)}</span></span>
+${chosen.map(([k, , color]) => {
+    const [txt, v] = fmt(k, x), live = LIVE.includes(x.phase) || k === 'disk';
+    const warn = (k === 'disk' && v > 80) || (k === 'temp' && v >= 70);
+    return `<span style="display: flex; flex-direction: column; gap: 3px; min-width: 0"><span style="font-size: 11px; font-weight: 700; white-space: nowrap; color: ${live ? '#1D1D1F' : '#56565B'}">${txt}</span><span style="display: block; height: 5px; border-radius: 3px; background: rgba(120,120,128,0.2)"><span style="display: block; height: 100%; border-radius: 3px; width: ${live ? Math.min(v, 100) : 0}%; background: ${warn ? '#FF9F0A' : color}"></span></span></span>`;
+  }).join('')}
+</div>`).join('')}
+</div>
+</section>
+<section aria-label="Custom widgets" style="${listCard}">
+<div style="padding: 12px 18px 4px; display: flex; justify-content: space-between; align-items: baseline"><span style="${ui.label}">Custom widgets</span><span style="${ui.sub}">${custom.length} of ${MAX_CUSTOM}</span></div>
+${custom.length ? custom.map((c, i) => {
+    const names = c.servers.map((id) => (S.servers.find((x) => x.id === id) || {}).name).filter(Boolean);
+    const stats = STATS.filter(([k]) => c.style.metrics[k]).map(([, n]) => n);
+    return `<div style="${rowStyle(i)}"><span style="width: 36px; height: 36px; flex-shrink: 0; border-radius: 11px; display: flex; align-items: center; justify-content: center; background: linear-gradient(160deg, #FFC46B, #FF9500)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z"></path></svg></span>${head(c.name, `Custom ${c.slot} in the widget gallery · ${names.length ? names.join(', ') : 'no servers'} · ${stats.join(', ')}`)}
+<div style="display: flex; gap: 8px"><button data-cmd="editCustom" data-val="${c.slot}" aria-label="Edit ${esc(c.name)}" style="height: 36px; padding: 0 14px; border-radius: 18px; ${ui.ghost}">Edit…</button><button data-cmd="removeCustom" data-val="${c.slot}" aria-label="Remove ${esc(c.name)}" style="height: 36px; padding: 0 14px; border-radius: 18px; cursor: pointer; font-size: 13px; font-weight: 600; color: ${dark ? '#FF6961' : '#C4000F'}; background: ${dark ? 'rgba(255,255,255,0.1)' : '#FFFFFF'}; border: 1px solid rgba(215,0,21,0.35)">Remove</button></div></div>`;
+  }).join('') : `<div style="padding: 4px 18px 14px; ${ui.sub}">Make a widget with its own name, up to ${MAX_SERVERS} servers and its own stats. Each one appears in the widget gallery as Custom 1–${MAX_CUSTOM}.</div>`}
+</section>
+<div style="display: flex; justify-content: flex-end; padding-bottom: 4px"><button data-cmd="newCustom" ${custom.length >= MAX_CUSTOM ? 'disabled' : ''} style="height: 40px; padding: 0 18px; border-radius: 20px; border: 0; cursor: pointer; font-size: 13px; font-weight: 600; color: #FFFFFF; background: ${acc};${custom.length >= MAX_CUSTOM ? ' opacity: 0.4; cursor: default;' : ''}">+ New Custom Widget…</button></div>
+</div>`;
+
   const list = `<div style="display: flex; flex-direction: column; border-radius: 22px; overflow: hidden; background: ${cardBg}; border: 1px solid ${cardBorder}">${rows.map((r, i) => r(i)).join('')}</div>
 ${pane === 'servers' ? `${S.servers.length ? '' : `<div style="${ui.sub}">No servers yet. Add one to start monitoring.</div>`}<div style="display: flex; justify-content: flex-end"><button data-cmd="showAdd" style="height: 40px; padding: 0 18px; border-radius: 20px; border: 0; cursor: pointer; font-size: 13px; font-weight: 600; color: #FFFFFF; background: ${acc}">+ Add Server…</button></div>` : ''}`;
 
@@ -145,9 +207,9 @@ ${PANES.map(([k, label, color, icon]) => {
     return `<button data-cmd="pane" data-val="${k}" aria-current="${on ? 'page' : 'false'}" style="display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 6px 10px; border-radius: 12px; border: 0; cursor: pointer; font-size: 14px; font-weight: 600; text-align: left; color: ${text}; text-shadow: ${shadow}; background: ${on ? (dark ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.85)') : 'transparent'}"><span style="width: 26px; height: 26px; flex-shrink: 0; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: ${color}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${icon}"></path></svg></span>${label}</button>`;
   }).join('')}
 </nav>
-<main style="flex-grow: 1; min-width: 0; box-sizing: border-box; padding: 22px 26px; display: flex; flex-direction: column; gap: 16px; overflow: hidden">
+<main style="flex-grow: 1; min-width: 0; box-sizing: border-box; padding: 22px 26px; display: flex; flex-direction: column; gap: 16px; overflow-x: hidden; overflow-y: auto">
 <h1 style="margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; text-shadow: ${shadow}">${PANES.find((p) => p[0] === pane)[1]}</h1>
-${pane === 'appearance' ? appearance : list}
+${pane === 'appearance' ? appearance : pane === 'widgets' ? widgets : list}
 </main>
 </div>`;
 }
@@ -249,6 +311,11 @@ function act(d) {
       return pref(d.key, Math.min(lim[1], Math.max(lim[0], S.prefs[d.key] + +d.val)));
     }
     case 'touchID': return post({ cmd: 'touchID', on: !S.touchID });
+    case 'wServer': return post({ cmd: 'serverWidgets', id: d.id, on: !S.servers.find((x) => x.id === d.id).widgets });
+    case 'wStat': return post({ cmd: 'wStat', key: d.val });
+    case 'newCustom': return post({ cmd: 'newCustom' });
+    case 'editCustom': return post({ cmd: 'editCustom', slot: +d.val });
+    case 'removeCustom': return post({ cmd: 'removeCustom', slot: +d.val });
     case 'edit': {
       const s = S.servers.find((x) => x.id === d.id);
       edit = { id: s.id, name: s.name, user: s.user, host: s.host, port: s.port, color: s.color, widgets: s.widgets, menu: s.menu };

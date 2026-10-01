@@ -84,7 +84,9 @@ struct WidgetView: View {
         if entry.all && !entry.servers.isEmpty {
             allServers
         } else if entry.servers.isEmpty {
-            Text("Add a server in Ice Servers")
+            Text(entry.message ?? "Add a server in Ice Servers")
+                .multilineTextAlignment(.center)
+                .padding(16)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(L.sub)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -241,7 +243,7 @@ struct WidgetView: View {
         let online = entry.servers.filter(\.online).count
         return VStack(alignment: .leading, spacing: size == "S" || size == "M" ? 5 : 8) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(small ? "Servers" : "All servers").font(.system(size: size == "XL" ? 17 : 14, weight: .bold)).foregroundStyle(L.text)
+                Text(entry.title ?? (small ? "Servers" : "All servers")).lineLimit(1).font(.system(size: size == "XL" ? 17 : 14, weight: .bold)).foregroundStyle(L.text)
                 Spacer(minLength: 0)
                 Text("\(online) of \(entry.servers.count) online").font(.system(size: 11, weight: .semibold)).foregroundStyle(L.sub).lineLimit(1)
             }

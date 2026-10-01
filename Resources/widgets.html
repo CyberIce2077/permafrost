@@ -11,8 +11,7 @@
 
 <aside aria-label="Edit widget" style="position: absolute; left: 48px; top: 48px; width: 400px; height: 724px; box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 20px; border-radius: 28px; background: rgba(246,248,252,0.74); backdrop-filter: blur(44px) saturate(180%); -webkit-backdrop-filter: blur(44px) saturate(180%); border: 1px solid rgba(255,255,255,0.8); box-shadow: 0 30px 70px rgba(8,28,60,0.32), inset 0 1px 0 rgba(255,255,255,1)">
 <div style="display: flex; flex-direction: column; gap: 4px">
-<h1 style="margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.01em">Ice Servers</h1>
-<p style="margin: 0; font-size: 13px; color: #56565B">Choose what the widget shows on your desktop.</p>
+<div id="head" style="display: contents"></div>
 </div>
 <div id="groups" style="display: contents"></div>
 <div style="flex-grow: 1"></div>
@@ -37,11 +36,22 @@ const seg = (on) => `flex: 1 1 0; min-width: 0; height: 38px; padding: 0 6px; bo
 const chip = (on) => `height: 44px; padding: 0 16px; border-radius: 22px; cursor: pointer; font-size: 13px; font-weight: 600; transition: background 0.15s; border: 1px solid ${on ? '#0066CC' : 'rgba(60,60,67,0.18)'}; color: ${on ? '#FFFFFF' : '#1D1D1F'}; background: ${on ? '#0066CC' : 'rgba(255,255,255,0.7)'}`;
 const SIZES = [['S', 'Small'], ['M', 'Medium'], ['L', 'Large'], ['XL', 'X-Large']];
 
+// Editing a custom widget (from Settings › Widgets) rather than the standard Servers widget.
+const customW = () => S.editing != null ? (S.custom || []).find((c) => c.slot === S.editing) : null;
+
 function render(state) {
   if (state) S = state;
   if (S.prefs) Object.assign(UNITS, { unit: S.prefs.unit, net: S.prefs.net });
-  const w = { ...S.widgets[editing], size: editing }, n = S.servers.length;
+  const c = customW();
+  const w = { ...(c ? c.style : S.widgets[editing]), size: editing };
   const server = S.servers.some((s) => s.id === w.server) ? w.server : 'all';
+  // The name is an input styled as the design's title; it's only re-rendered when the widget changes.
+  const head = c ? `<input id="name" value="${esc(c.name)}" aria-label="Widget name" spellcheck="false" style="margin: 0; padding: 0; border: 0; outline: none; background: transparent; font: inherit; font-size: 22px; font-weight: 700; letter-spacing: -0.01em; color: #1D1D1F; width: 100%">
+<p style="margin: 0; font-size: 13px; color: #56565B">Custom ${c.slot} in the widget gallery. Choose up to ${MAX_SERVERS} servers.</p>`
+    : `<h1 style="margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.01em">Ice Servers</h1>
+<p style="margin: 0; font-size: 13px; color: #56565B">Choose what the widget shows on your desktop.</p>`;
+  if ($('head')._for !== (c ? c.slot : 'std')) { $('head')._for = c ? c.slot : 'std'; $('head').innerHTML = head; }
+  const full = c && c.servers.length >= MAX_SERVERS;
   const group = (label, key, track, style, opts, current) => `<div style="display: flex; flex-direction: column; gap: 8px">
 <div style="font-size: 12px; font-weight: 600; color: #56565B; letter-spacing: 0.02em">${label}</div>
 <div style="${track}">${opts.map(([val, text]) => {
@@ -51,30 +61,50 @@ function render(state) {
 </div>`;
   set($('groups'), [
     group('Size', 'size', SEG_TRACK, seg, SIZES, (v) => editing === v),
-    group('Servers', 'server', CHIP_TRACK, chip, [['all', 'All servers'], ...S.servers.map((s) => [s.id, s.name])], (v) => server === v),
+    c ? group(`Servers (up to ${MAX_SERVERS})`, 'cserver', CHIP_TRACK, (on) => chip(on) + (full && !on ? '; opacity: 0.45; cursor: default' : ''), S.servers.map((s) => [s.id, s.name]), (v) => c.servers.includes(v))
+      : group('Servers', 'server', CHIP_TRACK, chip, [['all', 'All servers'], ...S.servers.map((s) => [s.id, s.name])], (v) => server === v),
     group('Show (up to 4)', 'metric', CHIP_TRACK, chip, [['cpu', 'CPU'], ['mem', 'Memory'], ['net', 'Network'], ['disk', 'Disk'], ['temp', 'Temperature']], (v) => w.metrics[v]),
     group('Style', 'style', SEG_TRACK, seg, [['bars', 'Bars'], ['rings', 'Rings'], ['graph', 'Graphs']], (v) => w.style === v),
     group('Appearance', 'look', SEG_TRACK, seg, [['glass', 'Glass'], ['tinted', 'Tinted'], ['clear', 'Clear']], (v) => w.look === v),
   ].join(''));
   $('label').textContent = 'Preview · ' + { S: 'Small', M: 'Medium', L: 'Large', XL: 'Extra Large' }[editing];
-  set($('preview'), widgetPreview(w, S.servers));
+  set($('preview'), widgetPreview(w, S.servers, c));
 }
 
 function act(d) {
   if (d.cmd === 'done') return post({ cmd: 'done' });
   if (d.cmd !== 'pick') return;  // the preview's buttons are just a picture
   if (d.key === 'size') { editing = d.val; return render(); }
-  const cur = S.widgets[editing];
+  const c = customW();
+  if (c && d.key === 'cserver') {
+    const on = c.servers.includes(d.val);
+    if (!on && c.servers.length >= MAX_SERVERS) return;
+    c.servers = on ? c.servers.filter((x) => x !== d.val) : [...c.servers, d.val];
+    render();
+    return post({ cmd: 'setCustom', slot: c.slot, servers: c.servers });
+  }
+  const cur = c ? c.style : S.widgets[editing];
   let patch = { [d.key]: d.val };
   if (d.key === 'metric') {
     const metrics = { ...cur.metrics, [d.val]: !cur.metrics[d.val] };
     if (!Object.values(metrics).some(Boolean)) return;
     patch = { metrics };
   }
+  if (c) {
+    c.style = { ...cur, ...patch };
+    render();
+    return post({ cmd: 'setCustom', slot: c.slot, patch });
+  }
   S.widgets[editing] = { ...cur, ...patch };
   render();
   post({ cmd: 'set', size: editing, patch });
 }
+
+document.addEventListener('change', (e) => {
+  const c = customW();
+  if (e.target.id === 'name' && c && e.target.value.trim()) post({ cmd: 'setCustom', slot: c.slot, name: e.target.value });
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.id === 'name') e.target.blur(); });
 
 addEventListener('keydown', (e) => { if (e.key === 'Escape') post({ cmd: 'done' }); });
 </script>

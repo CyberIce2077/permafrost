@@ -10,6 +10,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var main: Panel!
     var settings: Panel?
     var widgetEditor: Panel?
+    /// The custom widget slot the widget editor is editing; nil = the standard widget.
+    private var editingCustom: Int?
     let alerts = Alerts()
     let menuBar = MenuBar()
     private var undo: (server: Server, index: Int, forget: Bool, timer: Timer)?
@@ -92,6 +94,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 state["select"] = id
                 self.selectID = nil
             }
+            state["widgets"] = ["S", "M", "L", "XL"].reduce(into: [String: Any]()) { $0[$1] = self.config.widgets[$1, default: WidgetStyle()].json }
+            state["custom"] = (self.config.custom ?? []).map(\.json)
+            state["editing"] = self.editingCustom ?? NSNull()
             self.main.render(state)
             if let pane = self.settingsPane, self.settings?.loaded == true {
                 state["pane"] = pane
@@ -99,9 +104,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             self.settings?.render(state)
             self.menuBar.update()
-            self.widgetEditor?.render(["servers": list, "prefs": self.prefs.json, "widgets": ["S", "M", "L", "XL"].reduce(into: [String: Any]()) {
-                $0[$1] = self.config.widgets[$1, default: WidgetStyle()].json
-            }])
+            self.widgetEditor?.render(state)
         }
     }
 
@@ -178,6 +181,54 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case "check": server?.checkUpdates()
         case "menu": if p === main { serverMenu(server, in: p) }
         case "set": setWidgetStyle(m["size"] as? String ?? "", m["patch"] as? [String: Any] ?? [:])
+        // Settings › Widgets
+        case "serverWidgets":
+            guard let s = server else { return }
+            let on = m["on"] as? Bool ?? true
+            if on, servers.filter({ $0.cfg.widgets ?? true }).count >= maxServersPerWidget { return }
+            s.cfg.widgets = on
+            save()
+            changed()
+        case "wStat":
+            // On in every size → off everywhere; otherwise on everywhere. Each size keeps at least one stat.
+            guard let key = m["key"] as? String else { return }
+            let sizes = ["S", "M", "L", "XL"]
+            let on = sizes.allSatisfy { config.widgets[$0, default: WidgetStyle()].metrics[key] == true }
+            for size in sizes {
+                var w = config.widgets[size, default: WidgetStyle()]
+                w.metrics[key] = !on
+                if w.metrics.values.contains(true) { config.widgets[size] = w }
+            }
+            save()
+            changed()
+        case "newCustom":
+            var list = config.custom ?? []
+            guard let slot = (1...maxCustomWidgets).first(where: { n in !list.contains { $0.slot == n } }) else { return }
+            let picks = servers.filter { $0.cfg.widgets ?? true }.prefix(maxServersPerWidget).map(\.cfg.id)
+            list.append(CustomWidget(slot: slot, name: "Custom \(slot)", servers: Array(picks)))
+            config.custom = list.sorted { $0.slot < $1.slot }
+            save()
+            openWidgetEditor(custom: slot)
+        case "editCustom": openWidgetEditor(custom: m["slot"] as? Int)
+        case "removeCustom":
+            config.custom?.removeAll { $0.slot == m["slot"] as? Int }
+            if editingCustom == m["slot"] as? Int { widgetEditor?.window.close() }
+            save()
+            changed()
+        case "setCustom":
+            guard let slot = m["slot"] as? Int, let i = config.custom?.firstIndex(where: { $0.slot == slot }) else { return }
+            var c = config.custom![i]
+            if let name = (m["name"] as? String)?.trimmingCharacters(in: .whitespaces), !name.isEmpty { c.name = name }
+            if let ids = m["servers"] as? [String] { c.servers = Array(ids.prefix(maxServersPerWidget)) }
+            if let patch = m["patch"] as? [String: Any] {
+                var dict = c.style.json
+                patch.forEach { dict[$0] = $1 }
+                if let data = try? JSONSerialization.data(withJSONObject: dict),
+                   let style = try? JSONDecoder().decode(WidgetStyle.self, from: data) { c.style = style }
+            }
+            config.custom![i] = c
+            save()
+            changed()
         // Add Server wizard
         case "addTest":
             probe?.cancel()
@@ -344,8 +395,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate()
     }
 
-    @objc func showWidgetEditor() {
+    @objc func showWidgetEditor() { openWidgetEditor(custom: nil) }
+
+    /// The design's widget editor, for the standard widget or one custom widget.
+    func openWidgetEditor(custom slot: Int?) {
+        editingCustom = slot
         if widgetEditor == nil { widgetEditor = Panel(page: "widgets", size: NSSize(width: 1280, height: 820), radius: 16, glass: false) }
+        changed()
         widgetEditor?.window.makeKeyAndOrderFront(nil)
         NSApp.activate()
     }
@@ -609,5 +665,6 @@ final class Panel: NSObject, WKScriptMessageHandler, NSWindowDelegate {
         web.configuration.userContentController.removeScriptMessageHandler(forName: "ice")
         if self === ice.settings { ice.settings = nil }
         if self === ice.widgetEditor { ice.widgetEditor = nil }
+        if self === ice.settings || self === ice.widgetEditor { ice.changed() }
     }
 }
