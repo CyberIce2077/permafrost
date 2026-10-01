@@ -1,5 +1,8 @@
+import OSLog
 import SwiftUI
 import WidgetKit
+
+private let log = Logger(subsystem: "app.iceservers.IceServers.Widgets", category: "fetch")
 
 @main
 struct IceWidgets: WidgetBundle {
@@ -70,22 +73,17 @@ struct Provider: TimelineProvider {
     /// One short SSH session: ~3 s of samples plus the update count.
     private static func stats(_ server: ServerConfig) -> Stats {
         var parser = StatsParser(Stats(id: server.id, name: server.name))
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/usr/bin/ssh")
         // -F /dev/null: ~/.ssh/config may include files the sandbox can't read; the app resolved it for us.
-        p.arguments = ["-T", "-F", "/dev/null", "-o", "BatchMode=yes", "-o", "ConnectTimeout=4",
-                       "-o", "UserKnownHostsFile=\(realHome)/.ssh/known_hosts"]
+        let args = ["-T", "-F", "/dev/null", "-o", "BatchMode=yes", "-o", "ConnectTimeout=4",
+                    "-o", "UserKnownHostsFile=\(realHome)/.ssh/known_hosts"]
             + (server.resolved ?? server.ssh.split(separator: " ").map(String.init)) + [Remote.snapshot]
-        let out = Pipe()
-        p.standardOutput = out
-        p.standardError = FileHandle.nullDevice
-        p.standardInput = FileHandle.nullDevice
-        guard (try? p.run()) != nil else { return parser.stats }
-        DispatchQueue.global().asyncAfter(deadline: .now() + 15) { if p.isRunning { p.terminate() } }
-        let text = String(decoding: out.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-        p.waitUntilExit()
+        let (status, text, errors) = Spawn.run("/usr/bin/ssh", args, timeout: 15)
+        if status != 0 {
+            log.error("\(server.name, privacy: .public): ssh exited \(status): \(errors, privacy: .public)")
+        }
         text.split(separator: "\n").forEach { _ = parser.feed(String($0)) }
         parser.stats.online = parser.stats.online && !parser.stats.cpu.isEmpty
+        log.info("\(server.name, privacy: .public): online=\(parser.stats.online) samples=\(parser.stats.cpu.count) bytes=\(text.utf8.count)")
         return parser.stats
     }
 
@@ -100,5 +98,56 @@ struct Provider: TimelineProvider {
                          diskUsed: 580, diskTotal: 1000, diskFree: 420, uptime: 1_036_800, updates: 0)
         }
         return Entry(size: size(context), style: style, servers: demo)
+    }
+}
+
+/// Runs a program as its own "responsible" process, like Terminal does for the commands it runs.
+/// Otherwise macOS's Local Network privacy judges ssh as part of this widget, can't match an
+/// ad-hoc signed widget to the app the user allowed, and fails every connection with "No route to host".
+enum Spawn {
+    private typealias Disclaim = @convention(c) (UnsafeMutablePointer<posix_spawnattr_t?>, Int32) -> Int32
+    private static let disclaim = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "responsibility_spawnattrs_setdisclaim")
+        .map { unsafeBitCast($0, to: Disclaim.self) }
+
+    static func run(_ path: String, _ args: [String], timeout: TimeInterval) -> (Int32, String, String) {
+        let out = Pipe(), err = Pipe()
+        var actions: posix_spawn_file_actions_t?
+        posix_spawn_file_actions_init(&actions)
+        defer { posix_spawn_file_actions_destroy(&actions) }
+        posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDONLY, 0)
+        posix_spawn_file_actions_adddup2(&actions, out.fileHandleForWriting.fileDescriptor, 1)
+        posix_spawn_file_actions_adddup2(&actions, err.fileHandleForWriting.fileDescriptor, 2)
+        var attr: posix_spawnattr_t?
+        posix_spawnattr_init(&attr)
+        defer { posix_spawnattr_destroy(&attr) }
+        _ = disclaim?(&attr, 1)
+
+        let argv = ([path] + args).map { strdup($0) } + [nil]
+        defer { argv.forEach { free($0) } }
+        var pid: pid_t = 0
+        let rc = posix_spawn(&pid, path, &actions, &attr, argv, environ)
+        try? out.fileHandleForWriting.close()
+        try? err.fileHandleForWriting.close()
+        guard rc == 0 else { return (-1, "", String(cString: strerror(rc))) }
+
+        var finished = false
+        let lock = NSLock()
+        DispatchQueue.global().asyncAfter(deadline: .now() + timeout) {
+            lock.withLock { if !finished { kill(pid, SIGTERM) } }
+        }
+        var errText = Data()
+        let group = DispatchGroup()
+        group.enter()
+        DispatchQueue.global().async {
+            errText = err.fileHandleForReading.readDataToEndOfFile()
+            group.leave()
+        }
+        let text = out.fileHandleForReading.readDataToEndOfFile()
+        group.wait()
+        var status: Int32 = 0
+        waitpid(pid, &status, 0)
+        lock.withLock { finished = true }
+        let code = (status & 0x7f) == 0 ? (status >> 8) & 0xff : -1
+        return (code, String(decoding: text, as: UTF8.self), String(decoding: errText, as: UTF8.self))
     }
 }

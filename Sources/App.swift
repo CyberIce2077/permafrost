@@ -112,7 +112,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func handle(_ m: [String: Any], from p: Panel) {
         let server = servers.first { $0.cfg.id == m["id"] as? String }
         switch m["cmd"] as? String {
-        case "ready": changed(); p.window.invalidateShadow()
+        case "ready":
+            changed()
+            p.window.invalidateShadow()
+            if p === main { showPasswordSheet() }
+        case "password":
+            guard let r = passwordRequests.first, r.server === server else { return }
+            r.reply((m["value"] as? String ?? "", m["remember"] as? Bool ?? true))
+        case "passwordCancel":
+            guard !passwordRequests.isEmpty else { return }
+            passwordRequests.removeFirst().reply(nil)
+            showPasswordSheet()
         case "drag": p.drag()
         case "close", "done": p.window.close()
         case "minimize": p.window.miniaturize(nil)
@@ -202,18 +212,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         a.runModal()
     }
 
-    func askPassword(_ name: String, wrong: Bool) -> String? {
-        let a = NSAlert()
-        a.messageText = wrong ? "Wrong password for \(name)" : "sudo password for \(name)"
-        a.informativeText = "Needed to restart, shut down or update the server. It's kept in your Keychain."
-        let field = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
-        a.accessoryView = field
-        a.addButton(withTitle: "OK")
-        a.addButton(withTitle: "Cancel")
-        a.window.initialFirstResponder = field
-        NSApp.activate()
-        guard a.runModal() == .alertFirstButtonReturn, !field.stringValue.isEmpty else { return nil }
-        return field.stringValue
+    // MARK: sudo password sheet (in the main window, one server at a time)
+
+    private var passwordRequests: [(server: Server, error: String?, reply: ((String, Bool)?) -> Void)] = []
+
+    /// Shows the sheet for `server`, or updates it with `error` if it's already showing.
+    /// `reply` gets the password and whether to remember it, or nil when cancelled.
+    func askPassword(for server: Server, error: String?, reply: @escaping ((String, Bool)?) -> Void) {
+        if let i = passwordRequests.firstIndex(where: { $0.server === server }) {
+            passwordRequests[i] = (server, error, reply)
+        } else {
+            passwordRequests.append((server, error, reply))
+        }
+        showPasswordSheet()
+    }
+
+    func passwordAccepted(for server: Server) {
+        passwordRequests.removeAll { $0.server === server }
+        showPasswordSheet()
+    }
+
+    private func showPasswordSheet() {
+        guard let r = passwordRequests.first else { return main.call("hidePassword") }
+        showMain()
+        main.call("askPassword", ["id": r.server.cfg.id, "name": r.server.cfg.name, "user": r.server.sshUser, "error": r.error ?? NSNull()])
     }
 
     // MARK: menu bar
@@ -346,6 +368,11 @@ final class Panel: NSObject, WKScriptMessageHandler, NSWindowDelegate {
     func render(_ state: [String: Any]) {
         guard let data = try? JSONSerialization.data(withJSONObject: state) else { return }
         web.evaluateJavaScript("window.render && render(\(String(decoding: data, as: UTF8.self)))")
+    }
+
+    func call(_ function: String, _ arg: [String: Any] = [:]) {
+        guard let data = try? JSONSerialization.data(withJSONObject: arg) else { return }
+        web.evaluateJavaScript("window.\(function) && \(function)(\(String(decoding: data, as: UTF8.self)))")
     }
 
     func drag() {
