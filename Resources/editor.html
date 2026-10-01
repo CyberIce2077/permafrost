@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Edit widget</title>
+<link rel="stylesheet" href="common.css">
+</head>
+<body>
+<aside aria-label="Edit widget" style="position: fixed; inset: 0; box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 20px; border-radius: 28px; background: rgba(246,248,252,0.74); border: 1px solid rgba(255,255,255,0.8); box-shadow: inset 0 1px 0 rgba(255,255,255,1)">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<h1 style="margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.01em">Ice Servers</h1>
+<p style="margin: 0; font-size: 13px; color: #56565B">Choose what the widget shows on your desktop.</p>
+</div>
+<div id="groups" style="display: contents"></div>
+<div style="flex-grow: 1"></div>
+<button data-cmd="done" style="height: 44px; border: 0; border-radius: 22px; background: #0066CC; color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 6px 16px rgba(0,102,204,0.3), inset 0 1px 0 rgba(255,255,255,0.35)">Done</button>
+</aside>
+<script src="common.js"></script>
+<script>
+let S = null;
+
+const SEG_TRACK = 'display: flex; gap: 2px; padding: 3px; border-radius: 22px; background: rgba(120,120,128,0.14)';
+const CHIP_TRACK = 'display: flex; flex-wrap: wrap; gap: 8px';
+const seg = (on) => `flex: 1 1 0; min-width: 0; height: 38px; padding: 0 6px; border-radius: 19px; cursor: pointer; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background 0.15s; color: #1D1D1F; border: 1px solid ${on ? 'rgba(255,255,255,1)' : 'transparent'}; background: ${on ? '#FFFFFF' : 'transparent'}; box-shadow: ${on ? '0 2px 8px rgba(20,40,80,0.14)' : 'none'}`;
+const chip = (on) => `height: 44px; padding: 0 16px; border-radius: 22px; cursor: pointer; font-size: 13px; font-weight: 600; transition: background 0.15s; border: 1px solid ${on ? '#0066CC' : 'rgba(60,60,67,0.18)'}; color: ${on ? '#FFFFFF' : '#1D1D1F'}; background: ${on ? '#0066CC' : 'rgba(255,255,255,0.7)'}`;
+
+function render(state) {
+  if (state) S = state;
+  const w = S.widget, n = S.servers.length;
+  const server = S.servers.some((s) => s.id === w.server) ? w.server : 'all';
+  const group = (label, key, track, style, opts, current) => `<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="font-size: 12px; font-weight: 600; color: #56565B; letter-spacing: 0.02em">${label}</div>
+<div style="${track}">${opts.map(([val, text]) => {
+    const on = current(val);
+    return `<button data-cmd="pick" data-key="${key}" data-val="${esc(val)}" aria-pressed="${on}" style="${style(on)}">${esc(text)}</button>`;
+  }).join('')}</div>
+</div>`;
+  set($('groups'), [
+    group('Size', 'size', SEG_TRACK, seg, [['S', 'Small'], ['M', 'Medium'], ['L', 'Large'], ['XL', 'X-Large']], (v) => w.size === v),
+    group('Server', 'server', SEG_TRACK, seg, [...S.servers.map((s) => [s.id, s.name]), ...(n > 1 ? [['all', n === 2 ? 'Both' : 'All']] : [])], (v) => server === v || (n === 1 && v === S.servers[0].id)),
+    group('Show', 'metric', CHIP_TRACK, chip, [['cpu', 'CPU'], ['mem', 'Memory'], ['net', 'Network'], ['disk', 'Disk']], (v) => w.metrics[v]),
+    group('Style', 'style', SEG_TRACK, seg, [['bars', 'Bars'], ['rings', 'Rings'], ['graph', 'Graphs']], (v) => w.style === v),
+    group('Appearance', 'look', SEG_TRACK, seg, [['glass', 'Glass'], ['tinted', 'Tinted'], ['clear', 'Clear']], (v) => w.look === v),
+  ].join(''));
+}
+
+function act(d) {
+  if (d.cmd !== 'pick') return post({ cmd: d.cmd });
+  let patch = { [d.key]: d.val };
+  if (d.key === 'metric') {
+    const metrics = { ...S.widget.metrics, [d.val]: !S.widget.metrics[d.val] };
+    if (!Object.values(metrics).some(Boolean)) return;
+    patch = { metrics };
+  }
+  S.widget = { ...S.widget, ...patch };
+  render();
+  post({ cmd: 'set', patch });
+}
+</script>
+</body>
+</html>

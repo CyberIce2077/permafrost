@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>Ice Servers</string>
+	<key>CFBundleDisplayName</key>
+	<string>Ice Servers</string>
+	<key>CFBundleIdentifier</key>
+	<string>app.iceservers.IceServers</string>
+	<key>CFBundleExecutable</key>
+	<string>IceServers</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Ice Servers connects to your servers over SSH and wakes them with Wake-on-LAN.</string>
+</dict>
+</plist>

@@ -1,0 +1,15 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  color: #1D1D1F;
+  font-variant-numeric: tabular-nums;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
+}
+button { font-family: inherit; }
+button:disabled { cursor: default; }
+input { -webkit-user-select: text; user-select: text; }
+@keyframes icespin { to { transform: rotate(360deg); } }
+.icespin { animation: icespin 0.9s linear infinite; transform-origin: 50% 50%; }
