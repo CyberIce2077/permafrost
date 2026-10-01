@@ -6,27 +6,28 @@ struct ServerConfig: Codable {
     var name: String
     var ssh: String
     var mac: String?
+    /// `ssh` arguments with ~/.ssh/config already applied, for the sandboxed widget.
+    var resolved: [String]?
 }
 
-struct WidgetConfig: Codable {
-    var id = UUID().uuidString
-    var size = "M"
+/// What the widgets of one size show. Keyed by size ("S", "M", "L", "XL") in `Config.widgets`.
+struct WidgetStyle: Codable {
     var server = "all"
     var metrics = ["cpu": true, "mem": true, "net": true, "disk": true]
     var style = "bars"
     var look = "glass"
-    var x = 0.0
-    var y = 0.0
 }
 
 struct Config: Codable {
     var servers: [ServerConfig] = []
-    var widgets: [WidgetConfig] = []
+    var widgets: [String: WidgetStyle] = [:]
 }
 
+/// The real home folder, also from inside the widget's sandbox (where $HOME is its container).
+let realHome = String(cString: getpwuid(getuid())!.pointee.pw_dir)
+
 enum Store {
-    static let url = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        .appendingPathComponent("Ice Servers/config.json")
+    static let url = URL(fileURLWithPath: realHome + "/Library/Application Support/Ice Servers/config.json")
 
     static func load() -> Config? {
         try? JSONDecoder().decode(Config.self, from: Data(contentsOf: url))
@@ -39,7 +40,7 @@ enum Store {
 
     /// First launch: turn `alias name='ssh user@host'` lines from shell rc files into servers.
     static func shellAliases() -> [ServerConfig] {
-        let home = FileManager.default.homeDirectoryForCurrentUser
+        let home = URL(fileURLWithPath: realHome)
         let re = try! NSRegularExpression(pattern: #"^\s*alias\s+([\w.-]+)=(['"])ssh\s+([^'"]+)\2"#, options: .anchorsMatchLines)
         var found: [ServerConfig] = []
         for file in [".zshrc", ".zprofile", ".bashrc", ".bash_profile", ".aliases"] {

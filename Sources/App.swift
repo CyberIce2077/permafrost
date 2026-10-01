@@ -1,24 +1,22 @@
 import AppKit
 import WebKit
+import WidgetKit
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var config = Config()
     var servers: [Server] = []
     var main: Panel!
-    var widgets: [String: Panel] = [:]
-    var editor: Panel?
+    var settings: Panel?
     private var renderQueued = false
-
-    static let widgetSizes: [String: (w: CGFloat, h: CGFloat, r: CGFloat)] = [
-        "S": (172, 172, 26), "M": (364, 172, 26), "L": (364, 384, 28), "XL": (748, 384, 30),
-    ]
+    private var reloadQueued = false
+    private var selectID: String?
+    private var pendingURLs: [URL] = []
 
     func applicationDidFinishLaunching(_ note: Notification) {
         if let saved = Store.load() {
             config = saved
         } else {
             config.servers = Store.shellAliases()
-            config.widgets = [newWidget()]
         }
         servers = config.servers.map(Server.init)
         buildMenu()
@@ -30,16 +28,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         main = Panel(page: "app", window: win, radius: 28)
         win.makeKeyAndOrderFront(nil)
 
-        config.widgets.forEach(openWidget)
         servers.forEach { $0.connect() }
         Timer.scheduledTimer(withTimeInterval: 1800, repeats: true) { _ in
             self.servers.filter { $0.phase == "online" }.forEach { $0.countUpdates() }
         }
         save()
         NSApp.activate()
+        application(NSApp, open: pendingURLs)
     }
 
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
         showMain()
@@ -54,6 +52,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func save() {
         config.servers = servers.map(\.cfg)
         Store.save(config)
+        reloadWidgets()
+    }
+
+    /// Asks WidgetKit to refresh the desktop widgets, at most once a second.
+    func reloadWidgets() {
+        guard !reloadQueued else { return }
+        reloadQueued = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            self.reloadQueued = false
+            WidgetCenter.shared.reloadAllTimelines()
+        }
     }
 
     /// Coalesces state pushes to the web views into one per run loop turn.
@@ -63,13 +72,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.async {
             self.renderQueued = false
             let list = self.servers.map(\.json)
-            self.main.render(["servers": list])
-            for p in Array(self.widgets.values) + [self.editor].compactMap({ $0 }) {
-                if let w = self.config.widgets.first(where: { $0.id == p.widgetID }) {
-                    p.render(["servers": list, "widget": w.json])
-                }
+            var state: [String: Any] = ["servers": list]
+            if let id = self.selectID {
+                state["select"] = id
+                self.selectID = nil
             }
+            self.main.render(state)
+            self.settings?.render(["servers": list, "widgets": ["S", "M", "L", "XL"].reduce(into: [String: Any]()) {
+                $0[$1] = self.config.widgets[$1, default: WidgetStyle()].json
+            }])
         }
+    }
+
+    // MARK: widget links: iceservers://<open|power|restart|install|check>?id=<server>
+
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard main != nil else { return pendingURLs += urls }
+        for url in urls where url.scheme == "iceservers" {
+            let id = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "id" }?.value
+            selectID = id
+            showMain()
+            changed()
+            if let action = url.host, action != "open", let id { run(action, on: id) }
+        }
+    }
+
+    /// Runs a widget's action once the app knows whether the server is up (it may have just launched).
+    private func run(_ action: String, on id: String, tries: Int = 40) {
+        guard let s = servers.first(where: { $0.cfg.id == id }) else { return }
+        if s.phase == "connecting", tries > 0 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { self.run(action, on: id, tries: tries - 1) }
+            return
+        }
+        handle(["cmd": action, "id": id], from: main)
     }
 
     // MARK: messages from the pages
@@ -79,21 +114,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         switch m["cmd"] as? String {
         case "ready": changed(); p.window.invalidateShadow()
         case "drag": p.drag()
-        case "close": p.window.close()
+        case "close", "done": p.window.close()
         case "minimize": p.window.miniaturize(nil)
         case "zoom": p.window.zoom(nil)
         case "power":
             guard let s = server else { return }
             if s.phase == "off" { s.powerOn() }
-            else if confirm("Turn off \(s.cfg.name)?", "You'll be able to turn it back on with Wake-on-LAN.", "Turn Off") { s.powerOff() }
+            else if s.phase == "online", confirm("Turn off \(s.cfg.name)?", "You'll be able to turn it back on with Wake-on-LAN.", "Turn Off") { s.powerOff() }
         case "restart":
-            if let s = server, confirm("Restart \(s.cfg.name)?", "It will be unavailable for a minute or two.", "Restart") { s.restart() }
+            if let s = server, s.phase == "online", confirm("Restart \(s.cfg.name)?", "It will be unavailable for a minute or two.", "Restart") { s.restart() }
         case "install": server?.installUpdates()
         case "check": server?.checkUpdates()
         case "add": addServer(m)
-        case "menu": p === main ? serverMenu(server, in: p) : widgetMenu(p)
-        case "set": updateWidget(p.widgetID, m["patch"] as? [String: Any] ?? [:])
-        case "done": closeEditor()
+        case "menu": if p === main { serverMenu(server, in: p) }
+        case "set": setWidgetStyle(m["size"] as? String ?? "", m["patch"] as? [String: Any] ?? [:])
         default: break
         }
     }
@@ -118,94 +152,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             s.disconnect()
             Keychain.delete(s.cfg.id)
             servers.removeAll { $0 === s }
-            for i in config.widgets.indices where config.widgets[i].server == s.cfg.id { config.widgets[i].server = "all" }
+            for (size, w) in config.widgets where w.server == s.cfg.id { config.widgets[size]?.server = "all" }
             save()
             changed()
         }])
     }
 
-    // MARK: widgets
+    // MARK: widget settings
 
-    private func newWidget() -> WidgetConfig {
-        let vf = NSScreen.screens.first?.visibleFrame ?? .zero
-        let offset = CGFloat(config.widgets.count) * 24
-        return WidgetConfig(x: vf.minX + 24 + offset, y: vf.maxY - 24 - 172 - offset)
-    }
-
-    private func openWidget(_ w: WidgetConfig) {
-        let d = Self.widgetSizes[w.size] ?? Self.widgetSizes["M"]!
-        let win = NSPanel(contentRect: NSRect(x: w.x, y: w.y, width: d.w, height: d.h),
-                          styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-        win.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.desktopIconWindow)) + 1)
-        win.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
-        win.hidesOnDeactivate = false
-        widgets[w.id] = Panel(page: "widget", window: win, radius: d.r, widgetID: w.id)
-        win.orderFront(nil)
-    }
-
-    @objc func addWidget() {
-        let w = newWidget()
-        config.widgets.append(w)
-        openWidget(w)
-        save()
-        openEditor(w.id)
-    }
-
-    private func widgetMenu(_ p: Panel) {
-        guard let id = p.widgetID, p !== editor else { return }
-        p.popUp([
-            MenuAction("Edit Widget…") { [self] in openEditor(id) },
-            MenuAction("Remove Widget") { [self] in
-                if editor?.widgetID == id { closeEditor() }
-                widgets.removeValue(forKey: id)?.close()
-                config.widgets.removeAll { $0.id == id }
-                save()
-            },
-        ])
-    }
-
-    func widgetMoved(_ p: Panel) {
-        guard let i = config.widgets.firstIndex(where: { $0.id == p.widgetID }), p !== editor else { return }
-        config.widgets[i].x = p.window.frame.minX
-        config.widgets[i].y = p.window.frame.minY
-        save()
-    }
-
-    private func updateWidget(_ id: String?, _ patch: [String: Any]) {
-        guard let i = config.widgets.firstIndex(where: { $0.id == id }) else { return }
-        var dict = config.widgets[i].json
-        patch.forEach { dict[$0] = $1 }
-        guard let data = try? JSONSerialization.data(withJSONObject: dict),
-              let w = try? JSONDecoder().decode(WidgetConfig.self, from: data) else { return }
-        config.widgets[i] = w
-        if let p = widgets[w.id], let d = Self.widgetSizes[w.size] {
-            let f = p.window.frame
-            p.window.setFrame(NSRect(x: f.minX, y: f.maxY - d.h, width: d.w, height: d.h), display: true, animate: true)
-            p.setRadius(d.r)
+    @objc func showSettings() {
+        if settings == nil {
+            let win = KeyWindow(contentRect: NSRect(x: 0, y: 0, width: 1280, height: 820),
+                                styleMask: [.borderless, .closable, .miniaturizable], backing: .buffered, defer: false)
+            win.center()
+            settings = Panel(page: "settings", window: win, radius: 16)
         }
-        save()
-        changed()
-    }
-
-    private func openEditor(_ id: String) {
-        closeEditor()
-        guard let widget = widgets[id]?.window else { return }
-        let wf = widget.frame, vf = (widget.screen ?? NSScreen.main)?.visibleFrame ?? .zero
-        let size = NSSize(width: 400, height: 724)
-        var x = wf.minX - size.width - 24
-        if x < vf.minX { x = wf.maxX + 24 }
-        let y = min(max(wf.maxY - size.height, vf.minY), vf.maxY - size.height)
-        let win = KeyWindow(contentRect: NSRect(origin: NSPoint(x: x, y: y), size: size),
-                            styleMask: [.borderless], backing: .buffered, defer: false)
-        win.level = .floating
-        editor = Panel(page: "editor", window: win, radius: 28, widgetID: id)
-        win.makeKeyAndOrderFront(nil)
+        settings?.window.makeKeyAndOrderFront(nil)
         NSApp.activate()
     }
 
-    private func closeEditor() {
-        editor?.close()
-        editor = nil
+    private func setWidgetStyle(_ size: String, _ patch: [String: Any]) {
+        guard ["S", "M", "L", "XL"].contains(size) else { return }
+        var dict = config.widgets[size, default: WidgetStyle()].json
+        patch.forEach { dict[$0] = $1 }
+        guard let data = try? JSONSerialization.data(withJSONObject: dict),
+              let style = try? JSONDecoder().decode(WidgetStyle.self, from: data) else { return }
+        config.widgets[size] = style
+        save()
+        changed()
     }
 
     // MARK: dialogs
@@ -261,12 +235,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu("Ice Servers", [
             item("About Ice Servers", #selector(NSApplication.orderFrontStandardAboutPanel(_:))),
             .separator(),
+            item("Widget Settings…", #selector(showSettings), ",", self),
+            .separator(),
             item("Hide Ice Servers", #selector(NSApplication.hide(_:)), "h"),
             item("Quit Ice Servers", #selector(NSApplication.terminate(_:)), "q"),
         ])
         menu("File", [
             MenuAction("Add Server…", key: "n") { [self] in showMain(); main.web.evaluateJavaScript("showAdd()") },
-            item("Add Widget", #selector(addWidget), "N", self),
             .separator(),
             item("Close Window", #selector(NSWindow.performClose(_:)), "w"),
         ])
@@ -284,7 +259,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-extension WidgetConfig {
+extension WidgetStyle {
     var json: [String: Any] {
         (try? JSONSerialization.jsonObject(with: JSONEncoder().encode(self))) as? [String: Any] ?? [:]
     }
@@ -324,12 +299,10 @@ final class Web: WKWebView {
 final class Panel: NSObject, WKScriptMessageHandler, NSWindowDelegate {
     let window: NSWindow
     let web: Web
-    let widgetID: String?
     private let blur = NSVisualEffectView()
 
-    init(page: String, window: NSWindow, radius: CGFloat, widgetID: String? = nil) {
+    init(page: String, window: NSWindow, radius: CGFloat) {
         self.window = window
-        self.widgetID = widgetID
         let conf = WKWebViewConfiguration()
         web = Web(frame: window.contentLayoutRect, configuration: conf)
         super.init()
@@ -385,14 +358,14 @@ final class Panel: NSObject, WKScriptMessageHandler, NSWindowDelegate {
         menu.popUp(positioning: nil, at: web.convert(window.mouseLocationOutsideOfEventStream, from: nil), in: web)
     }
 
-    func close() {
-        web.configuration.userContentController.removeScriptMessageHandler(forName: "ice")
-        window.close()
-    }
-
     func userContentController(_ c: WKUserContentController, didReceive message: WKScriptMessage) {
         ice.handle(message.body as? [String: Any] ?? [:], from: self)
     }
 
-    func windowDidMove(_ notification: Notification) { ice.widgetMoved(self) }
+    func windowWillClose(_ notification: Notification) {
+        if self === ice.settings {
+            web.configuration.userContentController.removeScriptMessageHandler(forName: "ice")
+            ice.settings = nil
+        }
+    }
 }

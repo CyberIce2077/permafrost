@@ -20,6 +20,17 @@
 	<string>14.0</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>app.iceservers.IceServers</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>iceservers</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Ice Servers connects to your servers over SSH and wakes them with Wake-on-LAN.</string>
 </dict>

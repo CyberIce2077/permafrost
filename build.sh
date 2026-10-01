@@ -1,12 +1,27 @@
 #!/bin/sh
-# Builds "build/Ice Servers.app". Needs only the Xcode Command Line Tools.
+# Builds "build/Ice Servers.app" with its widget extension. Needs only the Xcode Command Line Tools.
+# ./build.sh --install also copies it to /Applications and opens it (widgets need a stable home).
 set -e
 cd "$(dirname "$0")"
 APP="build/Ice Servers.app"
+WIDGET="$APP/Contents/PlugIns/IceWidgets.appex"
+TARGET="$(uname -m)-apple-macos14"
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-swiftc -O -target "$(uname -m)-apple-macos14" Sources/*.swift -o "$APP/Contents/MacOS/IceServers"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$WIDGET/Contents/MacOS"
+swiftc -O -target "$TARGET" Sources/*.swift Shared/*.swift -o "$APP/Contents/MacOS/IceServers"
+swiftc -O -target "$TARGET" -parse-as-library -application-extension Widget/*.swift Shared/*.swift -o "$WIDGET/Contents/MacOS/IceWidgets"
 cp Resources/* "$APP/Contents/Resources/"
 cp Info.plist "$APP/Contents/"
+cp Widget/Info.plist "$WIDGET/Contents/"
+codesign --force --sign - --entitlements Widget/Widget.entitlements "$WIDGET"
 codesign --force --sign - "$APP"
 echo "Built $APP"
+
+if [ "$1" = "--install" ]; then
+  pkill -x IceServers || true
+  rm -rf "/Applications/Ice Servers.app"
+  cp -R "$APP" /Applications/
+  pluginkit -a "/Applications/Ice Servers.app/Contents/PlugIns/IceWidgets.appex"
+  open "/Applications/Ice Servers.app"
+  echo "Installed /Applications/Ice Servers.app"
+fi

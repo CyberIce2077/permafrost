@@ -1,15 +1,5 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>Ice Servers widget</title>
-<link rel="stylesheet" href="common.css">
-<style>button:disabled { opacity: 0.45; }</style>
-</head>
-<body>
-<div id="w" style="position: fixed; inset: 0; display: flex"></div>
-<script src="common.js"></script>
-<script>
+// The widget as the design draws it. Widget Settings uses it for the preview;
+// Widget/WidgetView.swift is the SwiftUI port that runs on the desktop.
 const METRICS = [
   { k: 'cpu', label: 'CPU', color: '#0A84FF' },
   { k: 'mem', label: 'Memory', color: '#5E5CE6' },
@@ -23,20 +13,18 @@ const LOOKS = {
   clear: { bg: 'rgba(255,255,255,0.14)', border: 'rgba(255,255,255,0.55)', text: '#FFFFFF', sub: 'rgba(255,255,255,0.9)', tile: 'rgba(255,255,255,0.14)', track: 'rgba(255,255,255,0.3)', ok: '#A6FFC2', shadow: '0 1px 3px rgba(0,0,0,0.4)', btnBg: 'rgba(255,255,255,0.18)' },
 };
 
-const RADIUS = { S: 26, M: 26, L: 28, XL: 30 };
-const frame = (w, L) => `box-sizing: border-box; width: 100%; height: 100%; padding: ${w.size === 'S' ? '14px' : '16px'}; display: flex; border-radius: ${RADIUS[w.size] || 26}px; background: ${L.bg}; border: 1px solid ${L.border}; box-shadow: inset 0 1px 0 rgba(255,255,255,0.6)`;
+const DIMS = { S: [172, 172, 26], M: [364, 172, 26], L: [364, 384, 28], XL: [748, 384, 30] };
 
-function render(state) {
-  const w = state.widget, L = LOOKS[w.look] || LOOKS.glass;
-  const picked = state.servers.filter((s) => s.id === w.server);
-  const servers = picked.length ? picked : state.servers;
-  if (!servers.length) {
-    return set($('w'), `<section style="${frame(w, L)}; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: ${L.sub}">No servers</section>`);
-  }
-  set($('w'), widget(w, L, servers));
+function widgetPreview(w, servers) {
+  const L = LOOKS[w.look] || LOOKS.glass, d = DIMS[w.size];
+  const picked = servers.filter((s) => s.id === w.server);
+  const list = picked.length ? picked : servers;
+  const box = `box-sizing: border-box; width: ${d[0]}px; height: ${d[1]}px; padding: ${w.size === 'S' ? '14px' : '16px'}; display: flex; border-radius: ${d[2]}px; background: ${L.bg}; backdrop-filter: blur(36px) saturate(180%); -webkit-backdrop-filter: blur(36px) saturate(180%); border: 1px solid ${L.border}; box-shadow: 0 16px 40px rgba(8,28,60,0.25), inset 0 1px 0 rgba(255,255,255,0.6); transition: width 0.25s, height 0.25s`;
+  if (!list.length) return `<section aria-label="Widget preview" style="${box}; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: ${L.sub}">Add a server in Ice Servers</section>`;
+  return widget(w, L, list, box);
 }
 
-function widget(w, L, list) {
+function widget(w, L, list, box) {
   const many = list.length > 1;
   const shown = METRICS.filter((m) => w.metrics[m.k]).slice(0, { S: many ? 1 : 2, M: many ? 2 : 4, L: many ? 2 : 4, XL: 4 }[w.size]);
   const row = many && (w.size === 'M' || w.size === 'XL');
@@ -101,10 +89,5 @@ ${showActions ? `<div style="display: grid; grid-template-columns: repeat(2, min
 </div>`;
   }).join('');
 
-  return `<section aria-label="Ice Servers widget" style="${frame(w, L)}; flex-direction: ${row ? 'row' : 'column'}; gap: ${row ? '16px' : '12px'}">${columns}</section>`;
+  return `<section aria-label="Widget preview" style="${box}; flex-direction: ${row ? 'row' : 'column'}; gap: ${row ? '16px' : '12px'}">${columns}</section>`;
 }
-
-function act(d) { post({ cmd: d.cmd, id: d.id }); }
-</script>
-</body>
-</html>

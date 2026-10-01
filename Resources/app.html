@@ -71,6 +71,7 @@ const BLUE = 'height: 44px; padding: 0 20px; border: 0; border-radius: 22px; bac
 
 function render(state) {
   if (state) S = state;
+  if (state && state.select) sel = state.select;
   const list = S.servers;
   const added = pendingName && list.find((s) => s.name === pendingName);
   if (added) { sel = added.id; pendingName = null; }

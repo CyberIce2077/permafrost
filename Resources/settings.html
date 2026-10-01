@@ -2,11 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Edit widget</title>
+<title>Widget Settings</title>
 <link rel="stylesheet" href="common.css">
+<style>[aria-label="Widget preview"] button:disabled { opacity: 0.45; }</style>
 </head>
 <body>
-<aside aria-label="Edit widget" style="position: fixed; inset: 0; box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 20px; border-radius: 28px; background: rgba(246,248,252,0.74); border: 1px solid rgba(255,255,255,0.8); box-shadow: inset 0 1px 0 rgba(255,255,255,1)">
+<div style="position: fixed; inset: 0; overflow: hidden; background-color: #3B6FA0; background-image: radial-gradient(circle at 18% 22%, #BFE3F7 0%, rgba(191,227,247,0) 42%), radial-gradient(circle at 82% 18%, #7C8CE0 0%, rgba(124,140,224,0) 45%), radial-gradient(circle at 70% 88%, #2C9CB8 0%, rgba(44,156,184,0) 50%), radial-gradient(circle at 12% 92%, #1E3F78 0%, rgba(30,63,120,0) 55%)">
+
+<aside aria-label="Edit widget" style="position: absolute; left: 48px; top: 48px; width: 400px; height: 724px; box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 20px; border-radius: 28px; background: rgba(246,248,252,0.74); backdrop-filter: blur(44px) saturate(180%); -webkit-backdrop-filter: blur(44px) saturate(180%); border: 1px solid rgba(255,255,255,0.8); box-shadow: 0 30px 70px rgba(8,28,60,0.32), inset 0 1px 0 rgba(255,255,255,1)">
 <div style="display: flex; flex-direction: column; gap: 4px">
 <h1 style="margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.01em">Ice Servers</h1>
 <p style="margin: 0; font-size: 13px; color: #56565B">Choose what the widget shows on your desktop.</p>
@@ -15,19 +18,29 @@
 <div style="flex-grow: 1"></div>
 <button data-cmd="done" style="height: 44px; border: 0; border-radius: 22px; background: #0066CC; color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 6px 16px rgba(0,102,204,0.3), inset 0 1px 0 rgba(255,255,255,0.35)">Done</button>
 </aside>
+
+<div style="position: absolute; left: 448px; top: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px">
+<div id="label" style="font-size: 13px; font-weight: 600; color: #FFFFFF; letter-spacing: 0.02em; text-shadow: 0 1px 3px rgba(0,0,0,0.35)"></div>
+<div id="preview" style="display: contents"></div>
+</div>
+
+</div>
 <script src="common.js"></script>
+<script src="widget.js"></script>
 <script>
-let S = null;
+// Each widget size has its own settings; the Size control picks which one you're editing.
+let S = null, editing = 'M';
 
 const SEG_TRACK = 'display: flex; gap: 2px; padding: 3px; border-radius: 22px; background: rgba(120,120,128,0.14)';
 const CHIP_TRACK = 'display: flex; flex-wrap: wrap; gap: 8px';
 const seg = (on) => `flex: 1 1 0; min-width: 0; height: 38px; padding: 0 6px; border-radius: 19px; cursor: pointer; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background 0.15s; color: #1D1D1F; border: 1px solid ${on ? 'rgba(255,255,255,1)' : 'transparent'}; background: ${on ? '#FFFFFF' : 'transparent'}; box-shadow: ${on ? '0 2px 8px rgba(20,40,80,0.14)' : 'none'}`;
 const chip = (on) => `height: 44px; padding: 0 16px; border-radius: 22px; cursor: pointer; font-size: 13px; font-weight: 600; transition: background 0.15s; border: 1px solid ${on ? '#0066CC' : 'rgba(60,60,67,0.18)'}; color: ${on ? '#FFFFFF' : '#1D1D1F'}; background: ${on ? '#0066CC' : 'rgba(255,255,255,0.7)'}`;
+const SIZES = [['S', 'Small'], ['M', 'Medium'], ['L', 'Large'], ['XL', 'X-Large']];
 
 function render(state) {
   if (state) S = state;
-  const w = S.widget, n = S.servers.length;
-  const server = S.servers.some((s) => s.id === w.server) ? w.server : 'all';
+  const w = { ...S.widgets[editing], size: editing }, n = S.servers.length;
+  const server = S.servers.some((s) => s.id === w.server) ? w.server : n === 1 ? S.servers[0].id : 'all';
   const group = (label, key, track, style, opts, current) => `<div style="display: flex; flex-direction: column; gap: 8px">
 <div style="font-size: 12px; font-weight: 600; color: #56565B; letter-spacing: 0.02em">${label}</div>
 <div style="${track}">${opts.map(([val, text]) => {
@@ -36,26 +49,33 @@ function render(state) {
   }).join('')}</div>
 </div>`;
   set($('groups'), [
-    group('Size', 'size', SEG_TRACK, seg, [['S', 'Small'], ['M', 'Medium'], ['L', 'Large'], ['XL', 'X-Large']], (v) => w.size === v),
-    group('Server', 'server', SEG_TRACK, seg, [...S.servers.map((s) => [s.id, s.name]), ...(n > 1 ? [['all', n === 2 ? 'Both' : 'All']] : [])], (v) => server === v || (n === 1 && v === S.servers[0].id)),
+    group('Size', 'size', SEG_TRACK, seg, SIZES, (v) => editing === v),
+    group('Server', 'server', SEG_TRACK, seg, [...S.servers.map((s) => [s.id, s.name]), ...(n > 1 ? [['all', n === 2 ? 'Both' : 'All']] : [])], (v) => server === v),
     group('Show', 'metric', CHIP_TRACK, chip, [['cpu', 'CPU'], ['mem', 'Memory'], ['net', 'Network'], ['disk', 'Disk']], (v) => w.metrics[v]),
     group('Style', 'style', SEG_TRACK, seg, [['bars', 'Bars'], ['rings', 'Rings'], ['graph', 'Graphs']], (v) => w.style === v),
     group('Appearance', 'look', SEG_TRACK, seg, [['glass', 'Glass'], ['tinted', 'Tinted'], ['clear', 'Clear']], (v) => w.look === v),
   ].join(''));
+  $('label').textContent = 'Preview · ' + { S: 'Small', M: 'Medium', L: 'Large', XL: 'Extra Large' }[editing];
+  set($('preview'), widgetPreview(w, S.servers));
 }
 
 function act(d) {
-  if (d.cmd !== 'pick') return post({ cmd: d.cmd });
+  if (d.cmd === 'done') return post({ cmd: 'done' });
+  if (d.cmd !== 'pick') return;  // the preview's buttons are just a picture
+  if (d.key === 'size') { editing = d.val; return render(); }
+  const cur = S.widgets[editing];
   let patch = { [d.key]: d.val };
   if (d.key === 'metric') {
-    const metrics = { ...S.widget.metrics, [d.val]: !S.widget.metrics[d.val] };
+    const metrics = { ...cur.metrics, [d.val]: !cur.metrics[d.val] };
     if (!Object.values(metrics).some(Boolean)) return;
     patch = { metrics };
   }
-  S.widget = { ...S.widget, ...patch };
+  S.widgets[editing] = { ...cur, ...patch };
   render();
-  post({ cmd: 'set', patch });
+  post({ cmd: 'set', size: editing, patch });
 }
+
+addEventListener('keydown', (e) => { if (e.key === 'Escape') post({ cmd: 'done' }); });
 </script>
 </body>
 </html>

@@ -3,53 +3,37 @@ import Foundation
 /// One Linux box reached over SSH: a long-lived stats stream plus one-off commands.
 final class Server {
     var cfg: ServerConfig
-    var phase = "connecting"  // connecting online off stopping starting restarting updating checking
-    var cpu = history(), mem = history(), down = history(), up = history()
-    var memUsed = 0.0, memTotal = 0.0, diskUsed = 0.0, diskTotal = 0.0, diskFree = 0.0, uptime = 0.0
-    var updates: Int?
+    var phase = "connecting" {  // connecting online off stopping starting restarting updating checking
+        didSet { if phase != oldValue, phase == "online" || phase == "off" { ice.reloadWidgets() } }
+    }
+    var parser: StatsParser
     var checkedAt: Date?
     var progress = 0
 
     private var removed = false
     private var stream: Process?
-    private var prevCPU: (total: Double, idle: Double)?
-    private var prevNet: (rx: Double, tx: Double, at: Date)?
-    private var cpuSample: Double?
-    private var netSample = (down: 0.0, up: 0.0)
     private var holdUntil = Date.distantPast
     private var deadline = Date.distantPast
 
-    init(_ cfg: ServerConfig) { self.cfg = cfg }
-
-    private static func history() -> [Double] { Array(repeating: 0, count: 24) }
+    init(_ cfg: ServerConfig) {
+        self.cfg = cfg
+        let blank = [Double](repeating: 0, count: 24)
+        parser = StatsParser(Stats(cpu: blank, mem: blank, down: blank, up: blank))
+    }
 
     var json: [String: Any] {
-        [
+        let s = parser.stats
+        return [
             "id": cfg.id, "name": cfg.name, "phase": phase, "hasMac": cfg.mac != nil,
-            "cpu": cpu, "mem": mem, "down": down, "up": up,
-            "memUsed": memUsed, "memTotal": memTotal,
-            "disk": diskUsed + diskFree > 0 ? diskUsed / (diskUsed + diskFree) * 100 : 0,
-            "diskUsed": diskUsed, "diskTotal": diskTotal, "diskFree": diskFree,
-            "uptime": uptime, "updates": updates ?? NSNull(), "progress": progress,
+            "cpu": s.cpu, "mem": s.mem, "down": s.down, "up": s.up,
+            "memUsed": s.memUsed, "memTotal": s.memTotal, "disk": s.disk,
+            "diskUsed": s.diskUsed, "diskTotal": s.diskTotal, "diskFree": s.diskFree,
+            "uptime": s.uptime, "updates": s.updates ?? NSNull(), "progress": progress,
             "checkedAgo": checkedAt.map { -$0.timeIntervalSinceNow } ?? NSNull(),
         ]
     }
 
     // MARK: stats stream
-
-    static let statsScript = """
-        i=$(ip route show default 2>/dev/null | awk '{print $5; exit}'); [ -n "$i" ] || i=lo
-        echo mac $(cat /sys/class/net/$i/address)
-        while :; do
-          head -1 /proc/stat
-          grep -E '^Mem(Total|Available):' /proc/meminfo
-          echo net $(cat /sys/class/net/$i/statistics/rx_bytes /sys/class/net/$i/statistics/tx_bytes)
-          echo disk $(df -B1 --output=size,used,avail / | tail -1)
-          echo up $(cut -d' ' -f1 /proc/uptime)
-          echo end
-          sleep 2
-        done
-        """
 
     func connect() {
         guard !removed, stream == nil else { return }
@@ -58,14 +42,41 @@ final class Server {
             DispatchQueue.main.asyncAfter(deadline: .now() + wait) { [weak self] in self?.connect() }
             return
         }
-        prevCPU = nil
-        prevNet = nil
-        stream = ssh(Self.statsScript, line: { [weak self] in self?.parse($0) }) { [weak self] _, _ in self?.dropped() }
+        if cfg.resolved == nil { resolve() }
+        parser = StatsParser(parser.stats)
+        stream = ssh(Remote.stream, line: { [weak self] in self?.parse($0) }) { [weak self] _, _ in self?.dropped() }
     }
 
     func disconnect() {
         removed = true
         stream?.terminate()
+    }
+
+    /// Bakes ~/.ssh/config into plain arguments, because the sandboxed widget can't read everything it includes.
+    private func resolve() {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/ssh")
+        p.arguments = ["-G"] + cfg.ssh.split(separator: " ").map(String.init)
+        let out = Pipe()
+        p.standardOutput = out
+        p.standardError = FileHandle.nullDevice
+        guard (try? p.run()) != nil else { return }
+        let text = String(decoding: out.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        p.waitUntilExit()
+        var opts: [String: String] = [:], keys: [String] = []
+        for line in text.split(separator: "\n") {
+            let kv = line.split(separator: " ", maxSplits: 1).map(String.init)
+            guard kv.count == 2 else { continue }
+            if kv[0] == "identityfile" {
+                let path = kv[1].replacingOccurrences(of: "~", with: realHome)
+                if FileManager.default.fileExists(atPath: path) { keys += ["-i", path] }
+            } else if opts[kv[0]] == nil {
+                opts[kv[0]] = kv[1]
+            }
+        }
+        guard let host = opts["hostname"], let user = opts["user"] else { return }
+        cfg.resolved = ["-p", opts["port"] ?? "22"] + keys + ["\(user)@\(host)"]
+        ice.save()
     }
 
     private func dropped() {
@@ -78,53 +89,14 @@ final class Server {
     }
 
     private func parse(_ line: String) {
-        let f = line.split(separator: " ").map(String.init)
-        guard let key = f.first else { return }
-        let n = f.dropFirst().compactMap(Double.init)
-        switch key {
-        case "mac":
-            if f.count > 1, f[1] != cfg.mac, f[1] != "00:00:00:00:00:00" {
-                cfg.mac = f[1]
-                ice.save()
-            }
-        case "cpu" where n.count >= 5:
-            let total = n.prefix(8).reduce(0, +), idle = n[3] + n[4]
-            if let p = prevCPU, total > p.total { cpuSample = 100 * (1 - (idle - p.idle) / (total - p.total)) }
-            prevCPU = (total, idle)
-        case "MemTotal:":
-            memTotal = (n.first ?? 0) / 1_048_576
-        case "MemAvailable:":
-            memUsed = memTotal - (n.first ?? 0) / 1_048_576
-        case "net" where n.count == 2:
-            let now = Date()
-            if let p = prevNet {
-                let dt = max(now.timeIntervalSince(p.at), 0.1)
-                netSample = (max(0, n[0] - p.rx) / dt / 1e6, max(0, n[1] - p.tx) / dt / 1e6)
-            }
-            prevNet = (n[0], n[1], now)
-        case "disk" where n.count == 3:
-            (diskTotal, diskUsed, diskFree) = (n[0] / 1e9, n[1] / 1e9, n[2] / 1e9)
-        case "up":
-            uptime = n.first ?? 0
-        case "end":
-            commit()
-        default:
-            break
+        guard parser.feed(line) else { return }
+        if let mac = parser.stats.mac, mac != cfg.mac {
+            cfg.mac = mac
+            ice.save()
         }
-    }
-
-    private func commit() {
         if ["connecting", "off", "starting", "restarting"].contains(phase) {
             phase = "online"
             countUpdates()
-        }
-        if let c = cpuSample {
-            func push(_ a: inout [Double], _ v: Double) { a = Array(a.dropFirst()) + [v] }
-            push(&cpu, c)
-            push(&mem, memTotal > 0 ? memUsed / memTotal * 100 : 0)
-            push(&down, netSample.down)
-            push(&up, netSample.up)
-            cpuSample = nil
         }
         ice.changed()
     }
@@ -162,17 +134,9 @@ final class Server {
         }
     }
 
-    static let countScript = """
-        if [ -x /usr/lib/update-notifier/apt-check ]; then /usr/lib/update-notifier/apt-check 2>&1 | cut -d';' -f1
-        else apt list --upgradable 2>/dev/null | grep -c upgradable; fi
-        """
-
     func countUpdates(then: (() -> Void)? = nil) {
-        ssh(Self.countScript, done: { [self] _, out in
-            if let n = Int(out.split(separator: "\n").last?.trimmingCharacters(in: .whitespaces) ?? "") {
-                updates = n
-                checkedAt = Date()
-            }
+        ssh(Remote.updates, line: { [self] in _ = parser.feed($0) }, done: { [self] _, out in
+            if out.hasPrefix("upd") { checkedAt = Date() }
             then?()
             ice.changed()
         })
