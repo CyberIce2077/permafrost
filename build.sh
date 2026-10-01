@@ -11,6 +11,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$WIDGET/Contents/MacOS
 swiftc -O -target "$TARGET" Sources/*.swift Shared/*.swift -o "$APP/Contents/MacOS/IceServers"
 swiftc -O -target "$TARGET" -parse-as-library -application-extension -Xlinker -e -Xlinker _NSExtensionMain Widget/*.swift Shared/*.swift -o "$WIDGET/Contents/MacOS/IceWidgets"
 cp Resources/* "$APP/Contents/Resources/"
+swift tools/icon.swift build/AppIcon.iconset && iconutil -c icns build/AppIcon.iconset -o "$APP/Contents/Resources/AppIcon.icns" && rm -rf build/AppIcon.iconset
 cp Info.plist "$APP/Contents/"
 cp Widget/Info.plist "$WIDGET/Contents/"
 codesign --force --sign - --entitlements Widget/Widget.entitlements "$WIDGET"

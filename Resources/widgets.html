@@ -51,7 +51,7 @@ function render(state) {
   set($('groups'), [
     group('Size', 'size', SEG_TRACK, seg, SIZES, (v) => editing === v),
     group('Server', 'server', SEG_TRACK, seg, [...S.servers.map((s) => [s.id, s.name]), ...(n > 1 ? [['all', n === 2 ? 'Both' : 'All']] : [])], (v) => server === v),
-    group('Show', 'metric', CHIP_TRACK, chip, [['cpu', 'CPU'], ['mem', 'Memory'], ['net', 'Network'], ['disk', 'Disk']], (v) => w.metrics[v]),
+    group('Show (up to 4)', 'metric', CHIP_TRACK, chip, [['cpu', 'CPU'], ['mem', 'Memory'], ['net', 'Network'], ['disk', 'Disk'], ['temp', 'Temperature']], (v) => w.metrics[v]),
     group('Style', 'style', SEG_TRACK, seg, [['bars', 'Bars'], ['rings', 'Rings'], ['graph', 'Graphs']], (v) => w.style === v),
     group('Appearance', 'look', SEG_TRACK, seg, [['glass', 'Glass'], ['tinted', 'Tinted'], ['clear', 'Clear']], (v) => w.look === v),
   ].join(''));

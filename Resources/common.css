@@ -13,3 +13,10 @@ button:disabled { cursor: default; }
 input { -webkit-user-select: text; user-select: text; }
 @keyframes icespin { to { transform: rotate(360deg); } }
 .icespin { animation: icespin 0.9s linear infinite; transform-origin: 50% 50%; }
+input { font-family: inherit; }
+.icefield { box-sizing: border-box; width: 100%; height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid rgba(60,60,67,0.2); background: rgba(255,255,255,0.9); font-size: 14px; color: #1D1D1F; outline: none; }
+.icefield:focus { border-color: #0066CC; box-shadow: 0 0 0 3px rgba(0,102,204,0.2); }
+.icefield::placeholder { color: #8A8A8E; }
+.icefield:disabled { opacity: 0.6; }
+@keyframes shake { 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
+.shake { animation: shake 0.35s ease; }

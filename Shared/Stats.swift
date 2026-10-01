@@ -5,6 +5,9 @@ struct Stats {
     var id = "", name = ""
     var online = false
     var cpu: [Double] = [], mem: [Double] = [], down: [Double] = [], up: [Double] = []
+    /// CPU temperature history in °C; empty when the server has no readable sensor.
+    var temp: [Double] = []
+    var tempDrive: Double?, tempBoard: Double?
     var memUsed = 0.0, memTotal = 0.0, diskUsed = 0.0, diskTotal = 0.0, diskFree = 0.0, uptime = 0.0
     var updates: Int?
     var mac: String?
@@ -22,6 +25,7 @@ enum Remote {
         echo net $(cat /sys/class/net/$i/statistics/rx_bytes /sys/class/net/$i/statistics/tx_bytes)
         echo disk $(df -B1 --output=size,used,avail / | tail -1)
         echo up $(cut -d' ' -f1 /proc/uptime)
+        for f in /sys/class/hwmon/hwmon*/temp1_input; do [ -r "$f" ] && echo temp $(cat ${f%/*}/name) $(cat $f); done 2>/dev/null
         echo end
         """
     static let updates = """
@@ -44,6 +48,7 @@ struct StatsParser {
     private var time: Double?
     private var cpuNow: Double?
     private var net = (down: 0.0, up: 0.0)
+    private var temps: [(chip: String, celsius: Double)] = []
 
     init(_ stats: Stats) { self.stats = stats }
 
@@ -72,8 +77,10 @@ struct StatsParser {
             (stats.diskTotal, stats.diskUsed, stats.diskFree) = (n[0] / 1e9, n[1] / 1e9, n[2] / 1e9)
         case "up": stats.uptime = n.first ?? 0
         case "upd": stats.updates = n.first.map { Int($0) }
+        case "temp" where f.count == 3: if let milli = Double(f[2]) { temps.append((f[1], milli / 1000)) }
         case "end":
             stats.online = true
+            readTemps()
             guard let c = cpuNow else { return true }
             push(&stats.cpu, c)
             push(&stats.mem, stats.memTotal > 0 ? stats.memUsed / stats.memTotal * 100 : 0)
@@ -84,6 +91,18 @@ struct StatsParser {
         default: break
         }
         return false
+    }
+
+    /// Sorts hwmon chips into CPU, drives and board by driver name.
+    private mutating func readTemps() {
+        func first(_ prefixes: [String]) -> Double? {
+            for p in prefixes { if let t = temps.first(where: { $0.chip.hasPrefix(p) }) { return t.celsius } }
+            return nil
+        }
+        if let cpu = first(["coretemp", "k10temp", "zenpower", "cpu_thermal", "cpu"]) { push(&stats.temp, cpu) }
+        stats.tempDrive = temps.filter { $0.chip == "nvme" || $0.chip == "drivetemp" }.map(\.celsius).max()
+        stats.tempBoard = first(["nct", "it8", "gigabyte", "asus", "dell", "acpitz", "pch"])
+        temps = []
     }
 
     private func push(_ a: inout [Double], _ v: Double) {

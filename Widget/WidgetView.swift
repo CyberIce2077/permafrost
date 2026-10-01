@@ -42,6 +42,7 @@ private let allMetrics = [
     Metric(key: "mem", label: "Memory", color: hex(0x5E5CE6)),
     Metric(key: "net", label: "Network", color: hex(0xFF9F0A)),
     Metric(key: "disk", label: "Disk", color: hex(0x34C759)),
+    Metric(key: "temp", label: "Temperature", color: hex(0xFF453A)),
 ]
 
 struct WidgetView: View {
@@ -55,7 +56,7 @@ struct WidgetView: View {
 
     private var shown: [Metric] {
         let cap = ["S": many ? 1 : 2, "M": many ? 2 : 4, "L": many ? 2 : 4, "XL": 4][size] ?? 2
-        return Array(allMetrics.filter { entry.style.metrics[$0.key] ?? true }.prefix(cap))
+        return Array(allMetrics.filter { entry.style.metrics[$0.key] ?? false }.prefix(cap))
     }
 
     private var cols: Int {
@@ -179,6 +180,7 @@ struct WidgetView: View {
         case "cpu": s.cpu
         case "mem": s.mem
         case "net": s.down.map { $0 / netMax * 100 }
+        case "temp": s.temp.count > 1 ? s.temp : s.cpu.map { _ in s.temp.last ?? 0 }
         default: s.cpu.map { _ in s.disk }
         }
         let value = s.online ? history.last ?? 0 : 0
@@ -186,6 +188,7 @@ struct WidgetView: View {
         case "cpu": "\(Int((s.cpu.last ?? 0).rounded()))%"
         case "mem": String(format: "%.1f GB", s.memUsed)
         case "net": rate(s.down.last ?? 0)
+        case "temp": s.temp.last.map { "\(Int($0.rounded()))°C" } ?? "—"
         default: "\(Int(s.disk.rounded()))%"
         }
         let text = s.online ? reading : "—"
@@ -229,7 +232,7 @@ struct WidgetView: View {
                         .overlay(alignment: .leading) {
                             GeometryReader { g in
                                 Capsule()
-                                    .fill(m.key == "disk" && value > 80 ? hex(0xFF9F0A) : m.color)
+                                    .fill((m.key == "disk" && value > 80) || (m.key == "temp" && value >= 70) ? hex(0xFF9F0A) : m.color)
                                     .frame(width: g.size.width * min(value, 100) / 100)
                             }
                         }

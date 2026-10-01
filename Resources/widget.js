@@ -5,6 +5,7 @@ const METRICS = [
   { k: 'mem', label: 'Memory', color: '#5E5CE6' },
   { k: 'net', label: 'Network', color: '#FF9F0A' },
   { k: 'disk', label: 'Disk', color: '#34C759' },
+  { k: 'temp', label: 'Temperature', color: '#FF453A' },
 ];
 
 const LOOKS = {
@@ -38,9 +39,10 @@ function widget(w, L, list, box) {
   const columns = list.map((s, idx) => {
     const live = LIVE.includes(s.phase);
     const nm = netMax(s);
-    const v = { cpu: last(s.cpu), mem: last(s.mem), net: last(s.down) / nm * 100, disk: s.disk };
-    const text = { cpu: Math.round(last(s.cpu)) + '%', mem: s.memUsed.toFixed(1) + ' GB', net: rate(last(s.down)), disk: Math.round(s.disk) + '%' };
-    const hist = { cpu: s.cpu, mem: s.mem, net: s.down.map((x) => x / nm * 100), disk: s.cpu.map(() => s.disk) };
+    const t = s.temp.length ? last(s.temp) : null;
+    const v = { cpu: last(s.cpu), mem: last(s.mem), net: last(s.down) / nm * 100, disk: s.disk, temp: t || 0 };
+    const text = { cpu: Math.round(last(s.cpu)) + '%', mem: s.memUsed.toFixed(1) + ' GB', net: rate(last(s.down)), disk: Math.round(s.disk) + '%', temp: t == null ? '—' : Math.round(t) + '°C' };
+    const hist = { cpu: s.cpu, mem: s.mem, net: s.down.map((x) => x / nm * 100), disk: s.cpu.map(() => s.disk), temp: s.temp.length > 1 ? s.temp : s.cpu.map(() => t || 0) };
     const c = colorsFor(s.phase);
     const on = s.phase !== 'off' && s.phase !== 'stopping';
     const status = s.phase === 'online' ? 'Online · up ' + uptime(s.uptime, true) : LABELS[s.phase];
@@ -66,7 +68,7 @@ function widget(w, L, list, box) {
       } else {
         inner = `<div style="display: flex; flex-direction: column; justify-content: center; gap: 6px; height: 100%">
 <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 6px"><span style="${labelStyle}">${m.label}</span><span style="${valueStyle}">${txt}</span></div>
-<div style="height: 6px; border-radius: 3px; background: ${L.track}"><div style="height: 100%; border-radius: 3px; background: ${m.k === 'disk' && val > 80 ? '#FF9F0A' : m.color}; width: ${Math.min(val, 100)}%"></div></div>
+<div style="height: 6px; border-radius: 3px; background: ${L.track}"><div style="height: 100%; border-radius: 3px; background: ${(m.k === 'disk' && val > 80) || (m.k === 'temp' && val >= 70) ? '#FF9F0A' : m.color}; width: ${Math.min(val, 100)}%"></div></div>
 </div>`;
       }
       return `<div style="box-sizing: border-box; min-width: 0; min-height: 0; padding: ${w.size === 'S' ? '6px 8px' : '8px 10px'}; border-radius: 14px; background: ${L.tile}">${inner}</div>`;

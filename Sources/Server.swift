@@ -29,6 +29,8 @@ final class Server {
             "memUsed": s.memUsed, "memTotal": s.memTotal, "disk": s.disk,
             "diskUsed": s.diskUsed, "diskTotal": s.diskTotal, "diskFree": s.diskFree,
             "uptime": s.uptime, "updates": s.updates ?? NSNull(), "progress": progress,
+            "temp": s.temp, "tempDrive": s.tempDrive ?? NSNull(), "tempBoard": s.tempBoard ?? NSNull(),
+            "user": sshUser, "saved": hasSavedPassword, "sudo": sudoMode,
             "checkedAgo": checkedAt.map { -$0.timeIntervalSinceNow } ?? NSNull(),
         ]
     }
@@ -114,12 +116,12 @@ final class Server {
         ice.changed()
     }
 
-    func powerOff() { systemctl("poweroff", busy: "stopping") }
-    func restart() { systemctl("reboot", busy: "restarting") }
+    func powerOff() { systemctl("poweroff", action: "Shutting down", busy: "stopping") }
+    func restart() { systemctl("reboot", action: "Restart", busy: "restarting") }
 
-    private func systemctl(_ verb: String, busy: String) {
+    private func systemctl(_ verb: String, action: String, busy: String) {
         guard phase == "online" else { return }
-        sudo("systemctl \(verb)", busy: busy) { [self] status, out in
+        sudo("systemctl \(verb)", action: action, busy: busy) { [self] status, out in
             // 255 = ssh lost the connection, which is what a shutdown looks like.
             if status == 0 || status == 255 {
                 holdUntil = Date() + 15
@@ -142,7 +144,7 @@ final class Server {
 
     func checkUpdates() {
         guard phase == "online" else { return }
-        sudo("apt-get update -qq", busy: "checking") { [self] _, _ in
+        sudo("apt-get update -qq", action: "Checking for updates", busy: "checking") { [self] _, _ in
             countUpdates { if self.phase == "checking" { self.phase = "online" } }
         }
     }
@@ -152,7 +154,7 @@ final class Server {
         progress = 0
         let cmd = "env DEBIAN_FRONTEND=noninteractive apt-get -y -q -o APT::Status-Fd=1"
             + " -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold upgrade --with-new-pkgs"
-        sudo(cmd, busy: "updating", line: { [self] line in
+        sudo(cmd, action: "Installing updates", busy: "updating", line: { [self] line in
             let f = line.split(separator: ":")
             guard f.count >= 3, let pct = Double(f[2]) else { return }
             if f[0] == "dlstatus" { progress = Int(pct * 0.3) }
@@ -176,11 +178,20 @@ final class Server {
     /// ad-hoc signed build each read can make macOS ask the user for permission.
     private var password: String?
     private var triedKeychain = false
+    private var sudoMode: String { cfg.sudo ?? "remember" }
 
     /// The account sudo asks about, for the password sheet.
     var sshUser: String {
         let target = (cfg.resolved ?? cfg.ssh.split(separator: " ").map(String.init)).last ?? ""
         return target.contains("@") ? String(target.split(separator: "@")[0]) : "your user"
+    }
+
+    var hasSavedPassword: Bool { password != nil && sudoMode == "remember" || Keychain.has(cfg.id) }
+
+    func forgetPassword() {
+        password = nil
+        triedKeychain = true
+        Keychain.delete(cfg.id)
     }
 
     private static func needsPassword(_ out: String) -> Bool {
@@ -191,50 +202,78 @@ final class Server {
         out.contains("try again") || out.contains("incorrect password") || out.contains("Authentication failed")
     }
 
-    /// Runs `cmd` under sudo, showing the server as `busy` while it runs.
-    /// Without a known password it first tries `sudo -n` (for NOPASSWD rules), then asks.
-    /// `done` gets nil when the user cancels the password sheet.
-    func sudo(_ cmd: String, busy: String? = nil, line: ((String) -> Void)? = nil, done: @escaping (Int32?, String) -> Void) {
-        if password == nil, !triedKeychain {
-            triedKeychain = true
-            password = Keychain.get(cfg.id)
-        }
-        let before = phase
-        if let busy {
-            phase = busy
-            ice.changed()
-        }
-        let pw = password
-        ssh(pw == nil ? "sudo -n \(cmd)" : "sudo -S -p '' \(cmd)", input: pw, line: line) { [self] status, out in
-            guard Self.needsPassword(out) else { return done(status, out) }
-            if busy != nil, phase == busy {
-                phase = before
+    /// Runs `cmd` under sudo, showing the server as `busy` while it runs. `action` names it in the
+    /// password sheet ("Restart needs sudo as ice"). `done` gets nil when the user cancels.
+    func sudo(_ cmd: String, action: String, busy: String? = nil, line: ((String) -> Void)? = nil,
+              done: @escaping (Int32?, String) -> Void) {
+        func run(_ pw: String?) {
+            let before = phase
+            if let busy {
+                phase = busy
                 ice.changed()
             }
-            let error = pw == nil ? nil : "The saved password no longer works. Enter it again."
-            if pw != nil {
-                password = nil
-                Keychain.delete(cfg.id)
+            ssh(pw == nil ? "sudo -n \(cmd)" : "sudo -S -p '' \(cmd)", input: pw, line: line) { [self] status, out in
+                guard Self.needsPassword(out) else { return done(status, out) }
+                if busy != nil, phase == busy {
+                    phase = before
+                    ice.changed()
+                }
+                let saved = pw != nil && pw == password
+                if saved { forgetPassword() }
+                askPassword(action: action, error: saved ? "The saved password no longer works. Enter it again." : nil,
+                            then: run, cancelled: { done(nil, out) })
             }
-            askPassword(error: error, then: { [self] in sudo(cmd, busy: busy, line: line, done: done) },
-                        cancelled: { done(nil, out) })
+        }
+
+        switch sudoMode {
+        case "every":
+            askPassword(action: action, error: nil, then: run, cancelled: { done(nil, "") })
+        case "nopass":
+            run(nil)
+        default:
+            if password == nil, !triedKeychain {
+                triedKeychain = true
+                if Keychain.has(cfg.id) { password = Keychain.get(cfg.id) }
+            }
+            guard let pw = password else { return run(nil) }
+            guard ice.config.touchID == true else { return run(pw) }
+            ice.authenticate("use your saved sudo password for \(cfg.name)") { ok in
+                ok ? run(pw) : done(nil, "")
+            }
         }
     }
 
+    /// Asks for the password just to keep it (Settings › Passwords › Save Password…).
+    func savePassword() {
+        askPassword(action: nil, error: nil, then: { _ in }, cancelled: {})
+    }
+
     /// Shows the password sheet until sudo accepts the password (checked with `sudo -v`) or the user cancels.
-    private func askPassword(error: String?, then: @escaping () -> Void, cancelled: @escaping () -> Void) {
-        ice.askPassword(for: self, error: error) { [self] answer in
-            guard let (pw, remember) = answer else { return cancelled() }
+    private func askPassword(action: String?, error: String?, then: @escaping (String) -> Void, cancelled: @escaping () -> Void) {
+        let remember = action == nil || sudoMode != "every"
+        ice.askPassword(for: self, action: action, remember: remember, error: error) { [self] answer in
+            guard let (pw, keep) = answer else { return cancelled() }
             ssh("sudo -S -p '' -v", input: pw, done: { [self] status, out in
                 guard status == 0, !Self.wrongPassword(out) else {
-                    let reason = Self.wrongPassword(out) ? "That password didn't work. Try again."
+                    let reason = Self.wrongPassword(out) ? "Incorrect password. sudo on \(cfg.name) rejected it. Nothing was saved."
                         : out.split(separator: "\n").last.map(String.init) ?? "sudo didn't accept the password."
-                    return askPassword(error: reason, then: then, cancelled: cancelled)
+                    return askPassword(action: action, error: reason, then: then, cancelled: cancelled)
                 }
-                password = pw
-                if remember { Keychain.set(cfg.id, pw) } else { Keychain.delete(cfg.id) }
+                if keep {
+                    password = pw
+                    Keychain.set(cfg.id, pw)
+                    if sudoMode != "remember" {
+                        cfg.sudo = "remember"
+                        ice.save()
+                    }
+                }
                 ice.passwordAccepted(for: self)
-                then()
+                let doing = action.map { a -> String in
+                    let verb = ["Restart": "Restarting", "Shutting down": "Shutting down", "Installing updates": "Updating"][a]
+                    return verb.map { "\($0) \(cfg.name)…" } ?? "Checking \(cfg.name) for updates…"
+                }
+                ice.toast(keep ? (doing.map { "Saved to Keychain · \($0)" } ?? "Password for \(cfg.name) saved to Keychain") : doing ?? "")
+                then(pw)
             })
         }
     }
@@ -243,11 +282,22 @@ final class Server {
     @discardableResult
     func ssh(_ command: String, input: String? = nil, line: ((String) -> Void)? = nil,
              done: ((Int32, String) -> Void)? = nil) -> Process {
+        Shell.run("/usr/bin/ssh", ["-T", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5",
+                                   "-o", "ServerAliveInterval=3", "-o", "ServerAliveCountMax=2"]
+                  + cfg.ssh.split(separator: " ").map(String.init) + [command],
+                  input: input, done: done, line: line)
+    }
+}
+
+enum Shell {
+    /// Runs a program. Output lines (stdout + stderr) and `done` arrive on the main queue.
+    @discardableResult
+    static func run(_ path: String, _ args: [String], input: String? = nil, env: [String: String] = [:],
+                    done: ((Int32, String) -> Void)? = nil, line: ((String) -> Void)? = nil) -> Process {
         let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/usr/bin/ssh")
-        p.arguments = ["-T", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5",
-                       "-o", "ServerAliveInterval=3", "-o", "ServerAliveCountMax=2"]
-            + cfg.ssh.split(separator: " ").map(String.init) + [command]
+        p.executableURL = URL(fileURLWithPath: path)
+        p.arguments = args
+        if !env.isEmpty { p.environment = ProcessInfo.processInfo.environment.merging(env) { $1 } }
         let out = Pipe()
         p.standardOutput = out
         p.standardError = out

@@ -57,3 +57,95 @@ document.addEventListener('click', (e) => {
   if (b && !b.disabled) act(b.dataset);
 });
 addEventListener('load', () => post({ cmd: 'ready' }));
+
+// Toast and sudo password sheet, shared by the main window and Settings (design: SudoPrompt).
+const LOCK = (px, stroke = '#FFFFFF') => `<svg width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>`;
+const CHECK = (px, w) => `<svg width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>`;
+const OVERLAY = 'position: fixed; inset: 0; border-radius: 28px; display: flex; align-items: center; justify-content: center';
+const DIALOG = 'box-sizing: border-box; border-radius: 30px; backdrop-filter: blur(50px) saturate(180%); -webkit-backdrop-filter: blur(50px) saturate(180%); border: 1px solid rgba(255,255,255,0.95); box-shadow: 0 30px 80px rgba(8,28,60,0.4), inset 0 1px 0 rgba(255,255,255,1)';
+const GHOST = 'height: 44px; border-radius: 22px; border: 1px solid rgba(60,60,67,0.18); background: rgba(255,255,255,0.85); font-size: 14px; font-weight: 600; color: #1D1D1F; cursor: pointer';
+const PRIMARY = (enabled) => 'height: 44px; border: 0; border-radius: 22px; background: #0066CC; color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 6px 16px rgba(0,102,204,0.3);' + (enabled ? '' : ' opacity: 0.4; cursor: default; box-shadow: none;');
+const checkbox = (on) => `<span style="width: 22px; height: 22px; flex-shrink: 0; box-sizing: border-box; border-radius: 7px; display: flex; align-items: center; justify-content: center; background: ${on ? '#0066CC' : '#FFFFFF'}; border: 1.5px solid ${on ? '#0066CC' : 'rgba(60,60,67,0.35)'}">${CHECK(12, 3.4)}</span>`;
+const toggle = (on, cmd, label) => `<button data-cmd="${cmd}" aria-label="${label}" aria-pressed="${on}" style="position: relative; width: 52px; height: 30px; flex-shrink: 0; padding: 0; border: 0; border-radius: 15px; cursor: pointer; transition: background 0.2s; background: ${on ? '#248A3D' : 'rgba(120,120,128,0.36)'}"><span style="position: absolute; top: 2px; left: ${on ? '24px' : '2px'}; width: 26px; height: 26px; border-radius: 13px; background: #FFFFFF; box-shadow: 0 2px 6px rgba(0,0,0,0.22); transition: left 0.2s"></span></button>`;
+
+function layer(id) {
+  let el = $(id);
+  if (!el) { el = document.createElement('div'); el.id = id; document.body.appendChild(el); }
+  return el;
+}
+
+let toastTimer = null;
+function toast(o) {
+  const el = layer('toast');
+  el.innerHTML = `<div role="status" style="position: fixed; left: 50%; top: 20px; transform: translateX(-50%); z-index: 20; display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 20px 0 14px; border-radius: 24px; background: rgba(255,255,255,0.86); backdrop-filter: blur(30px) saturate(180%); -webkit-backdrop-filter: blur(30px) saturate(180%); border: 1px solid rgba(255,255,255,0.95); box-shadow: 0 12px 30px rgba(8,28,60,0.25); font-size: 14px; font-weight: 600; color: #1D1D1F; white-space: nowrap"><span style="width: 26px; height: 26px; border-radius: 13px; background: #248A3D; display: flex; align-items: center; justify-content: center">${CHECK(14, 3)}</span>${esc(o.text)}</div>`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.innerHTML = ''; }, 3000);
+}
+
+// Swift shows the sheet with askPassword() and closes it with hidePassword().
+let pw = null;
+
+function askPassword(o) {
+  const same = pw && pw.id === o.id;
+  pw = { ...o, remember: same ? pw.remember : o.remember, busy: false };
+  const body = o.action
+    ? `${esc(o.action)} needs sudo as <strong style="color: #1D1D1F">${esc(o.user)}</strong>.${o.remember ? ' You only need to enter this once.' : ''}`
+    : `Power, restart and updates need sudo as <strong style="color: #1D1D1F">${esc(o.user)}</strong>. You only need to enter this once.`;
+  layer('pwSheet').innerHTML = `<div style="${OVERLAY}; z-index: 10; background: rgba(10,25,50,0.3)">
+<form id="pwForm" role="dialog" aria-label="Sudo password" autocomplete="off" style="width: 440px; padding: 28px; display: flex; flex-direction: column; align-items: center; gap: 16px; background: rgba(248,250,253,0.92); text-align: center; ${DIALOG}">
+<span style="width: 56px; height: 56px; border-radius: 16px; background: linear-gradient(160deg, #8E8CF5, #5E5CE6); display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255,255,255,0.45)">${LOCK(26)}</span>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<h2 style="margin: 0; font-size: 19px; font-weight: 700">Admin password for ${esc(o.name)}</h2>
+<p style="margin: 0; font-size: 13px; color: #56565B; line-height: 1.45">${body}</p>
+</div>
+<input class="icefield" name="pw" type="password" aria-label="Sudo password" placeholder="Sudo password" autocomplete="off">
+${o.error ? `<div role="alert" style="margin-top: -6px; font-size: 12px; font-weight: 600; color: #C4000F">${esc(o.error)}</div>` : ''}
+<button type="button" data-cmd="pwRemember" role="checkbox" aria-checked="${pw.remember}" style="align-self: stretch; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 4px; border: 0; background: transparent; cursor: pointer; text-align: left">
+<span id="pwCheck">${checkbox(pw.remember)}</span>
+<span style="display: flex; flex-direction: column; gap: 1px"><span style="font-size: 13px; font-weight: 600; color: #1D1D1F">Remember in Keychain</span><span style="font-size: 12px; color: #56565B">Encrypted on this Mac, never synced.</span></span>
+</button>
+<div style="align-self: stretch; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+<button type="button" data-cmd="pwCancel" style="${GHOST}">Cancel</button>
+<button id="pwGo" type="submit" disabled style="${PRIMARY(false)}">Continue</button>
+</div>
+</form>
+</div>`;
+  const f = $('pwForm');
+  f.pw.addEventListener('input', pwButton);
+  f.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!f.pw.value || pw.busy) return;
+    pw.busy = true;
+    f.pw.disabled = true;
+    pwButton();
+    post({ cmd: 'password', id: pw.id, value: f.pw.value, remember: pw.remember });
+  });
+  if (o.error) f.classList.add('shake');
+  f.pw.focus();
+}
+
+function pwButton() {
+  const go = $('pwGo'), ok = !!$('pwForm').pw.value && !pw.busy;
+  go.disabled = !ok;
+  go.style.cssText = PRIMARY(ok);
+  go.textContent = pw.busy ? 'Checking…' : 'Continue';
+}
+
+function hidePassword() {
+  pw = null;
+  layer('pwSheet').innerHTML = '';
+}
+
+// Handles the sheet's own buttons; pages call this first from their act().
+function sheetAct(d) {
+  if (d.cmd === 'pwCancel') { post({ cmd: 'passwordCancel' }); return true; }
+  if (d.cmd === 'pwRemember') {
+    pw.remember = !pw.remember;
+    $('pwCheck').innerHTML = checkbox(pw.remember);
+    document.querySelector('[data-cmd="pwRemember"]').setAttribute('aria-checked', pw.remember);
+    return true;
+  }
+  return false;
+}
+
+addEventListener('keydown', (e) => { if (e.key === 'Escape' && pw) post({ cmd: 'passwordCancel' }); });

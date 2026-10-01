@@ -8,12 +8,14 @@ struct ServerConfig: Codable {
     var mac: String?
     /// `ssh` arguments with ~/.ssh/config already applied, for the sandboxed widget.
     var resolved: [String]?
+    /// How sudo gets its password: "remember" (Keychain), "every" (ask each time) or "nopass".
+    var sudo: String?
 }
 
 /// What the widgets of one size show. Keyed by size ("S", "M", "L", "XL") in `Config.widgets`.
 struct WidgetStyle: Codable {
     var server = "all"
-    var metrics = ["cpu": true, "mem": true, "net": true, "disk": true]
+    var metrics = ["cpu": true, "mem": true, "temp": true, "net": false, "disk": true]
     var style = "bars"
     var look = "glass"
 }
@@ -21,6 +23,8 @@ struct WidgetStyle: Codable {
 struct Config: Codable {
     var servers: [ServerConfig] = []
     var widgets: [String: WidgetStyle] = [:]
+    /// Ask for Touch ID (or the Mac's password) before a saved sudo password is used.
+    var touchID: Bool?
 }
 
 /// The real home folder, also from inside the widget's sandbox (where $HOME is its container).
@@ -70,10 +74,19 @@ enum Keychain {
     }
 
     static func set(_ account: String, _ password: String) {
-        delete(account)
+        let data = Data(password.utf8)
+        if SecItemUpdate(query(account) as CFDictionary, [kSecValueData: data] as CFDictionary) == errSecItemNotFound {
+            var q = query(account)
+            q[kSecValueData] = data
+            SecItemAdd(q as CFDictionary, nil)
+        }
+    }
+
+    /// Checks for a saved password without reading it (reading can make macOS ask for permission).
+    static func has(_ account: String) -> Bool {
         var q = query(account)
-        q[kSecValueData] = Data(password.utf8)
-        SecItemAdd(q as CFDictionary, nil)
+        q[kSecReturnAttributes] = true
+        return SecItemCopyMatching(q as CFDictionary, nil) == errSecSuccess
     }
 
     static func delete(_ account: String) {

@@ -8,15 +8,6 @@
 .light { width: 12px; height: 12px; padding: 0; border: 0; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
 .light svg { opacity: 0; }
 .lights:hover .light svg { opacity: 1; }
-.capsule:disabled { opacity: 0.45; }
-.field { display: flex; flex-direction: column; gap: 8px; }
-.field > span { font-size: 12px; font-weight: 600; color: #56565B; letter-spacing: 0.02em; }
-.field em { font-style: normal; font-weight: 500; color: #8E8E93; }
-.field input { height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid rgba(60,60,67,0.18); background: rgba(255,255,255,0.8); font: inherit; font-size: 14px; color: #1D1D1F; outline: none; }
-.field input:focus { border-color: #0066CC; box-shadow: 0 0 0 3px rgba(0,102,204,0.2); }
-.field input:disabled { opacity: 0.6; }
-@keyframes shake { 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
-.shake { animation: shake 0.35s ease; }
 </style>
 </head>
 <body>
@@ -38,74 +29,46 @@ Add Server
 </nav>
 
 <main style="flex-grow: 1; min-width: 0; box-sizing: border-box; padding: 18px 22px 18px 14px; display: flex; flex-direction: column; gap: 16px">
+<div id="lock" style="display: contents"></div>
 <header id="head" style="display: flex; align-items: center; justify-content: space-between; gap: 16px"></header>
 <div id="body" style="display: contents"></div>
 <section id="upd" aria-label="Software updates" style="box-sizing: border-box; min-height: 92px; padding: 16px 18px; display: flex; align-items: center; gap: 16px; border-radius: 22px; background: rgba(255,255,255,0.72); border: 1px solid rgba(255,255,255,0.9); box-shadow: 0 6px 20px rgba(20,40,80,0.07), inset 0 1px 0 rgba(255,255,255,1)"></section>
 </main>
 </div>
 
-<div id="sheet" style="position: fixed; inset: 0; display: none; align-items: center; justify-content: center; border-radius: 28px; background: rgba(20,40,80,0.18)">
-<form id="addForm" autocomplete="off" style="width: 400px; padding: 24px; display: flex; flex-direction: column; gap: 20px; border-radius: 28px; background: rgba(246,248,252,0.96); border: 1px solid rgba(255,255,255,0.8); box-shadow: 0 30px 70px rgba(8,28,60,0.32), inset 0 1px 0 rgba(255,255,255,1)">
-<div style="display: flex; flex-direction: column; gap: 4px">
-<h2 style="margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.01em">Add Server</h2>
-<p style="margin: 0; font-size: 13px; color: #56565B">Any Linux machine you can reach with SSH key login.</p>
-</div>
-<label class="field"><span>Name</span><input name="name" placeholder="homelab" spellcheck="false"></label>
-<label class="field"><span>SSH</span><input name="ssh" placeholder="user@192.168.1.20" spellcheck="false"></label>
-<label class="field"><span>MAC address <em>· optional, learned automatically</em></span><input name="mac" placeholder="aa:bb:cc:dd:ee:ff" spellcheck="false"></label>
-<div id="addError" style="display: none; font-size: 13px; font-weight: 600; color: #B33000"></div>
-<div style="display: flex; justify-content: flex-end; gap: 10px">
-<button type="button" data-cmd="hideAdd" style="height: 44px; padding: 0 18px; border-radius: 22px; background: rgba(255,255,255,0.7); border: 1px solid rgba(60,60,67,0.18); font-size: 14px; font-weight: 600; color: #1D1D1F; cursor: pointer">Cancel</button>
-<button type="submit" style="height: 44px; padding: 0 20px; border: 0; border-radius: 22px; background: #0066CC; color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 6px 16px rgba(0,102,204,0.3), inset 0 1px 0 rgba(255,255,255,0.35)">Add Server</button>
-</div>
-</form>
-</div>
-
-<div id="pwSheet" style="position: fixed; inset: 0; display: none; align-items: center; justify-content: center; border-radius: 28px; background: rgba(20,40,80,0.18)">
-<form id="pwForm" autocomplete="off" style="width: 400px; padding: 24px; display: flex; flex-direction: column; gap: 20px; border-radius: 28px; background: rgba(246,248,252,0.96); border: 1px solid rgba(255,255,255,0.8); box-shadow: 0 30px 70px rgba(8,28,60,0.32), inset 0 1px 0 rgba(255,255,255,1)">
-<div style="display: flex; align-items: center; gap: 14px">
-<div style="width: 44px; height: 44px; flex-shrink: 0; border-radius: 13px; display: flex; align-items: center; justify-content: center; background: linear-gradient(160deg, #8E8CF5, #5E5CE6); box-shadow: inset 0 1px 0 rgba(255,255,255,0.45)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg></div>
-<div style="display: flex; flex-direction: column; gap: 4px; min-width: 0">
-<h2 id="pwTitle" style="margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap"></h2>
-<p id="pwBody" style="margin: 0; font-size: 13px; color: #56565B"></p>
-</div>
-</div>
-<label class="field"><span>sudo password</span><input name="pw" type="password" spellcheck="false"></label>
-<div id="pwError" role="alert" style="display: none; margin-top: -8px; font-size: 13px; font-weight: 600; color: #B33000"></div>
-<label style="display: flex; align-items: center; gap: 10px; font-size: 13px; color: #1D1D1F; cursor: pointer"><input name="remember" type="checkbox" checked style="width: 18px; height: 18px; margin: 0; accent-color: #0066CC">Remember in Keychain</label>
-<div style="display: flex; justify-content: flex-end; gap: 10px">
-<button type="button" data-cmd="pwCancel" style="height: 44px; padding: 0 18px; border-radius: 22px; background: rgba(255,255,255,0.7); border: 1px solid rgba(60,60,67,0.18); font-size: 14px; font-weight: 600; color: #1D1D1F; cursor: pointer">Cancel</button>
-<button id="pwGo" type="submit" style="min-width: 112px; height: 44px; padding: 0 20px; border: 0; border-radius: 22px; background: #0066CC; color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 6px 16px rgba(0,102,204,0.3), inset 0 1px 0 rgba(255,255,255,0.35)">Continue</button>
-</div>
-</form>
-</div>
+<div id="sheet"></div>
 
 <script src="common.js"></script>
 <script>
-let S = { servers: [] }, sel = null, pendingName = null;
+let S = { servers: [] }, sel = null;
 
-const CARD = 'box-sizing: border-box; height: 176px; padding: 16px 18px; border-radius: 22px; background: rgba(255,255,255,0.72); border: 1px solid rgba(255,255,255,0.9); box-shadow: 0 6px 20px rgba(20,40,80,0.07), inset 0 1px 0 rgba(255,255,255,1)';
+const CARD = 'box-sizing: border-box; height: 164px; padding: 16px 18px; border-radius: 22px; background: rgba(255,255,255,0.72); border: 1px solid rgba(255,255,255,0.9); box-shadow: 0 6px 20px rgba(20,40,80,0.07), inset 0 1px 0 rgba(255,255,255,1)';
 const CARD_LABEL = 'display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #5E5E63';
 const BIG = 'font-size: 30px; font-weight: 700; letter-spacing: -0.02em';
 const UNIT = '<span style="font-size: 16px; font-weight: 600; color: #5E5E63">%</span>';
 const CAPSULE = 'display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 18px; border-radius: 22px; background: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.9); box-shadow: 0 4px 14px rgba(20,40,80,0.08), inset 0 1px 0 rgba(255,255,255,1); font-size: 13px; font-weight: 600; color: #1D1D1F; cursor: pointer;';
 const BLUE = 'height: 44px; padding: 0 20px; border: 0; border-radius: 22px; background: #0066CC; color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 6px 16px rgba(0,102,204,0.3), inset 0 1px 0 rgba(255,255,255,0.35)';
+const SEG = (on) => `flex: 1 1 0; min-width: 0; height: 38px; border-radius: 19px; cursor: pointer; font-size: 13px; font-weight: 600; color: #1D1D1F; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border: 1px solid ${on ? '#FFFFFF' : 'transparent'}; background: ${on ? '#FFFFFF' : 'transparent'}; box-shadow: ${on ? '0 2px 8px rgba(20,40,80,0.14)' : 'none'}`;
+const SEG_TRACK = 'display: flex; gap: 2px; padding: 3px; border-radius: 22px; background: rgba(120,120,128,0.14)';
+const SPIN = (px, w, stroke = 'currentColor', extra = '') => `<svg class="icespin" width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="${w}" stroke-linecap="round" aria-hidden="true" style="${extra}"><path d="M12 3a9 9 0 1 0 9 9"></path></svg>`;
+
+const lockedBy = () => S.servers.find((x) => BUSY.includes(x.phase) && x.phase !== 'connecting');
 
 function render(state) {
   if (state) S = state;
   if (state && state.select) sel = state.select;
   const list = S.servers;
-  const added = pendingName && list.find((s) => s.name === pendingName);
-  if (added) { sel = added.id; pendingName = null; }
   if (!list.some((s) => s.id === sel)) sel = list[0] ? list[0].id : null;
   const s = list.find((x) => x.id === sel);
+  const lock = lockedBy();
 
   set($('list'), list.map(row).join(''));
+  set($('lock'), lock ? banner(lock) : '');
   $('head').style.display = s ? 'flex' : 'none';
   $('upd').style.display = s ? 'flex' : 'none';
-  set($('head'), s ? header(s) : '');
-  set($('body'), !s ? empty() : LIVE.includes(s.phase) ? stats(s) : offline(s));
-  set($('upd'), s ? updates(s) : '');
+  set($('head'), s ? header(s, lock) : '');
+  set($('body'), !s ? empty() : LIVE.includes(s.phase) ? stats(s) : offline(s, lock));
+  set($('upd'), s ? updates(s, lock) : '');
 }
 
 function row(r) {
@@ -120,11 +83,19 @@ function row(r) {
 </button>`;
 }
 
-function header(s) {
+function banner(b) {
+  return `<div role="status" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 8px 16px; border-radius: 16px; background: rgba(255,159,10,0.16); border: 1px solid rgba(255,159,10,0.35)">
+${LOCK(18, '#B33000').replace('<svg ', '<svg style="flex-shrink: 0" ')}
+<span style="font-size: 13px; color: #5C2A00"><strong style="font-weight: 700">Running sudo on ${esc(b.name)}:</strong> ${LABELS[b.phase]} Power, restart and update controls are locked until it finishes.</span>
+${SPIN(16, 3, '#B33000', 'margin-left: auto; flex-shrink: 0')}
+</div>`;
+}
+
+function header(s, lock) {
   const c = colorsFor(s.phase);
   const busy = BUSY.includes(s.phase);
   const on = s.phase !== 'off' && s.phase !== 'stopping';
-  const cant = s.phase !== 'online' ? 'disabled' : '';
+  const cant = s.phase !== 'online' || lock;
   return `<div style="display: flex; flex-direction: column; gap: 6px; min-width: 0">
 <h1 style="margin: 0; font-size: 30px; font-weight: 700; letter-spacing: -0.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">${esc(s.name)}</h1>
 <div style="display: flex; align-items: center; gap: 10px; font-size: 13px; color: #5E5E63">
@@ -133,11 +104,12 @@ function header(s) {
 </div>
 </div>
 <div style="display: flex; align-items: center; gap: 12px">
-<button class="capsule" data-cmd="restart" ${cant} aria-label="Restart server" style="${CAPSULE}">${ICON.restart(16, 2)}Restart</button>
+<button data-cmd="showWidget" aria-label="Add widget to desktop" style="${CAPSULE}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="2"></rect><rect x="13" y="3" width="8" height="8" rx="2"></rect><rect x="3" y="13" width="8" height="8" rx="2"></rect><path d="M17 13v8M13 17h8"></path></svg>Add Widget</button>
+<button data-cmd="restart" ${cant ? 'disabled' : ''} aria-label="Restart server" style="${CAPSULE}${cant ? ' opacity: 0.45; cursor: default;' : ''}">${ICON.restart(16, 2)}Restart</button>
 <div style="display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 8px 0 16px; border-radius: 22px; background: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.9); box-shadow: 0 4px 14px rgba(20,40,80,0.08), inset 0 1px 0 rgba(255,255,255,1)">
 ${ICON.power(16, '#1D1D1F', 2)}
 <span style="font-size: 13px; font-weight: 600">Power</span>
-<button data-cmd="power" aria-label="Server power" aria-pressed="${on}" ${busy ? 'disabled' : ''} style="position: relative; width: 52px; height: 30px; flex-shrink: 0; padding: 0; border: 0; border-radius: 15px; cursor: pointer; transition: background 0.2s; background: ${on ? '#248A3D' : 'rgba(120,120,128,0.36)'}${busy ? '; opacity: 0.6' : ''}">
+<button data-cmd="power" aria-label="Server power" aria-pressed="${on}" ${lock || s.phase === 'connecting' ? 'disabled' : ''} style="position: relative; width: 52px; height: 30px; flex-shrink: 0; padding: 0; border: 0; border-radius: 15px; cursor: pointer; transition: background 0.2s; background: ${on ? '#248A3D' : 'rgba(120,120,128,0.36)'}${lock ? '; opacity: 0.5; cursor: default' : ''}">
 <span style="position: absolute; top: 2px; left: ${on ? '24px' : '2px'}; width: 26px; height: 26px; border-radius: 13px; background: #FFFFFF; box-shadow: 0 2px 6px rgba(0,0,0,0.22); transition: left 0.2s"></span>
 </button>
 </div>
@@ -147,14 +119,15 @@ ${ICON.power(16, '#1D1D1F', 2)}
 function stats(s) {
   const cpu = pts(s.cpu, 100), nm = netMax(s);
   const mem = last(s.mem), disk = s.disk;
-  return `<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px">
+  return `<div style="display: flex; flex-direction: column; gap: 14px">
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px">
 
 <section aria-label="CPU" style="${CARD}; display: flex; flex-direction: column; gap: 8px">
 <div style="display: flex; align-items: center; justify-content: space-between">
 <div style="${CARD_LABEL}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A64D6" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"></rect><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"></path></svg>CPU</div>
 <div style="${BIG}">${Math.round(last(s.cpu))}${UNIT}</div>
 </div>
-<svg viewBox="0 0 240 56" preserveAspectRatio="none" style="width: 100%; height: 80px; display: block" aria-hidden="true">
+<svg viewBox="0 0 240 56" preserveAspectRatio="none" style="width: 100%; height: 64px; display: block" aria-hidden="true">
 <polygon points="${cpu} 240,56 0,56" fill="rgba(10,132,255,0.14)"></polygon>
 <polyline points="${cpu}" fill="none" stroke="#0A84FF" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"></polyline>
 </svg>
@@ -184,7 +157,7 @@ function stats(s) {
 <span style="display: flex; align-items: center; gap: 6px"><span style="width: 8px; height: 8px; border-radius: 4px; background: #FF9F0A"></span><span style="color: #5E5E63">Out</span> <strong style="font-weight: 700">${last(s.up).toFixed(1)} MB/s</strong></span>
 </div>
 </div>
-<svg viewBox="0 0 240 56" preserveAspectRatio="none" style="width: 100%; height: 80px; display: block" aria-hidden="true">
+<svg viewBox="0 0 240 56" preserveAspectRatio="none" style="width: 100%; height: 64px; display: block" aria-hidden="true">
 <polyline points="${pts(s.down, nm)}" fill="none" stroke="#0A84FF" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"></polyline>
 <polyline points="${pts(s.up, nm)}" fill="none" stroke="#FF9F0A" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"></polyline>
 </svg>
@@ -207,22 +180,48 @@ function stats(s) {
 </div>
 </section>
 
+</div>
+${temperature(s)}
 </div>`;
 }
 
-const PANEL = 'box-sizing: border-box; height: 366px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; border-radius: 22px; background: rgba(255,255,255,0.55); border: 1px solid rgba(255,255,255,0.85); text-align: center';
+function temperature(s) {
+  const has = s.temp.length > 0, now = has ? Math.round(last(s.temp)) : null;
+  const deg = (v) => v == null ? '—' : Math.round(v) + '°C';
+  const line = s.temp.length > 1 ? s.temp.map((v, i) => (i * 240 / (s.temp.length - 1)).toFixed(1) + ',' + (54 - Math.max(0, Math.min(80, v - 20)) / 80 * 50).toFixed(1)).join(' ') : '';
+  const state = now == null ? null : now >= 85 ? ['Hot', '#C4000F', 'rgba(255,59,48,0.14)'] : now >= 70 ? ['Warm', '#B33000', 'rgba(255,159,10,0.18)'] : ['Normal', '#1E7A34', 'rgba(52,199,89,0.16)'];
+  return `<section aria-label="Temperature" style="box-sizing: border-box; height: 88px; padding: 14px 18px; display: flex; align-items: center; gap: 22px; border-radius: 22px; background: rgba(255,255,255,0.72); border: 1px solid rgba(255,255,255,0.9); box-shadow: 0 6px 20px rgba(20,40,80,0.07), inset 0 1px 0 rgba(255,255,255,1)">
+<div style="display: flex; flex-direction: column; gap: 4px; width: 150px; flex-shrink: 0">
+<div style="${CARD_LABEL}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D70015" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M14 14.8V5a2 2 0 1 0-4 0v9.8a4 4 0 1 0 4 0z"></path><path d="M12 9v7"></path></svg>Temperature</div>
+<div style="display: flex; align-items: baseline; gap: 8px">
+<span style="font-size: 28px; font-weight: 700; letter-spacing: -0.02em">${deg(now)}</span>
+${state ? `<span style="height: 22px; padding: 0 9px; border-radius: 11px; display: inline-flex; align-items: center; font-size: 12px; font-weight: 600; color: ${state[1]}; background: ${state[2]}">${state[0]}</span>` : ''}
+</div>
+</div>
+<svg viewBox="0 0 240 56" preserveAspectRatio="none" style="flex-grow: 1; min-width: 0; height: 56px; display: block" aria-hidden="true">
+${line ? `<polygon points="${line} 240,56 0,56" fill="rgba(255,69,58,0.12)"></polygon><polyline points="${line}" fill="none" stroke="#FF453A" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"></polyline>` : ''}
+</svg>
+<div style="display: grid; grid-template-columns: auto auto; column-gap: 14px; row-gap: 4px; font-size: 13px; flex-shrink: 0">
+<span style="color: #5E5E63">CPU</span><strong style="font-weight: 700; text-align: right">${deg(now)}</strong>
+<span style="color: #5E5E63">Drives</span><strong style="font-weight: 700; text-align: right">${deg(s.tempDrive)}</strong>
+<span style="color: #5E5E63">Board</span><strong style="font-weight: 700; text-align: right">${deg(s.tempBoard)}</strong>
+</div>
+</section>`;
+}
+
+const PANEL = 'box-sizing: border-box; height: 446px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; border-radius: 22px; background: rgba(255,255,255,0.55); border: 1px solid rgba(255,255,255,0.85); text-align: center';
 const panelIcon = (svg) => `<div style="width: 64px; height: 64px; border-radius: 32px; display: flex; align-items: center; justify-content: center; background: rgba(120,120,128,0.16)">${svg}</div>`;
 
-function offline(s) {
+function offline(s, lock) {
   const off = s.phase === 'off';
   const body = !off ? 'Stats will be back as soon as the server responds.'
     : s.hasMac ? 'Turn it on to see live CPU, memory, network and disk stats.'
-    : 'It can be turned on with Wake-on-LAN once the app has seen it online, or after you add its MAC address.';
+    : 'It can be turned on with Wake-on-LAN once the app has seen it online.';
   return `<div style="${PANEL}">
 ${panelIcon(ICON.power(30, '#5E5E63', 2))}
 <div style="font-size: 20px; font-weight: 700">${off ? esc(s.name) + ' is off' : LABELS[s.phase]}</div>
 <div style="font-size: 14px; color: #5E5E63; max-width: 340px">${body}</div>
-${off && s.hasMac ? `<button data-cmd="power" style="height: 44px; padding: 0 22px; border: 0; border-radius: 22px; background: #0066CC; color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 6px 16px rgba(0,102,204,0.35), inset 0 1px 0 rgba(255,255,255,0.35)">Turn On</button>` : ''}
+${off && s.hasMac ? `<button data-cmd="power" ${lock ? 'disabled' : ''} style="height: 44px; padding: 0 22px; border: 0; border-radius: 22px; background: #0066CC; color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 6px 16px rgba(0,102,204,0.35), inset 0 1px 0 rgba(255,255,255,0.35);${lock ? ' opacity: 0.4; cursor: default; box-shadow: none;' : ''}">Turn On</button>` : ''}
 </div>`;
 }
 
@@ -235,8 +234,8 @@ ${panelIcon(ICON.server.replace('#FFFFFF', '#5E5E63').replace('20" height="20"',
 </div>`;
 }
 
-function updates(s) {
-  const cant = s.phase !== 'online' ? 'disabled' : '';
+function updates(s, lock) {
+  const cant = s.phase !== 'online' || lock;
   let title, sub;
   if (s.phase === 'updating') { title = `Installing ${s.updates} updates…`; sub = s.progress + '% complete'; }
   else if (s.phase === 'checking') { title = 'Checking for updates…'; sub = 'Contacting package sources'; }
@@ -250,93 +249,272 @@ function updates(s) {
 ${s.phase === 'updating' ? `<div style="height: 8px; border-radius: 4px; background: rgba(120,120,128,0.18); overflow: hidden"><div style="height: 100%; border-radius: 4px; background: #5E5CE6; transition: width 0.3s; width: ${s.progress}%"></div></div>` : ''}
 <div style="font-size: 13px; color: #5E5E63">${sub}</div>
 </div>
-${idle && s.updates > 0 ? `<button data-cmd="install" ${cant} style="${BLUE}">Update Now</button>` : ''}
-${idle && !(s.updates > 0) ? `<button class="capsule" data-cmd="check" ${cant} style="${CAPSULE}">${s.updates == null ? 'Check Now' : 'Check Again'}</button>` : ''}`;
+${idle && s.updates > 0 ? `<button data-cmd="install" ${cant ? 'disabled' : ''} style="${BLUE}">Update Now</button>` : ''}
+${idle && !(s.updates > 0) ? `<button data-cmd="check" ${cant ? 'disabled' : ''} style="${CAPSULE}${cant ? ' opacity: 0.45; cursor: default;' : ''}">${s.updates == null ? 'Check Now' : 'Check Again'}</button>` : ''}`;
 }
 
-function showAdd() {
-  $('addForm').reset();
-  $('addError').style.display = 'none';
-  $('sheet').style.display = 'flex';
-  $('addForm').name.focus();
+// ---- Add widget to desktop (design: Main › sheet) ----
+
+let W2 = null;
+const SIZES = [['S', 'Small', 'Status + 3 stats', 43, 43], ['M', 'Medium', 'Both servers', 91, 43], ['L', 'Large', 'Full stats + controls', 91, 96], ['XL', 'Extra Large', 'Both, full controls', 130, 66]];
+
+function widgetSheet() {
+  const n = S.servers.length;
+  const opts = [...S.servers.map((s) => [s.id, s.name]), ...(n > 1 ? [['all', n === 2 ? 'Both' : 'All']] : [])];
+  return `<div style="${OVERLAY}; background: rgba(10,25,50,0.28)">
+<div role="dialog" aria-label="Add widget to desktop" style="width: 660px; padding: 26px; display: flex; flex-direction: column; gap: 20px; ${DIALOG}; background: rgba(248,250,253,0.86); border-color: rgba(255,255,255,0.9)">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<h2 style="margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.01em">Add widget to desktop</h2>
+<p style="margin: 0; font-size: 13px; color: #56565B">Pick a size and which server it shows. You can change it later with Edit Widget.</p>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="font-size: 12px; font-weight: 600; color: #56565B">Size</div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px">
+${SIZES.map(([k, label, desc, w, h]) => {
+    const on = W2.size === k;
+    return `<button data-cmd="wSize" data-val="${k}" aria-pressed="${on}" style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 8px 12px; border-radius: 18px; cursor: pointer; background: ${on ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.5)'}; border: 2px solid ${on ? '#0066CC' : 'rgba(255,255,255,0.8)'}; box-shadow: ${on ? '0 6px 18px rgba(0,102,204,0.18)' : 'none'}">
+<span style="height: 100px; display: flex; align-items: center; justify-content: center"><span style="display: block; width: ${w}px; height: ${h}px; border-radius: 12px; background: linear-gradient(160deg, #A9D8F5, #5B7FD6); box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 4px 10px rgba(20,40,80,0.15)"></span></span>
+<span style="font-size: 13px; font-weight: 600; color: #1D1D1F">${label}</span>
+<span style="font-size: 11px; color: #56565B">${desc}</span>
+</button>`;
+  }).join('')}
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="font-size: 12px; font-weight: 600; color: #56565B">Server</div>
+<div style="${SEG_TRACK}">${opts.map(([v, t]) => `<button data-cmd="wServer" data-val="${esc(v)}" aria-pressed="${W2.server === v}" style="${SEG(W2.server === v)}">${esc(t)}</button>`).join('')}</div>
+</div>
+<div style="display: flex; justify-content: flex-end; gap: 10px">
+<button data-cmd="closeSheet" style="height: 44px; padding: 0 20px; border-radius: 22px; border: 1px solid rgba(60,60,67,0.18); background: rgba(255,255,255,0.8); font-size: 14px; font-weight: 600; color: #1D1D1F; cursor: pointer">Cancel</button>
+<button data-cmd="addWidget" style="height: 44px; padding: 0 22px; border: 0; border-radius: 22px; background: #0066CC; color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 6px 16px rgba(0,102,204,0.3), inset 0 1px 0 rgba(255,255,255,0.35)">Add to Desktop</button>
+</div>
+</div>
+</div>`;
 }
 
-function hideAdd() { $('sheet').style.display = 'none'; }
+// ---- Add Server wizard (design: AddServer) ----
 
-$('addForm').addEventListener('submit', (e) => {
-  e.preventDefault();
-  const f = e.target, v = (k) => f[k].value.trim();
-  const error = !v('name') ? 'Give the server a name.'
-    : S.servers.some((s) => s.name === v('name')) ? 'There is already a server with that name.'
-    : !v('ssh') ? 'Enter how to reach it over SSH, like user@192.168.1.20.'
-    : v('mac') && !/^([0-9a-f]{2}[:-]){5}[0-9a-f]{2}$/i.test(v('mac')) ? 'A MAC address looks like aa:bb:cc:dd:ee:ff.'
-    : '';
-  if (error) {
-    $('addError').textContent = error;
-    $('addError').style.display = 'block';
-    return;
+let A = null;
+const freshA = () => ({ step: 1, id: crypto.randomUUID(), name: '', host: '', port: '22', user: '', auth: 'key', key: S.key || '~/.ssh/id_ed25519', sshPassword: '',
+  sudo: 'remember', when: 'now', sudoPassword: '', show: false, touchID: true, checks: [0, 1, 2, 3, 4].map(() => ({ state: 'pending', note: '', fp: null })) });
+
+function showAdd() { A = freshA(); sheet('add'); }
+
+function addValid() {
+  const dup = S.servers.some((s) => s.name === (A.name.trim() || A.host.trim()));
+  return A.step === 1 ? A.host.trim().length > 0 && !dup :
+    A.step === 2 ? A.user.trim().length > 0 && (A.auth === 'key' || A.sshPassword.length > 0) :
+    A.step === 3 ? !(A.sudo === 'remember' && A.when === 'now' && A.sudoPassword.length === 0) :
+    A.step === 4 ? A.checks.every((c) => c.state === 'done') : true;
+}
+
+function addSheet() {
+  const name = A.name.trim() || A.host.trim() || 'icecube', host = A.host.trim() || 'server.local', user = A.user.trim() || 'admin';
+  const field = (label, f, extra = '') => `<label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600">${label}<input class="icefield" data-f="${f}" value="${esc(A[f])}" ${extra}></label>`;
+  const steps = ['Server', 'Sign In', 'Admin', 'Test'].map((l, i) => {
+    const n = i + 1, cur = n === A.step, done = n < A.step;
+    return `<li style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: ${cur ? '#1D1D1F' : '#6E6E73'}"><span style="width: 20px; height: 20px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: ${cur || done ? '#FFFFFF' : '#56565B'}; background: ${cur ? '#0066CC' : (done ? '#248A3D' : 'rgba(120,120,128,0.2)')}">${done ? '✓' : n}</span>${l}</li>`;
+  }).join('');
+  const seg = (cmd, opts, cur) => `<div style="${SEG_TRACK}">${opts.map(([v, t]) => `<button data-cmd="${cmd}" data-val="${v}" aria-pressed="${cur === v}" style="${SEG(cur === v)}">${t}</button>`).join('')}</div>`;
+  const dup = A.step === 1 && S.servers.some((s) => s.name === (A.name.trim() || A.host.trim()));
+
+  let body = '';
+  if (A.step === 1) body = `<div style="display: flex; flex-direction: column; gap: 16px">
+<p style="margin: 0; font-size: 14px; color: #56565B">Ice Servers connects over SSH. Give the server a short name you'll recognise in the sidebar and widgets.</p>
+${field('Name', 'name', 'type="text" placeholder="e.g. icecube" spellcheck="false"')}
+${dup ? `<div role="alert" style="margin-top: -8px; font-size: 12px; font-weight: 600; color: #C4000F">There's already a server called ${esc(A.name.trim() || A.host.trim())}.</div>` : ''}
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 120px; gap: 12px">
+${field('Host or IP address', 'host', 'type="text" placeholder="server.local or 192.168.1.20" autocomplete="off" spellcheck="false"')}
+${field('SSH port', 'port', 'type="text" inputmode="numeric"')}
+</div>
+</div>`;
+  if (A.step === 2) body = `<div style="display: flex; flex-direction: column; gap: 16px">
+${field('Username', 'user', 'type="text" placeholder="e.g. admin" autocomplete="off" spellcheck="false"')}
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="font-size: 13px; font-weight: 600">Sign in with</div>
+${seg('aAuth', [['key', 'SSH key'], ['pw', 'Password']], A.auth)}
+</div>
+${A.auth === 'key' ? `<div style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,0.8); border: 1px solid rgba(60,60,67,0.14)">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0A64D6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"></circle><path d="M10.8 12.2L20 3M16 7l3 3M14 9l2 2"></path></svg>
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0"><span style="font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">${esc(A.key)}</span><span style="font-size: 12px; color: #56565B">Recommended. Your private key never leaves this Mac.</span></div>
+<button data-cmd="chooseKey" style="height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid rgba(60,60,67,0.18); background: #FFFFFF; font-size: 13px; font-weight: 600; cursor: pointer">Choose…</button>
+</div>` : `<label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600">SSH password<input class="icefield" data-f="sshPassword" type="password" placeholder="Password for this user" autocomplete="off" value="${esc(A.sshPassword)}"></label>
+<div style="font-size: 12px; color: #56565B; margin-top: -8px">Used once to add this Mac's SSH key to the server, then forgotten.</div>`}
+</div>`;
+  if (A.step === 3) {
+    const defs = [['remember', 'Ask once, remember securely', 'Recommended', 'Saved in your Keychain on this Mac. You won’t be asked again.'],
+      ['every', 'Ask every time', '', 'Never saved. You type it for each power, restart or update.'],
+      ['nopass', 'Passwordless sudo', 'Advanced', 'The server already allows these commands without a password.']];
+    const notes = { remember: `Stored in the macOS Keychain, encrypted and readable only by Ice Servers on this Mac while it’s unlocked. It is never synced to iCloud, written to logs, or sent anywhere except to sudo on ${esc(name)} over SSH. Forget it anytime in Settings.`,
+      every: 'The password is held in memory only for the command you run, then discarded.',
+      nopass: 'Only for servers where you’ve limited passwordless sudo to the power, reboot and update commands in sudoers.' };
+    body = `<div style="display: flex; flex-direction: column; gap: 14px">
+<p style="margin: 0; font-size: 14px; color: #56565B">Power, restart and updates run with <code style="font-family: ui-monospace, Menlo, monospace; font-size: 13px">sudo</code>. How should Ice Servers handle the password for <strong style="color: #1D1D1F">${esc(user)}</strong>?</p>
+<div role="radiogroup" aria-label="Sudo password" style="display: flex; flex-direction: column; gap: 8px">
+${defs.map(([k, label, tag, desc]) => {
+      const on = A.sudo === k;
+      return `<button role="radio" aria-checked="${on}" data-cmd="aSudo" data-val="${k}" style="display: flex; align-items: center; gap: 14px; width: 100%; min-height: 60px; padding: 10px 14px; border-radius: 16px; cursor: pointer; background: ${on ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.55)'}; border: 2px solid ${on ? '#0066CC' : 'rgba(255,255,255,0.8)'}">
+<span style="width: 20px; height: 20px; flex-shrink: 0; box-sizing: border-box; border-radius: 10px; display: flex; align-items: center; justify-content: center; border: 2px solid ${on ? '#0066CC' : 'rgba(60,60,67,0.3)'}"><span style="width: 10px; height: 10px; border-radius: 5px; background: ${on ? '#0066CC' : 'transparent'}"></span></span>
+<span style="display: flex; flex-direction: column; gap: 2px; text-align: left">
+<span style="font-size: 14px; font-weight: 600; color: #1D1D1F">${label}${tag ? ` <span style="margin-left: 6px; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; color: ${k === 'remember' ? '#1E7A34' : '#56565B'}; background: ${k === 'remember' ? 'rgba(52,199,89,0.16)' : 'rgba(120,120,128,0.14)'}">${tag}</span>` : ''}</span>
+<span style="font-size: 12px; color: #56565B">${desc}</span>
+</span>
+</button>`;
+    }).join('')}
+</div>
+${A.sudo === 'remember' ? `<div style="display: flex; flex-direction: column; gap: 12px; padding: 14px; border-radius: 16px; background: rgba(255,255,255,0.75); border: 1px solid rgba(60,60,67,0.12)">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 13px; font-weight: 600">Ask for it</span><span style="font-size: 12px; color: #56565B">Enter it now, or the first time an action needs it.</span></div>
+<div style="${SEG_TRACK}; width: 230px; flex-shrink: 0">${[['now', 'Now'], ['later', 'When needed']].map(([v, t]) => `<button data-cmd="aWhen" data-val="${v}" aria-pressed="${A.when === v}" style="${SEG(A.when === v)}">${t}</button>`).join('')}</div>
+</div>
+${A.when === 'now' ? `<div style="display: flex; gap: 8px">
+<input class="icefield" data-f="sudoPassword" type="${A.show ? 'text' : 'password'}" aria-label="Sudo password" placeholder="Sudo password" autocomplete="off" value="${esc(A.sudoPassword)}">
+<button data-cmd="aShow" aria-label="${A.show ? 'Hide password' : 'Show password'}" style="width: 44px; height: 44px; flex-shrink: 0; border-radius: 12px; border: 1px solid rgba(60,60,67,0.2); background: #FFFFFF; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1D1D1F" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
+</div>` : ''}
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 13px; font-weight: 600">Require Touch ID to use it</span><span style="font-size: 12px; color: #56565B">Confirm with your fingerprint before each sudo action.</span></div>
+${toggle(A.touchID, 'aTouch', 'Require Touch ID')}
+</div>
+</div>` : ''}
+<div style="display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 14px; background: rgba(0,102,204,0.08)">
+${LOCK(18, '#0058B0').replace('<svg ', '<svg style="flex-shrink: 0; margin-top: 1px" ')}
+<span style="font-size: 12px; line-height: 1.45; color: #1D3A5C">${notes[A.sudo]}</span>
+</div>
+</div>`;
   }
-  pendingName = v('name');
-  post({ cmd: 'add', name: v('name'), ssh: v('ssh'), mac: v('mac') });
-  hideAdd();
+  if (A.step === 4) {
+    const sudoLabel = { remember: A.when === 'now' ? 'Saving sudo password to Keychain' : 'sudo password will be asked on first use', every: 'sudo will ask each time', nopass: 'Checking passwordless sudo' }[A.sudo];
+    const labels = [`Reaching ${esc(host)}:${esc(A.port)}`, 'Verifying host key', `Signing in as ${esc(user)}`, sudoLabel, 'Reading CPU, memory, disk and temperature'];
+    body = `<div style="display: flex; flex-direction: column; gap: 10px">${A.checks.map((c, i) => {
+      const active = c.state !== 'pending';
+      const mark = c.state === 'done' ? `<span style="width: 24px; height: 24px; flex-shrink: 0; border-radius: 12px; background: #248A3D; display: flex; align-items: center; justify-content: center">${CHECK(13, 3)}</span>`
+        : c.state === 'running' ? `<span style="width: 24px; height: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #0066CC">${SPIN(20, 2.6)}</span>`
+        : c.state === 'fail' ? `<span style="width: 24px; height: 24px; flex-shrink: 0; border-radius: 12px; background: #C4000F; display: flex; align-items: center; justify-content: center; color: #FFFFFF; font-size: 15px; font-weight: 800">!</span>`
+        : `<span style="width: 24px; height: 24px; flex-shrink: 0; box-sizing: border-box; border-radius: 12px; border: 2px solid rgba(60,60,67,0.22)"></span>`;
+      return `<div style="display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,0.75); border: 1px solid rgba(60,60,67,0.1)">
+<div style="display: flex; align-items: center; gap: 12px">${mark}
+<span style="font-size: 14px; font-weight: 600; color: ${active ? '#1D1D1F' : '#6E6E73'}">${labels[i]}</span>
+<span style="margin-left: auto; font-size: 12px; color: ${c.state === 'fail' ? '#C4000F' : '#56565B'}; ${c.state === 'fail' ? 'font-weight: 600; max-width: 300px; text-align: right' : ''}">${esc(c.note)}</span>
+</div>
+${c.state === 'trust' ? `<div style="display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 36px; border-radius: 12px; background: rgba(255,159,10,0.12)">
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0">
+<span style="font-size: 13px; font-weight: 600">First connection. Is this the right server?</span>
+<span style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: #3A3A3C; overflow-wrap: anywhere; -webkit-user-select: text; user-select: text">${esc(c.fp)}</span>
+</div>
+<button data-cmd="addTrust" style="height: 36px; padding: 0 16px; border: 0; border-radius: 18px; background: #0066CC; color: #FFFFFF; font-size: 13px; font-weight: 600; cursor: pointer">Trust</button>
+</div>` : ''}
+</div>`;
+    }).join('')}</div>`;
+  }
+  if (A.step === 5) {
+    const note = A.sudo === 'remember' ? (A.when === 'now' ? 'Its sudo password is in your Keychain' + (A.touchID ? ', unlocked with Touch ID when needed.' : '.') : 'You’ll be asked for the sudo password once, the first time you use power, restart or updates.')
+      : A.sudo === 'every' ? 'You’ll be asked for the sudo password each time you run an admin action.' : 'Admin actions will run with passwordless sudo.';
+    body = `<div style="display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 18px 0 6px; text-align: center">
+<span style="width: 64px; height: 64px; border-radius: 32px; background: #248A3D; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 24px rgba(36,138,61,0.35)">${CHECK(30, 2.8)}</span>
+<div style="font-size: 20px; font-weight: 700">${esc(name)} is ready</div>
+<div style="font-size: 14px; color: #56565B; max-width: 420px">${note}</div>
+</div>`;
+  }
+  const nextLabel = A.step === 3 ? 'Test Connection' : A.step === 4 ? 'Add Server' : A.step === 5 ? 'Open ' + esc(name) : 'Continue';
+  const ok = addValid();
+  return `<div style="${OVERLAY}; background: rgba(10,25,50,0.3)">
+<div role="dialog" aria-label="Add server" style="width: 640px; padding: 26px 28px; display: flex; flex-direction: column; gap: 20px; ${DIALOG}; background: rgba(248,250,253,0.9)">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 16px">
+<h1 style="margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.01em">${A.step === 5 ? 'Server added' : 'Add Server'}</h1>
+${A.step < 5 ? `<ol aria-label="Steps" style="margin: 0; padding: 0; list-style: none; display: flex; align-items: center; gap: 6px">${steps}</ol>` : ''}
+</div>
+${body}
+<div style="display: flex; align-items: center; gap: 10px">
+${A.step > 1 && A.step < 5 ? `<button data-cmd="aBack" style="${GHOST}; padding: 0 20px">Back</button>` : ''}
+<div style="flex-grow: 1"></div>
+<button data-cmd="${A.step === 5 ? 'aAnother' : 'closeSheet'}" style="${GHOST}; padding: 0 20px">${A.step === 5 ? 'Add Another' : 'Cancel'}</button>
+<button id="aNext" data-cmd="aNext" ${ok ? '' : 'disabled'} style="${PRIMARY(ok)} padding: 0 22px; box-shadow: ${ok ? '0 6px 16px rgba(0,102,204,0.3), inset 0 1px 0 rgba(255,255,255,0.35)' : 'none'}">${nextLabel}</button>
+</div>
+</div>
+</div>`;
+}
+
+const draft = () => ({ id: A.id, name: A.name, host: A.host, port: A.port, user: A.user, auth: A.auth, key: A.key, sshPassword: A.sshPassword,
+  sudo: A.sudo, when: A.when, sudoPassword: A.sudoPassword, touchID: A.touchID });
+
+// Swift reports each Test check here.
+function addCheck(o) {
+  if (!A || A.step !== 4) return;
+  A.checks[o.i] = { state: o.state, note: o.note, fp: o.fp };
+  sheet('add');
+}
+
+function keyChosen(o) {
+  if (!A) return;
+  A.key = o.display;
+  sheet('add');
+}
+
+// ---- sheets ----
+
+let openSheet = null;
+
+function sheet(which) {
+  openSheet = which;
+  const el = $('sheet');
+  if (!which) { el.innerHTML = ''; return; }
+  const focused = document.activeElement && document.activeElement.dataset && document.activeElement.dataset.f;
+  el.innerHTML = which === 'add' ? addSheet() : widgetSheet();
+  const input = focused ? el.querySelector(`[data-f="${focused}"]`) : el.querySelector('input');
+  if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+}
+
+function closeSheet() {
+  if (openSheet === 'add') post({ cmd: 'addCancel' });
+  A = null;
+  W2 = null;
+  sheet(null);
+}
+
+document.addEventListener('input', (e) => {
+  const f = e.target.dataset && e.target.dataset.f;
+  if (!f || !A) return;
+  A[f] = e.target.value;
+  const go = $('aNext'), ok = addValid();
+  if (go) { go.disabled = !ok; go.style.opacity = ok ? '' : '0.4'; go.style.boxShadow = ok ? '' : 'none'; }
+  if (A.step === 1) sheet('add');  // keeps the duplicate-name hint current
 });
 
-// sudo password sheet. Swift shows it with askPassword() and closes it with hidePassword().
-let pwFor = null;
-
-function askPassword(o) {
-  const f = $('pwForm');
-  if (pwFor !== o.id) {
-    f.reset();
-    $('pwTitle').textContent = 'Password for ' + o.name;
-    $('pwBody').textContent = `Restarting, shutting down and updating ${o.name} need the sudo password for ${o.user}.`;
-  }
-  pwFor = o.id;
-  pwBusy(false);
-  $('pwError').textContent = o.error || '';
-  $('pwError').style.display = o.error ? 'block' : 'none';
-  $('pwSheet').style.display = 'flex';
-  if (o.error) {
-    f.pw.value = '';
-    f.classList.remove('shake');
-    void f.offsetWidth;
-    f.classList.add('shake');
-  }
-  f.pw.focus();
-}
-
-function hidePassword() {
-  pwFor = null;
-  $('pwSheet').style.display = 'none';
-}
-
-function pwBusy(busy) {
-  const f = $('pwForm');
-  f.pw.disabled = busy;
-  $('pwGo').disabled = busy;
-  $('pwGo').textContent = busy ? 'Checking…' : 'Continue';
-}
-
-$('pwForm').addEventListener('submit', (e) => {
-  e.preventDefault();
-  const f = e.target;
-  if (!f.pw.value) return f.pw.focus();
-  pwBusy(true);
-  post({ cmd: 'password', id: pwFor, value: f.pw.value, remember: f.remember.checked });
-});
-
-addEventListener('keydown', (e) => {
-  if (e.key !== 'Escape') return;
-  if (pwFor) post({ cmd: 'passwordCancel' });
-  else hideAdd();
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && openSheet && !pw) closeSheet();
+  if (e.key === 'Enter' && openSheet === 'add' && !pw && e.target.dataset && e.target.dataset.f) { const go = $('aNext'); if (go && !go.disabled) go.click(); }
 });
 
 function act(d) {
-  if (d.cmd === 'select') { sel = d.id; render(); }
-  else if (d.cmd === 'showAdd') showAdd();
-  else if (d.cmd === 'hideAdd') hideAdd();
-  else if (d.cmd === 'pwCancel') post({ cmd: 'passwordCancel' });
-  else post({ cmd: d.cmd, id: sel });
+  if (sheetAct(d)) return;
+  switch (d.cmd) {
+    case 'select': sel = d.id; return render();
+    case 'showAdd': return showAdd();
+    case 'showWidget': W2 = { size: 'M', server: S.servers.length > 1 ? 'all' : (S.servers[0] || {}).id }; return sheet('widget');
+    case 'closeSheet': return closeSheet();
+    case 'wSize': W2.size = d.val; return sheet('widget');
+    case 'wServer': W2.server = d.val; return sheet('widget');
+    case 'addWidget': post({ cmd: 'addWidget', size: W2.size, server: W2.server }); return closeSheet();
+    case 'aAuth': A.auth = d.val; return sheet('add');
+    case 'aSudo': A.sudo = d.val; return sheet('add');
+    case 'aWhen': A.when = d.val; return sheet('add');
+    case 'aShow': A.show = !A.show; return sheet('add');
+    case 'aTouch': A.touchID = !A.touchID; return sheet('add');
+    case 'chooseKey': return post({ cmd: 'chooseKey' });
+    case 'addTrust': return post({ cmd: 'addTrust' });
+    case 'aBack':
+      if (A.step === 4) { post({ cmd: 'addCancel' }); A.checks = freshA().checks; }
+      A.step--;
+      return sheet('add');
+    case 'aAnother': A = freshA(); return sheet('add');
+    case 'aNext':
+      if (A.step === 3) { A.step = 4; A.checks = freshA().checks; sheet('add'); return post({ cmd: 'addTest', draft: draft() }); }
+      if (A.step === 4) { post({ cmd: 'addSave', draft: draft() }); A.step = 5; return sheet('add'); }
+      if (A.step === 5) { sel = A.id; A = null; sheet(null); return render(); }
+      A.step++;
+      return sheet('add');
+    default: post({ cmd: d.cmd, id: sel });
+  }
 }
 </script>
 </body>

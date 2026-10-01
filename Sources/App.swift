@@ -1,4 +1,5 @@
 import AppKit
+import LocalAuthentication
 import WebKit
 import WidgetKit
 
@@ -6,11 +7,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var config = Config()
     var servers: [Server] = []
     var main: Panel!
-    var settings: Panel?
+    var prefs: Panel?
+    var widgetEditor: Panel?
     private var renderQueued = false
     private var reloadQueued = false
     private var selectID: String?
     private var pendingURLs: [URL] = []
+    private var probe: Probe?
+
+    static let busyPhases = ["restarting", "stopping", "starting", "updating", "checking"]
 
     func applicationDidFinishLaunching(_ note: Notification) {
         if let saved = Store.load() {
@@ -21,12 +26,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         servers = config.servers.map(Server.init)
         buildMenu()
 
-        let win = KeyWindow(contentRect: NSRect(x: 0, y: 0, width: 1160, height: 720),
-                            styleMask: [.borderless, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-        win.minSize = NSSize(width: 960, height: 640)
-        win.center()
-        main = Panel(page: "app", window: win, radius: 28)
-        win.makeKeyAndOrderFront(nil)
+        main = Panel(page: "app", size: NSSize(width: 1160, height: 720), radius: 28, resizable: true)
+        main.window.minSize = NSSize(width: 960, height: 640)
+        main.window.makeKeyAndOrderFront(nil)
 
         servers.forEach { $0.connect() }
         Timer.scheduledTimer(withTimeInterval: 1800, repeats: true) { _ in
@@ -72,15 +74,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.async {
             self.renderQueued = false
             let list = self.servers.map(\.json)
-            var state: [String: Any] = ["servers": list]
+            var state: [String: Any] = ["servers": list, "touchID": self.config.touchID == true,
+                                        "key": SSHKey.display(SSHKey.existing ?? SSHKey.defaultPath)]
             if let id = self.selectID {
                 state["select"] = id
                 self.selectID = nil
             }
             self.main.render(state)
-            self.settings?.render(["servers": list, "widgets": ["S", "M", "L", "XL"].reduce(into: [String: Any]()) {
+            self.prefs?.render(state)
+            self.widgetEditor?.render(["servers": list, "widgets": ["S", "M", "L", "XL"].reduce(into: [String: Any]()) {
                 $0[$1] = self.config.widgets[$1, default: WidgetStyle()].json
             }])
+        }
+    }
+
+    /// While one server runs a sudo action, power, restart and update controls are locked everywhere.
+    var lockedBy: Server? { servers.first { Self.busyPhases.contains($0.phase) } }
+
+    func toast(_ text: String) {
+        guard !text.isEmpty else { return }
+        for p in [main, prefs].compactMap({ $0 }) { p.call("toast", ["text": text]) }
+    }
+
+    /// Touch ID, or the Mac's password where there's no sensor.
+    func authenticate(_ reason: String, done: @escaping (Bool) -> Void) {
+        LAContext().evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason) { ok, _ in
+            DispatchQueue.main.async { done(ok) }
         }
     }
 
@@ -111,11 +130,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func handle(_ m: [String: Any], from p: Panel) {
         let server = servers.first { $0.cfg.id == m["id"] as? String }
-        switch m["cmd"] as? String {
+        let cmd = m["cmd"] as? String ?? ""
+        if ["power", "restart", "install", "check"].contains(cmd), let busy = lockedBy {
+            return toast("Running sudo on \(busy.cfg.name). Try again when it finishes.")
+        }
+        switch cmd {
         case "ready":
             changed()
             p.window.invalidateShadow()
-            if p === main { showPasswordSheet() }
+            showPasswordSheet()
         case "password":
             guard let r = passwordRequests.first, r.server === server else { return }
             r.reply((m["value"] as? String ?? "", m["remember"] as? Bool ?? true))
@@ -135,24 +158,69 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if let s = server, s.phase == "online", confirm("Restart \(s.cfg.name)?", "It will be unavailable for a minute or two.", "Restart") { s.restart() }
         case "install": server?.installUpdates()
         case "check": server?.checkUpdates()
-        case "add": addServer(m)
         case "menu": if p === main { serverMenu(server, in: p) }
         case "set": setWidgetStyle(m["size"] as? String ?? "", m["patch"] as? [String: Any] ?? [:])
+        case "addWidget":
+            let size = m["size"] as? String ?? "M"
+            setWidgetStyle(size, ["server": m["server"] as? String ?? "all"])
+            let names = ["S": "Small", "M": "Medium", "L": "Large", "XL": "Extra large"]
+            toast("\(names[size] ?? "Medium") widget ready · Right-click the desktop › Edit Widgets to place it")
+        // Add Server wizard
+        case "addTest":
+            probe?.cancel()
+            let draft = Draft(m["draft"] as? [String: Any] ?? [:])
+            probe = Probe(draft) { [weak p] i, state, note, fp in
+                p?.call("addCheck", ["i": i, "state": state, "note": note, "fp": fp ?? NSNull()])
+            }
+            probe?.start()
+        case "addTrust": probe?.trust()
+        case "addCancel":
+            probe?.cancel()
+            probe = nil
+        case "addSave": addServer(Draft(m["draft"] as? [String: Any] ?? [:]))
+        case "chooseKey": chooseKey(in: p)
+        // Settings › Passwords
+        case "savePassword": server?.savePassword()
+        case "forget":
+            server?.forgetPassword()
+            toast("Password for \(server?.cfg.name ?? "") removed from Keychain")
+            changed()
+        case "forgetAll":
+            servers.forEach { $0.forgetPassword() }
+            toast("All saved passwords removed")
+            changed()
+        case "touchID":
+            config.touchID = m["on"] as? Bool ?? false
+            save()
+            changed()
+        case "showPrefs": showPrefs()
+        case "showWidgets": showWidgetEditor()
         default: break
         }
     }
 
     // MARK: servers
 
-    private func addServer(_ m: [String: Any]) {
-        func field(_ k: String) -> String { (m[k] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines) }
-        let name = field("name"), ssh = field("ssh"), mac = field("mac").lowercased().replacingOccurrences(of: "-", with: ":")
-        guard !name.isEmpty, !ssh.isEmpty else { return }
-        let s = Server(ServerConfig(name: name, ssh: ssh, mac: mac.isEmpty ? nil : mac))
+    private func addServer(_ d: Draft) {
+        guard !d.host.isEmpty, !d.user.isEmpty else { return }
+        let s = Server(ServerConfig(id: d.id, name: d.name, ssh: d.sshString, sudo: d.sudo))
+        if d.sudo == "remember" { config.touchID = d.touchID }
         servers.append(s)
+        probe = nil
         s.connect()
         save()
         changed()
+    }
+
+    private func chooseKey(in p: Panel) {
+        let open = NSOpenPanel()
+        open.directoryURL = URL(fileURLWithPath: realHome + "/.ssh")
+        open.showsHiddenFiles = true
+        open.message = "Choose the private key Ice Servers should sign in with."
+        open.beginSheetModal(for: p.window) { response in
+            guard response == .OK, let url = open.url else { return }
+            p.call("keyChosen", ["path": url.path, "display": SSHKey.display(url.path)])
+        }
     }
 
     private func serverMenu(_ s: Server?, in p: Panel) {
@@ -168,16 +236,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }])
     }
 
-    // MARK: widget settings
+    // MARK: windows
 
-    @objc func showSettings() {
-        if settings == nil {
-            let win = KeyWindow(contentRect: NSRect(x: 0, y: 0, width: 1280, height: 820),
-                                styleMask: [.borderless, .closable, .miniaturizable], backing: .buffered, defer: false)
-            win.center()
-            settings = Panel(page: "settings", window: win, radius: 16)
-        }
-        settings?.window.makeKeyAndOrderFront(nil)
+    @objc func showPrefs() {
+        if prefs == nil { prefs = Panel(page: "prefs", size: NSSize(width: 1160, height: 700), radius: 28) }
+        prefs?.window.makeKeyAndOrderFront(nil)
+        NSApp.activate()
+    }
+
+    @objc func showWidgetEditor() {
+        if widgetEditor == nil { widgetEditor = Panel(page: "widgets", size: NSSize(width: 1280, height: 820), radius: 16, glass: false) }
+        widgetEditor?.window.makeKeyAndOrderFront(nil)
         NSApp.activate()
     }
 
@@ -212,17 +281,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         a.runModal()
     }
 
-    // MARK: sudo password sheet (in the main window, one server at a time)
+    // MARK: sudo password sheet (one server at a time, in the window that asked)
 
-    private var passwordRequests: [(server: Server, error: String?, reply: ((String, Bool)?) -> Void)] = []
+    private var passwordRequests: [(server: Server, action: String?, remember: Bool, error: String?, reply: ((String, Bool)?) -> Void)] = []
+    private var sheetPanel: Panel?
 
     /// Shows the sheet for `server`, or updates it with `error` if it's already showing.
     /// `reply` gets the password and whether to remember it, or nil when cancelled.
-    func askPassword(for server: Server, error: String?, reply: @escaping ((String, Bool)?) -> Void) {
+    func askPassword(for server: Server, action: String?, remember: Bool, error: String?, reply: @escaping ((String, Bool)?) -> Void) {
         if let i = passwordRequests.firstIndex(where: { $0.server === server }) {
-            passwordRequests[i] = (server, error, reply)
+            passwordRequests[i] = (server, action, remember, error, reply)
         } else {
-            passwordRequests.append((server, error, reply))
+            passwordRequests.append((server, action, remember, error, reply))
         }
         showPasswordSheet()
     }
@@ -233,9 +303,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func showPasswordSheet() {
-        guard let r = passwordRequests.first else { return main.call("hidePassword") }
-        showMain()
-        main.call("askPassword", ["id": r.server.cfg.id, "name": r.server.cfg.name, "user": r.server.sshUser, "error": r.error ?? NSNull()])
+        guard let r = passwordRequests.first else {
+            sheetPanel?.call("hidePassword")
+            sheetPanel = nil
+            return
+        }
+        // Saving from Settings asks in Settings; actions ask in the main window.
+        let panel = r.action == nil && prefs?.window.isVisible == true ? prefs! : main!
+        if sheetPanel !== panel { sheetPanel?.call("hidePassword") }
+        sheetPanel = panel
+        panel.window.makeKeyAndOrderFront(nil)
+        NSApp.activate()
+        panel.call("askPassword", ["id": r.server.cfg.id, "name": r.server.cfg.name, "user": r.server.sshUser,
+                                   "action": r.action ?? NSNull(), "remember": r.remember, "error": r.error ?? NSNull()])
     }
 
     // MARK: menu bar
@@ -257,7 +337,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu("Ice Servers", [
             item("About Ice Servers", #selector(NSApplication.orderFrontStandardAboutPanel(_:))),
             .separator(),
-            item("Widget Settings…", #selector(showSettings), ",", self),
+            item("Settings…", #selector(showPrefs), ",", self),
+            item("Widget Settings…", #selector(showWidgetEditor), "", self),
             .separator(),
             item("Hide Ice Servers", #selector(NSApplication.hide(_:)), "h"),
             item("Quit Ice Servers", #selector(NSApplication.terminate(_:)), "q"),
@@ -317,16 +398,18 @@ final class Web: WKWebView {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
-/// A borderless window: native behind-window blur, rounded by a mask, with one transparent web page on top.
+/// A borderless window with one transparent web page on top of native glass:
+/// Liquid Glass on macOS 26 and later, a behind-window blur before that.
 final class Panel: NSObject, WKScriptMessageHandler, NSWindowDelegate {
     let window: NSWindow
     let web: Web
-    private let blur = NSVisualEffectView()
 
-    init(page: String, window: NSWindow, radius: CGFloat) {
-        self.window = window
+    init(page: String, size: NSSize, radius: CGFloat, resizable: Bool = false, glass: Bool = true) {
+        var style: NSWindow.StyleMask = [.borderless, .closable, .miniaturizable]
+        if resizable { style.insert(.resizable) }
+        window = KeyWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: style, backing: .buffered, defer: false)
         let conf = WKWebViewConfiguration()
-        web = Web(frame: window.contentLayoutRect, configuration: conf)
+        web = Web(frame: NSRect(origin: .zero, size: size), configuration: conf)
         super.init()
         conf.userContentController.add(self, name: "ice")
 
@@ -336,23 +419,32 @@ final class Panel: NSObject, WKScriptMessageHandler, NSWindowDelegate {
         window.isReleasedWhenClosed = false
         window.appearance = NSAppearance(named: .aqua)
         window.delegate = self
-
-        blur.blendingMode = .behindWindow
-        blur.material = .underWindowBackground
-        blur.state = .active
-        setRadius(radius)
-        window.contentView = blur
+        window.center()
 
         web.setValue(false, forKey: "drawsBackground")
-        web.frame = blur.bounds
         web.autoresizingMask = [.width, .height]
-        blur.addSubview(web)
+        if #available(macOS 26, *), glass {
+            let g = NSGlassEffectView()
+            g.style = .clear
+            g.cornerRadius = radius
+            g.contentView = web
+            window.contentView = g
+        } else {
+            let blur = NSVisualEffectView()
+            blur.blendingMode = .behindWindow
+            blur.material = .fullScreenUI
+            blur.state = .active
+            blur.maskImage = Self.mask(radius)
+            web.frame = blur.bounds
+            blur.addSubview(web)
+            window.contentView = blur
+        }
 
         let res = Bundle.main.resourceURL!
         web.loadFileURL(res.appendingPathComponent("\(page).html"), allowingReadAccessTo: res)
     }
 
-    func setRadius(_ r: CGFloat) {
+    private static func mask(_ r: CGFloat) -> NSImage {
         let side = r * 2 + 1
         let mask = NSImage(size: NSSize(width: side, height: side), flipped: false) { rect in
             NSColor.black.setFill()
@@ -361,8 +453,7 @@ final class Panel: NSObject, WKScriptMessageHandler, NSWindowDelegate {
         }
         mask.capInsets = NSEdgeInsets(top: r, left: r, bottom: r, right: r)
         mask.resizingMode = .stretch
-        blur.maskImage = mask
-        window.invalidateShadow()
+        return mask
     }
 
     func render(_ state: [String: Any]) {
@@ -390,9 +481,9 @@ final class Panel: NSObject, WKScriptMessageHandler, NSWindowDelegate {
     }
 
     func windowWillClose(_ notification: Notification) {
-        if self === ice.settings {
-            web.configuration.userContentController.removeScriptMessageHandler(forName: "ice")
-            ice.settings = nil
-        }
+        guard self !== ice.main else { return }
+        web.configuration.userContentController.removeScriptMessageHandler(forName: "ice")
+        if self === ice.prefs { ice.prefs = nil }
+        if self === ice.widgetEditor { ice.widgetEditor = nil }
     }
 }

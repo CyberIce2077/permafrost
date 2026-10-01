@@ -94,7 +94,7 @@ struct Provider: TimelineProvider {
         let demo = names.enumerated().map { i, name in
             let wave = (0..<12).map { 30 + 12 * sin(Double($0) * 0.9 + Double(i)) }
             return Stats(id: "", name: name, online: true, cpu: wave, mem: wave.map { $0 + 25 },
-                         down: wave.map { $0 / 2 }, up: wave.map { $0 / 5 }, memUsed: 19.5, memTotal: 32,
+                         down: wave.map { $0 / 2 }, up: wave.map { $0 / 5 }, temp: wave.map { $0 + 18 }, memUsed: 19.5, memTotal: 32,
                          diskUsed: 580, diskTotal: 1000, diskFree: 420, uptime: 1_036_800, updates: 0)
         }
         return Entry(size: size(context), style: style, servers: demo)
