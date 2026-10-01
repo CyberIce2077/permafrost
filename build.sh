@@ -26,6 +26,8 @@ if [ "$1" = "--install" ]; then
   pkill -x IceServers || true
   rm -rf "/Applications/Ice Servers.app"
   cp -R "$APP" /Applications/
+  # Re-register so macOS drops cached widget kinds that no longer exist.
+  pluginkit -r "/Applications/Ice Servers.app/Contents/PlugIns/IceWidgets.appex" 2>/dev/null
   pluginkit -a "/Applications/Ice Servers.app/Contents/PlugIns/IceWidgets.appex"
   /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -u "$APP" 2>/dev/null || true
   rm -rf build
