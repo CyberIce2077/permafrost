@@ -178,11 +178,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case "check": server?.checkUpdates()
         case "menu": if p === main { serverMenu(server, in: p) }
         case "set": setWidgetStyle(m["size"] as? String ?? "", m["patch"] as? [String: Any] ?? [:])
-        case "addWidget":
-            let size = m["size"] as? String ?? "M"
-            setWidgetStyle(size, ["server": m["server"] as? String ?? "all"])
-            let names = ["S": "Small", "M": "Medium", "L": "Large", "XL": "Extra large"]
-            toast("\(names[size] ?? "Medium") widget ready · Right-click the desktop › Edit Widgets to place it")
         // Add Server wizard
         case "addTest":
             probe?.cancel()

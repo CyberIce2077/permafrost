@@ -122,7 +122,6 @@ function header(s, lock) {
 </div>
 </div>
 <div style="display: flex; align-items: center; gap: 12px">
-<button data-cmd="showWidget" aria-label="Add widget to desktop" style="${CAPSULE}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="2"></rect><rect x="13" y="3" width="8" height="8" rx="2"></rect><rect x="3" y="13" width="8" height="8" rx="2"></rect><path d="M17 13v8M13 17h8"></path></svg>Add Widget</button>
 <button data-cmd="restart" ${cant ? 'disabled' : ''} aria-label="Restart server" style="${CAPSULE}${cant ? ' opacity: 0.45; cursor: default;' : ''}">${ICON.restart(16, 2)}Restart</button>
 <div style="display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 8px 0 16px; border-radius: 22px; background: rgba(255,255,255,calc(0.7 * var(--wk))); border: 1px solid rgba(255,255,255,calc(0.9 * var(--wk))); box-shadow: 0 4px 14px rgba(20,40,80,0.08), inset 0 1px 0 rgba(255,255,255,calc(1 * var(--wk)))">
 ${ICON.power(16, 'var(--text)', 2)}
@@ -344,45 +343,6 @@ document.addEventListener('input', (e) => {
   b.style.opacity = ok ? '' : '0.4';
 });
 
-// ---- Add widget to desktop (design: Main › sheet) ----
-
-let W2 = null;
-const SIZES = [['S', 'Small', 'Status + 3 stats', 43, 43], ['M', 'Medium', 'Both servers', 91, 43], ['L', 'Large', 'Full stats + controls', 91, 96], ['XL', 'Extra Large', 'Both, full controls', 130, 66]];
-
-function widgetSheet() {
-  const n = S.servers.length;
-  const opts = [...S.servers.map((s) => [s.id, s.name]), ...(n > 1 ? [['all', n === 2 ? 'Both' : 'All']] : [])];
-  return `<div style="${OVERLAY}; background: rgba(10,25,50,0.28)">
-<div role="dialog" aria-label="Add widget to desktop" style="width: 660px; padding: 26px; display: flex; flex-direction: column; gap: 20px; ${DIALOG}; background: rgba(var(--sheet),0.86); border-color: rgba(255,255,255,calc(0.9 * var(--wk)))">
-<div style="display: flex; flex-direction: column; gap: 4px">
-<h2 style="margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.01em">Add widget to desktop</h2>
-<p style="margin: 0; font-size: 13px; color: var(--sub2)">Pick a size and which server it shows. You can change it later with Edit Widget.</p>
-</div>
-<div style="display: flex; flex-direction: column; gap: 8px">
-<div style="font-size: 12px; font-weight: 600; color: var(--sub2)">Size</div>
-<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px">
-${SIZES.map(([k, label, desc, w, h]) => {
-    const on = W2.size === k;
-    return `<button data-cmd="wSize" data-val="${k}" aria-pressed="${on}" style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 8px 12px; border-radius: 18px; cursor: pointer; background: ${on ? 'rgba(255,255,255,calc(0.95 * var(--wk)))' : 'rgba(255,255,255,calc(0.5 * var(--wk)))'}; border: 2px solid ${on ? 'var(--accent)' : 'rgba(255,255,255,calc(0.8 * var(--wk)))'}; box-shadow: ${on ? '0 6px 18px rgba(var(--accent-rgb),0.18)' : 'none'}">
-<span style="height: 100px; display: flex; align-items: center; justify-content: center"><span style="display: block; width: ${w}px; height: ${h}px; border-radius: 12px; background: linear-gradient(160deg, #A9D8F5, #5B7FD6); box-shadow: inset 0 1px 0 rgba(255,255,255,calc(0.6 * var(--wk))), 0 4px 10px rgba(20,40,80,0.15)"></span></span>
-<span style="font-size: 13px; font-weight: 600; color: var(--text)">${label}</span>
-<span style="font-size: 11px; color: var(--sub2)">${desc}</span>
-</button>`;
-  }).join('')}
-</div>
-</div>
-<div style="display: flex; flex-direction: column; gap: 8px">
-<div style="font-size: 12px; font-weight: 600; color: var(--sub2)">Server</div>
-<div style="${SEG_TRACK}">${opts.map(([v, t]) => `<button data-cmd="wServer" data-val="${esc(v)}" aria-pressed="${W2.server === v}" style="${SEG(W2.server === v)}">${esc(t)}</button>`).join('')}</div>
-</div>
-<div style="display: flex; justify-content: flex-end; gap: 10px">
-<button data-cmd="closeSheet" style="height: 44px; padding: 0 20px; border-radius: 22px; border: 1px solid rgba(var(--hair),0.18); background: rgba(255,255,255,calc(0.8 * var(--wk))); font-size: 14px; font-weight: 600; color: var(--text); cursor: pointer">Cancel</button>
-<button data-cmd="addWidget" style="height: 44px; padding: 0 22px; border: 0; border-radius: 22px; background: var(--accent); color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 6px 16px rgba(var(--accent-rgb),0.3), inset 0 1px 0 rgba(255,255,255,calc(0.35 * var(--wk)))">Add to Desktop</button>
-</div>
-</div>
-</div>`;
-}
-
 // ---- Add Server wizard (design: AddServer) ----
 
 let A = null;
@@ -585,7 +545,7 @@ function sheet(which) {
   if (!which) { el.innerHTML = ''; return; }
   const focused = document.activeElement && document.activeElement.dataset && document.activeElement.dataset.f;
   const scroll = $('aBody') ? $('aBody').scrollTop : 0;
-  el.innerHTML = which === 'add' ? addSheet() : widgetSheet();
+  el.innerHTML = addSheet();
   if ($('aBody')) $('aBody').scrollTop = scroll;
   const input = focused ? el.querySelector(`[data-f="${focused}"]`) : el.querySelector('input');
   if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
@@ -594,7 +554,6 @@ function sheet(which) {
 function closeSheet() {
   if (openSheet === 'add') post({ cmd: 'addCancel' });
   A = null;
-  W2 = null;
   sheet(null);
 }
 
@@ -634,11 +593,7 @@ function act(d) {
       toast({ text: 'Saved changes to ' + qe.d.name.trim() });
       return closeQe();
     case 'showAdd': return showAdd();
-    case 'showWidget': W2 = { size: 'M', server: S.servers.length > 1 ? 'all' : (S.servers[0] || {}).id }; return sheet('widget');
     case 'closeSheet': return closeSheet();
-    case 'wSize': W2.size = d.val; return sheet('widget');
-    case 'wServer': W2.server = d.val; return sheet('widget');
-    case 'addWidget': post({ cmd: 'addWidget', size: W2.size, server: W2.server }); return closeSheet();
     case 'aAuth': A.auth = d.val; A.nopass = null; return sheet('add');
     case 'aSudo': A.sudo = d.val; return sheet('add');
     case 'aRecheck': A.nopass = null; return sheet('add');

@@ -72,7 +72,7 @@ network card (`sudo ethtool -s <interface> wol g`).
 Add them like any other widget: right-click the desktop, choose **Edit Widgets…**, and find
 **Ice Servers**. They work on the desktop and in Notification Center, with or without the app running.
 
-- **Add Widget** in the app, or **Settings › Widgets**, chooses what each size shows: which server,
+- **Ice Servers › Widget Settings…** chooses what each size shows: one server or all of them,
   up to four of CPU, memory, network, disk and temperature, bars/rings/graphs, and glass/tinted/clear.
 - Widgets fetch fresh numbers over SSH on their own. macOS decides how often (usually every few
   minutes); while the app is open it also refreshes them whenever something changes.
