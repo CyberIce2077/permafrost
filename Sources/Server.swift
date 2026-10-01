@@ -281,7 +281,9 @@ final class Server {
             }
             guard let pw = password else { return run(nil) }
             guard ice.config.touchID == true else { return run(pw) }
-            ice.authenticate("use your saved sudo password for \(cfg.name)") { ok in
+            let what = ["Restart": "restart", "Shutting down": "shut down", "Installing updates": "install updates on",
+                        "Checking for updates": "check for updates on"][action] ?? "run sudo on"
+            ice.authenticate("use your saved sudo password to \(what) \(cfg.name)") { ok in
                 ok ? run(pw) : done(nil, "")
             }
         }
