@@ -240,8 +240,9 @@ ${off && s.hasMac ? `<button data-cmd="power" ${lock ? 'disabled' : ''} style="h
 </div>`;
 }
 
+// With no servers there's no header or updates card, so the panel fills the whole column.
 function empty() {
-  return `<div style="${PANEL}">
+  return `<div style="${PANEL.replace('height: 446px', 'flex-grow: 1')}">
 ${panelIcon(ICON.server.replace('#FFFFFF', 'var(--sub)').replace('20" height="20"', '30" height="30"'))}
 <div style="font-size: 20px; font-weight: 700">No servers yet</div>
 <div style="font-size: 14px; color: var(--sub); max-width: 340px">Add a machine you can reach over SSH to see its stats and control it from here.</div>
