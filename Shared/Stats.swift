@@ -1,7 +1,7 @@
 import Foundation
 
 /// One server's numbers, as shown by the app and the widgets.
-struct Stats {
+struct Stats: Codable {
     var id = "", name = ""
     var online = false
     var cpu: [Double] = [], mem: [Double] = [], down: [Double] = [], up: [Double] = []

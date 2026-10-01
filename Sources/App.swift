@@ -94,6 +94,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             state["widgets"] = ["S", "M", "L", "XL"].reduce(into: [String: Any]()) { $0[$1] = self.config.widgets[$1, default: WidgetStyle()].json }
             self.main.render(state)
+            Store.saveLive(self.servers.map { s in
+                var st = s.parser.stats
+                st.id = s.cfg.id
+                st.name = s.cfg.name
+                st.online = s.phase == "online"
+                return st
+            })
             if let pane = self.settingsPane, self.settings?.loaded == true {
                 state["pane"] = pane
                 self.settingsPane = nil

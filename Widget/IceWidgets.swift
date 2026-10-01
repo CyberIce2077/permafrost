@@ -69,10 +69,12 @@ struct Provider: TimelineProvider {
     private func fetch(_ context: Context) -> Entry {
         let config = Store.load() ?? Config()
         let (style, servers, all) = pick(config, size(context))
+        let live = Store.loadLive()
         var results = [Stats](repeating: Stats(), count: servers.count)
         let lock = NSLock()
         DispatchQueue.concurrentPerform(iterations: servers.count) { i in
-            let s = Self.stats(servers[i])
+            // The app's live stats when it's running; otherwise a short SSH session of our own.
+            let s = live?.first { $0.id == servers[i].id } ?? Self.stats(servers[i])
             lock.withLock { results[i] = s }
         }
         return Entry(size: size(context), style: style, servers: results, all: all, prefs: config.prefs ?? Prefs())

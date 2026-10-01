@@ -68,6 +68,25 @@ enum Store {
         try? JSONDecoder().decode(Config.self, from: Data(contentsOf: url))
     }
 
+    /// The running app's latest stats, so widgets redraw instantly instead of opening their own SSH session.
+    struct Live: Codable {
+        var at: Date
+        var stats: [Stats]
+    }
+
+    private static let liveURL = url.deletingLastPathComponent().appendingPathComponent("live.json")
+
+    static func saveLive(_ stats: [Stats]) {
+        try? JSONEncoder().encode(Live(at: Date(), stats: stats)).write(to: liveURL, options: .atomic)
+    }
+
+    /// nil when the app isn't running (or hasn't written for a while).
+    static func loadLive() -> [Stats]? {
+        guard let live = try? JSONDecoder().decode(Live.self, from: Data(contentsOf: liveURL)),
+              -live.at.timeIntervalSinceNow < 30 else { return nil }
+        return live.stats
+    }
+
     static func save(_ config: Config) {
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? JSONEncoder().encode(config).write(to: url, options: .atomic)

@@ -22,6 +22,7 @@ if [ "$1" = "--install" ]; then
   pkill -x IceServers || true
   rm -rf "/Applications/Ice Servers.app"
   cp -R "$APP" /Applications/
+  killall IceWidgets 2>/dev/null || true  # the old widget process would keep running the old code
   # Re-register so macOS drops cached widget kinds that no longer exist.
   pluginkit -r "/Applications/Ice Servers.app/Contents/PlugIns/IceWidgets.appex" 2>/dev/null
   pluginkit -a "/Applications/Ice Servers.app/Contents/PlugIns/IceWidgets.appex"
