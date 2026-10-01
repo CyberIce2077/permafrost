@@ -36,7 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         servers = config.servers.map(Server.init)
         buildMenu()
 
-        main = Panel(page: "app", size: NSSize(width: 1160, height: 720), radius: 28, resizable: true)
+        main = Panel(page: "app", size: NSSize(width: 1160, height: 790), radius: 28, resizable: true)
         main.window.minSize = NSSize(width: 960, height: 640)
         main.window.makeKeyAndOrderFront(nil)
         apply(prefs, was: nil)
@@ -165,7 +165,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             passwordRequests.removeFirst().reply(nil)
             showPasswordSheet()
         case "drag": p.drag()
-        case "fitHeight": fit(p.window, to: CGFloat(m["height"] as? Double ?? 0))
         case "close", "done": p.window.close()
         case "minimize": p.window.miniaturize(nil)
         case "zoom": p.window.zoom(nil)
@@ -246,24 +245,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case "undoRemove": undoRemove()
         default: break
         }
-    }
-
-    /// Grows a window (keeping its top edge) so a sheet fits; height 0 puts it back.
-    private var heightBeforeFit: CGFloat?
-    private func fit(_ window: NSWindow, to height: CGFloat) {
-        var f = window.frame
-        if height > 0 {
-            guard height > f.height else { return }
-            heightBeforeFit = heightBeforeFit ?? f.height
-            let vf = window.screen?.visibleFrame ?? f
-            let h = min(height, vf.height)
-            f = NSRect(x: f.minX, y: max(vf.minY, f.maxY - h), width: f.width, height: h)
-        } else {
-            guard let h = heightBeforeFit else { return }
-            heightBeforeFit = nil
-            f = NSRect(x: f.minX, y: f.maxY - h, width: f.width, height: h)
-        }
-        window.setFrame(f, display: true, animate: true)
     }
 
     // MARK: servers
