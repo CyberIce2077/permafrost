@@ -8,10 +8,6 @@ private let log = Logger(subsystem: "app.iceservers.IceServers.Widgets", categor
 struct IceWidgets: WidgetBundle {
     var body: some Widget {
         ServersWidget()
-        Custom1()
-        Custom2()
-        Custom3()
-        Custom4()
     }
 }
 
@@ -27,25 +23,6 @@ struct ServersWidget: Widget {
     }
 }
 
-/// Widget kinds are fixed when the app is built (and a Widget must be creatable with no arguments),
-/// so custom widgets live in four numbered slots.
-private func customSlot(_ slot: Int) -> some WidgetConfiguration {
-    // Plain Strings: WidgetKit traps on interpolated (formatted) text in the display name.
-    let name: String = "Custom \(slot)"
-    return StaticConfiguration(kind: "IceCustom\(slot)", provider: Provider(slot: slot)) { entry in
-        WidgetView(entry: entry)
-    }
-    .configurationDisplayName(name)
-    .description("A widget you set up in Ice Servers › Settings › Widgets: its own name, servers and stats.")
-    .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge])
-    .contentMarginsDisabled()
-}
-
-struct Custom1: Widget { var body: some WidgetConfiguration { customSlot(1) } }
-struct Custom2: Widget { var body: some WidgetConfiguration { customSlot(2) } }
-struct Custom3: Widget { var body: some WidgetConfiguration { customSlot(3) } }
-struct Custom4: Widget { var body: some WidgetConfiguration { customSlot(4) } }
-
 struct Entry: TimelineEntry {
     var date = Date()
     var size: String
@@ -54,15 +31,9 @@ struct Entry: TimelineEntry {
     /// "All servers" (a compact row each) rather than one server.
     var all = false
     var prefs = Prefs()
-    /// A custom widget's name, shown as its title.
-    var title: String?
-    /// Shown instead of stats, e.g. for a custom slot that hasn't been set up.
-    var message: String?
 }
 
 struct Provider: TimelineProvider {
-    var slot: Int?
-
     func placeholder(in context: Context) -> Entry { sample(context) }
 
     func getSnapshot(in context: Context, completion: @escaping (Entry) -> Void) {
@@ -86,32 +57,25 @@ struct Provider: TimelineProvider {
         }
     }
 
-    /// What this widget shows: its style, its servers (at most `maxServersPerWidget`), whether it's
-    /// the multi-server table, a custom title, and a message when there's nothing to show.
-    private func pick(_ config: Config, _ size: String) -> (WidgetStyle, [ServerConfig], Bool, String?, String?) {
-        if let slot {
-            guard let custom = config.custom?.first(where: { $0.slot == slot }) else {
-                return (WidgetStyle(), [], false, nil, "Set up Custom \(slot) in Ice Servers › Settings › Widgets")
-            }
-            let servers = custom.servers.compactMap { id in config.servers.first { $0.id == id } }.prefix(maxServersPerWidget)
-            return (custom.style, Array(servers), servers.count > 1, custom.name, servers.isEmpty ? "Choose servers for \(custom.name)" : nil)
-        }
+    /// What this widget shows: its style, its servers (at most `maxServersPerWidget`), and whether
+    /// it's the multi-server table.
+    private func pick(_ config: Config, _ size: String) -> (WidgetStyle, [ServerConfig], Bool) {
         let style = config.widgets[size] ?? WidgetStyle()
         let one = config.servers.filter { $0.id == style.server }
-        if !one.isEmpty { return (style, one, false, nil, nil) }
-        return (style, Array(config.servers.filter { $0.widgets ?? true }.prefix(maxServersPerWidget)), true, nil, nil)
+        if !one.isEmpty { return (style, one, false) }
+        return (style, Array(config.servers.filter { $0.widgets ?? true }.prefix(maxServersPerWidget)), true)
     }
 
     private func fetch(_ context: Context) -> Entry {
         let config = Store.load() ?? Config()
-        let (style, servers, all, title, message) = pick(config, size(context))
+        let (style, servers, all) = pick(config, size(context))
         var results = [Stats](repeating: Stats(), count: servers.count)
         let lock = NSLock()
         DispatchQueue.concurrentPerform(iterations: servers.count) { i in
             let s = Self.stats(servers[i])
             lock.withLock { results[i] = s }
         }
-        return Entry(size: size(context), style: style, servers: results, all: all, prefs: config.prefs ?? Prefs(), title: title, message: message)
+        return Entry(size: size(context), style: style, servers: results, all: all, prefs: config.prefs ?? Prefs())
     }
 
     /// One short SSH session: ~3 s of samples plus the update count.
@@ -133,7 +97,7 @@ struct Provider: TimelineProvider {
 
     private func sample(_ context: Context) -> Entry {
         let config = Store.load() ?? Config()
-        let (style, servers, all, title, message) = pick(config, size(context))
+        let (style, servers, all) = pick(config, size(context))
         let names = servers.isEmpty ? ["server"] : servers.map(\.name)
         let demo = names.enumerated().map { i, name in
             let wave = (0..<12).map { 30 + 12 * sin(Double($0) * 0.9 + Double(i)) }
@@ -141,7 +105,7 @@ struct Provider: TimelineProvider {
                          down: wave.map { $0 / 2 }, up: wave.map { $0 / 5 }, temp: wave.map { $0 + 18 }, memUsed: 19.5, memTotal: 32,
                          diskUsed: 580, diskTotal: 1000, diskFree: 420, uptime: 1_036_800, updates: 0)
         }
-        return Entry(size: size(context), style: style, servers: message == nil ? demo : [], all: all, prefs: config.prefs ?? Prefs(), title: title, message: message)
+        return Entry(size: size(context), style: style, servers: demo, all: all, prefs: config.prefs ?? Prefs())
     }
 }
 

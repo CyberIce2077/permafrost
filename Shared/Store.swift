@@ -25,23 +25,12 @@ struct WidgetStyle: Codable {
     var look = "glass"
 }
 
-/// A widget the user put together in Settings › Widgets. It appears in the widget gallery
-/// as "Custom <slot>" and shows `name` on the desktop.
-struct CustomWidget: Codable {
-    var slot: Int
-    var name: String
-    var servers: [String]
-    var style = WidgetStyle()
-}
-
 /// Widgets lay out at most this many servers; more would break the design.
 let maxServersPerWidget = 4
-let maxCustomWidgets = 4
 
 struct Config: Codable {
     var servers: [ServerConfig] = []
     var widgets: [String: WidgetStyle] = [:]
-    var custom: [CustomWidget]?
     /// Ask for Touch ID (or the Mac's password) before a saved sudo password is used.
     var touchID: Bool?
     var prefs: Prefs?

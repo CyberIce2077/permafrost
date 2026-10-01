@@ -16,24 +16,17 @@ const LOOKS = {
 
 const DIMS = { S: [172, 172, 26], M: [364, 172, 26], L: [364, 384, 28], XL: [748, 384, 30] };
 
-// `custom`: a custom widget (its own servers and name) instead of the standard Servers widget.
-function widgetPreview(w, servers, custom) {
+function widgetPreview(w, servers) {
   const L = LOOKS[w.look] || LOOKS.glass, d = DIMS[w.size];
-  let one, list;
-  if (custom) {
-    list = custom.servers.map((id) => servers.find((s) => s.id === id)).filter(Boolean).slice(0, MAX_SERVERS);
-    one = list.length === 1 ? list[0] : null;
-  } else {
-    one = servers.find((s) => s.id === w.server);
-    list = one ? [one] : servers.filter((s) => s.widgets !== false).slice(0, MAX_SERVERS);
-  }
+  const one = servers.find((s) => s.id === w.server);
+  const list = one ? [one] : servers.filter((s) => s.widgets !== false).slice(0, MAX_SERVERS);
   const box = `box-sizing: border-box; width: ${d[0]}px; height: ${d[1]}px; padding: ${w.size === 'S' ? '14px' : '16px'}; display: flex; border-radius: ${d[2]}px; background: ${L.bg}; backdrop-filter: blur(36px) saturate(180%); -webkit-backdrop-filter: blur(36px) saturate(180%); border: 1px solid ${L.border}; box-shadow: 0 16px 40px rgba(8,28,60,0.25), inset 0 1px 0 rgba(255,255,255,0.6); transition: width 0.25s, height 0.25s`;
-  if (!list.length) return `<section aria-label="Widget preview" style="${box}; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: ${L.sub}">${custom ? 'Choose servers for ' + esc(custom.name) : 'Add a server in Ice Servers'}</section>`;
-  return one ? widget(w, L, list, box) : allServers(w, L, list, box, custom && custom.name);
+  if (!list.length) return `<section aria-label="Widget preview" style="${box}; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: ${L.sub}">Add a server in Ice Servers</section>`;
+  return one ? widget(w, L, list, box) : allServers(w, L, list, box);
 }
 
 // "All servers": one compact row per server (design: WidgetOptions › allMode).
-function allServers(w, L, list, box, title) {
+function allServers(w, L, list, box) {
   const picked = METRICS.filter((m) => w.metrics[m.k]).slice(0, { S: 1, M: 2, L: 3, XL: 4 }[w.size]);
   const tall = w.size === 'L' || w.size === 'XL';
   const cols = `minmax(0, 1.4fr) repeat(${picked.length}, minmax(0, 1fr))${w.size === 'XL' ? ' 44px' : ''}`;
@@ -61,7 +54,7 @@ ${w.size === 'XL' ? `<button data-cmd="power" data-id="${s.id}" aria-label="${of
   }).join('');
   return `<section aria-label="Widget preview" style="${box}; flex-direction: column; gap: 12px">
 <div style="display: flex; flex-direction: column; width: 100%; min-width: 0; gap: ${w.size === 'S' || w.size === 'M' ? '5px' : '8px'}">
-<div style="display: flex; justify-content: space-between; align-items: baseline; gap: 8px"><span style="font-size: ${w.size === 'XL' ? '17px' : '14px'}; font-weight: 700; color: ${L.text}; text-shadow: ${L.shadow}">${title ? esc(title) : w.size === 'S' ? 'Servers' : 'All servers'}</span><span style="font-size: 11px; font-weight: 600; white-space: nowrap; color: ${L.sub}; text-shadow: ${L.shadow}">${online} of ${list.length} online</span></div>
+<div style="display: flex; justify-content: space-between; align-items: baseline; gap: 8px"><span style="font-size: ${w.size === 'XL' ? '17px' : '14px'}; font-weight: 700; color: ${L.text}; text-shadow: ${L.shadow}">${w.size === 'S' ? 'Servers' : 'All servers'}</span><span style="font-size: 11px; font-weight: 600; white-space: nowrap; color: ${L.sub}; text-shadow: ${L.shadow}">${online} of ${list.length} online</span></div>
 ${rows}
 </div>
 </section>`;

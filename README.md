@@ -74,9 +74,7 @@ network card (`sudo ethtool -s <interface> wol g`).
 Add them like any other widget: right-click the desktop, choose **Edit Widgets…**, and find
 **Ice Servers**. They work on the desktop and in Notification Center, with or without the app running.
 
-- **Settings › Widgets** chooses the servers (up to 4) and stats in the **Servers** widget, and
-  makes up to 4 **custom widgets**, each with its own name, servers (up to 4), stats, style and look.
-  They appear in the widget gallery as Custom 1–4.
+- **Settings › Widgets** chooses the servers (up to 4) and stats the widgets show.
 - **Ice Servers › Widget Settings…** fine-tunes each size: one server or all, bars/rings/graphs,
   and glass/tinted/clear.
 - Widgets fetch fresh numbers over SSH on their own. macOS decides how often (usually every few

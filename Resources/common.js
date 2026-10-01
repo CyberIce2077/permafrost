@@ -11,8 +11,8 @@ const LIVE = ['online', 'updating', 'checking'];
 const COLORS = { online: ['#1E7A34', 'rgba(52,199,89,0.16)', '#30D158'], off: ['var(--sub2)', 'rgba(120,120,128,0.16)', '#8E8E93'] };
 const colorsFor = (phase) => COLORS[phase] || ['#B33000', 'rgba(255,159,10,0.18)', '#FF9F0A'];
 const RING = 2 * Math.PI * 38;
-// Widgets lay out at most this many servers (Shared/Store.swift has the same limits).
-const MAX_SERVERS = 4, MAX_CUSTOM = 4;
+// Widgets lay out at most this many servers (Shared/Store.swift has the same limit).
+const MAX_SERVERS = 4;
 
 const last = (a) => a[a.length - 1];
 const pts = (arr, max) => arr.map((v, i) => (i * 240 / (arr.length - 1)).toFixed(1) + ',' + (54 - Math.min(Math.max(v, 0), max) / max * 50).toFixed(1)).join(' ');

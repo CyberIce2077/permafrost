@@ -10,8 +10,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var main: Panel!
     var settings: Panel?
     var widgetEditor: Panel?
-    /// The custom widget slot the widget editor is editing; nil = the standard widget.
-    private var editingCustom: Int?
     let alerts = Alerts()
     let menuBar = MenuBar()
     private var undo: (server: Server, index: Int, forget: Bool, timer: Timer)?
@@ -95,8 +93,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.selectID = nil
             }
             state["widgets"] = ["S", "M", "L", "XL"].reduce(into: [String: Any]()) { $0[$1] = self.config.widgets[$1, default: WidgetStyle()].json }
-            state["custom"] = (self.config.custom ?? []).map(\.json)
-            state["editing"] = self.editingCustom ?? NSNull()
             self.main.render(state)
             if let pane = self.settingsPane, self.settings?.loaded == true {
                 state["pane"] = pane
@@ -199,34 +195,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 w.metrics[key] = !on
                 if w.metrics.values.contains(true) { config.widgets[size] = w }
             }
-            save()
-            changed()
-        case "newCustom":
-            var list = config.custom ?? []
-            guard let slot = (1...maxCustomWidgets).first(where: { n in !list.contains { $0.slot == n } }) else { return }
-            let picks = servers.filter { $0.cfg.widgets ?? true }.prefix(maxServersPerWidget).map(\.cfg.id)
-            list.append(CustomWidget(slot: slot, name: "Custom \(slot)", servers: Array(picks)))
-            config.custom = list.sorted { $0.slot < $1.slot }
-            save()
-            openWidgetEditor(custom: slot)
-        case "editCustom": openWidgetEditor(custom: m["slot"] as? Int)
-        case "removeCustom":
-            config.custom?.removeAll { $0.slot == m["slot"] as? Int }
-            if editingCustom == m["slot"] as? Int { widgetEditor?.window.close() }
-            save()
-            changed()
-        case "setCustom":
-            guard let slot = m["slot"] as? Int, let i = config.custom?.firstIndex(where: { $0.slot == slot }) else { return }
-            var c = config.custom![i]
-            if let name = (m["name"] as? String)?.trimmingCharacters(in: .whitespaces), !name.isEmpty { c.name = name }
-            if let ids = m["servers"] as? [String] { c.servers = Array(ids.prefix(maxServersPerWidget)) }
-            if let patch = m["patch"] as? [String: Any] {
-                var dict = c.style.json
-                patch.forEach { dict[$0] = $1 }
-                if let data = try? JSONSerialization.data(withJSONObject: dict),
-                   let style = try? JSONDecoder().decode(WidgetStyle.self, from: data) { c.style = style }
-            }
-            config.custom![i] = c
             save()
             changed()
         // Add Server wizard
@@ -395,11 +363,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate()
     }
 
-    @objc func showWidgetEditor() { openWidgetEditor(custom: nil) }
-
-    /// The design's widget editor, for the standard widget or one custom widget.
-    func openWidgetEditor(custom slot: Int?) {
-        editingCustom = slot
+    @objc func showWidgetEditor() {
         if widgetEditor == nil { widgetEditor = Panel(page: "widgets", size: NSSize(width: 1280, height: 820), radius: 16, glass: false) }
         changed()
         widgetEditor?.window.makeKeyAndOrderFront(nil)
