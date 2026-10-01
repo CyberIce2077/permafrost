@@ -587,11 +587,23 @@ function sheet(which) {
   const scroll = $('aBody') ? $('aBody').scrollTop : 0;
   el.innerHTML = which === 'add' ? addSheet() : widgetSheet();
   if ($('aBody')) $('aBody').scrollTop = scroll;
+  if (which === 'add') fitWindow();
   const input = focused ? el.querySelector(`[data-f="${focused}"]`) : el.querySelector('input');
   if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
 }
 
+// The Add Server sheet can't be taller than the window, so the window grows to fit a step
+// (Admin needs ~790px; the design's window is 720px) and goes back when the sheet closes.
+let fitAsked = 0;
+function fitWindow() {
+  const dlg = document.querySelector('[role=dialog][aria-label="Add server"]'), b = $('aBody');
+  if (!dlg || !b) return;
+  const need = dlg.offsetHeight - b.clientHeight + b.scrollHeight + 32;
+  if (need > innerHeight && need !== fitAsked) { fitAsked = need; post({ cmd: 'fitHeight', height: need }); }
+}
+
 function closeSheet() {
+  if (fitAsked) { fitAsked = 0; post({ cmd: 'fitHeight', height: 0 }); }
   if (openSheet === 'add') post({ cmd: 'addCancel' });
   A = null;
   W2 = null;
@@ -655,7 +667,7 @@ function act(d) {
     case 'aNext':
       if (A.step === 3) { A.step = 4; A.checks = freshA().checks; sheet('add'); return post({ cmd: 'addTest', draft: draft() }); }
       if (A.step === 4) { post({ cmd: 'addSave', draft: draft() }); A.step = 5; return sheet('add'); }
-      if (A.step === 5) { sel = A.id; A = null; sheet(null); return render(); }
+      if (A.step === 5) { sel = A.id; closeSheet(); return render(); }
       A.step++;
       return sheet('add');
     default: post({ cmd: d.cmd, id: sel });
