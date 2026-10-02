@@ -3,7 +3,19 @@ const post = (m) => window.webkit?.messageHandlers?.ice?.postMessage(m);
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 // Only touch the DOM when a section's markup actually changed (keeps spinners and hovers alive).
-const set = (el, html) => { if (el._html !== html) { el.innerHTML = html; el._html = html; } };
+const set = (el, html) => { if (el._html !== html) { keepFocus(() => { el.innerHTML = html; }); el._html = html; } };
+// Redraws replace the HTML (live stats arrive every second or two); this puts the focused text field,
+// its cursor and selection back, so typing isn't interrupted. Fields are found by id or data-f.
+function keepFocus(redraw) {
+  const a = document.activeElement;
+  const key = a && a.tagName === 'INPUT' ? (a.id ? '#' + a.id : a.dataset.f ? `[data-f="${a.dataset.f}"]` : null) : null;
+  const sel = key && a.type !== 'range' ? [a.selectionStart, a.selectionEnd, a.selectionDirection] : null;
+  redraw();
+  const b = key && document.querySelector(key);
+  if (!b || b === a) return;
+  b.focus({ preventScroll: true });
+  if (sel && sel[0] != null) b.setSelectionRange(sel[0], sel[1], sel[2]);
+}
 
 const LABELS = { connecting: 'Connecting…', online: 'Online', restarting: 'Restarting…', stopping: 'Shutting down…', starting: 'Starting…', off: 'Offline', updating: 'Updating…', checking: 'Checking…', timedout: 'Not responding' };
 const BUSY = ['connecting', 'restarting', 'stopping', 'starting', 'updating', 'checking'];
