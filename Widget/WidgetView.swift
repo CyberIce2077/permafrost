@@ -96,7 +96,7 @@ struct WidgetView: View {
     private func ask(_ why: String) -> some View {
         let box: CGFloat = small ? 36 : 44
         let (title, body, short) = switch why {
-        case "create": ("Create a design", "Design a widget in Ice Servers › Custom Widgets, then pick it with right‑click › Edit Widget.", "Open Ice Servers")
+        case "create": ("Create a design", "Make a \(sizeName) design in Ice Servers › Custom Widgets, then pick it with right‑click › Edit Widget.", "Open Ice Servers")
         case "gone": ("Design deleted", "This widget's design was deleted. Right‑click › Edit Widget to pick another.", "Right‑click › Edit Widget")
         default: ("Choose a design", "Right‑click this widget › Edit Widget and pick one of your designs from Ice Servers.", "Right‑click › Edit Widget")
         }
@@ -118,6 +118,8 @@ struct WidgetView: View {
         .textShadow(L)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
+
+    private var sizeName: String { ["S": "Small", "M": "Medium", "L": "Large", "XL": "Extra Large"][size] ?? "" }
 
     private var titleFont: Font { .system(size: size == "XL" ? 17 : small ? 13 : 15, weight: .bold) }
 

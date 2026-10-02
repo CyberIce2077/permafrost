@@ -412,8 +412,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 return
             }
             var counts: [String: Int] = [:]
-            for w in widgets where w.kind == "IceServers" {
-                guard let id = w.widgetConfigurationIntent(of: ConfigureWidget.self)?.design?.id,
+            for w in widgets {
+                guard let id = pickedDesign(w),
                       self.config.designs?.contains(where: { $0.id == id }) == true else { continue }
                 counts[id, default: 0] += 1
             }

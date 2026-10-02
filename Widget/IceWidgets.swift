@@ -7,20 +7,39 @@ private let log = Logger(subsystem: "app.iceservers.IceServers.Widgets", categor
 @main
 struct IceWidgets: WidgetBundle {
     var body: some Widget {
-        ServersWidget()
+        SmallWidget()
+        MediumWidget()
+        LargeWidget()
+        ExtraLargeWidget()
     }
 }
 
-struct ServersWidget: Widget {
-    var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: "IceServers", intent: ConfigureWidget.self, provider: Provider()) { entry in
-            WidgetView(entry: entry)
-        }
-        .configurationDisplayName("Ice Servers")
-        .description("Live stats and controls for your servers. Right-click › Edit Widget to pick a design.")
-        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge])
+// One widget per size, so Edit Widget lists only the designs made for it (Shared/Intent.swift).
+struct SmallWidget: Widget {
+    var body: some WidgetConfiguration { configuration("IceServersS", ConfigureSmall.self, .systemSmall) }
+}
+
+struct MediumWidget: Widget {
+    var body: some WidgetConfiguration { configuration("IceServersM", ConfigureMedium.self, .systemMedium) }
+}
+
+struct LargeWidget: Widget {
+    var body: some WidgetConfiguration { configuration("IceServersL", ConfigureLarge.self, .systemLarge) }
+}
+
+struct ExtraLargeWidget: Widget {
+    var body: some WidgetConfiguration { configuration("IceServersXL", ConfigureExtraLarge.self, .systemExtraLarge) }
+}
+
+private func configuration<I: DesignPicking>(_ kind: String, _ intent: I.Type, _ family: WidgetFamily) -> some WidgetConfiguration {
+    // Plain Strings: WidgetKit traps on interpolated (formatted) text in the name or description.
+    let name: String = "Ice Servers"
+    let about: String = "Live stats and controls for your servers. Right-click › Edit Widget to pick one of your designs."
+    return AppIntentConfiguration(kind: kind, intent: intent, provider: Provider<I>()) { WidgetView(entry: $0) }
+        .configurationDisplayName(name)
+        .description(about)
+        .supportedFamilies([family])
         .contentMarginsDisabled()
-    }
 }
 
 struct Entry: TimelineEntry {
@@ -35,18 +54,18 @@ struct Entry: TimelineEntry {
     var online = 0
     var prefs = Prefs()
     /// Instead of a design, the widget asks for one: "pick" (none picked yet), "gone" (its design
-    /// was deleted) or "create" (there are no designs yet).
+    /// was deleted) or "create" (there are no designs of its size yet).
     var ask: String?
 }
 
-struct Provider: AppIntentTimelineProvider {
-    func placeholder(in context: Context) -> Entry { sample(ConfigureWidget(), context) }
+struct Provider<I: DesignPicking>: AppIntentTimelineProvider {
+    func placeholder(in context: Context) -> Entry { sample(I(), context) }
 
-    func snapshot(for intent: ConfigureWidget, in context: Context) async -> Entry {
+    func snapshot(for intent: I, in context: Context) async -> Entry {
         context.isPreview ? sample(intent, context) : fetch(intent, context)
     }
 
-    func timeline(for intent: ConfigureWidget, in context: Context) async -> Timeline<Entry> {
+    func timeline(for intent: I, in context: Context) async -> Timeline<Entry> {
         // WidgetKit decides the real refresh rate; the app also asks for a refresh whenever something changes.
         Timeline(entries: [fetch(intent, context)], policy: .after(Date() + 300))
     }
@@ -61,10 +80,11 @@ struct Provider: AppIntentTimelineProvider {
     }
 
     /// The picked design, or why there isn't one. There's no built-in default design.
-    private func design(_ intent: ConfigureWidget, _ config: Config) -> (Design?, ask: String?) {
+    private func design(_ intent: I, _ config: Config, _ size: String) -> (Design?, ask: String?) {
         let all = config.designs ?? []
-        if let d = all.first(where: { $0.id == intent.design?.id }) { return (d, nil) }
-        return (nil, all.isEmpty ? "create" : intent.design == nil ? "pick" : "gone")
+        if let d = all.first(where: { $0.id == intent.design }) { return (d, nil) }
+        let fits = all.contains { $0.size == size }
+        return (nil, !fits ? "create" : intent.design == nil ? "pick" : "gone")
     }
 
     private func asking(_ why: String, _ config: Config, _ context: Context) -> Entry {
@@ -78,9 +98,10 @@ struct Provider: AppIntentTimelineProvider {
         return (all, Array(all.prefix(caps.rows)))
     }
 
-    private func fetch(_ intent: ConfigureWidget, _ context: Context) -> Entry {
+    private func fetch(_ intent: I, _ context: Context) -> Entry {
         let config = Store.load() ?? Config()
-        guard let d = design(intent, config).0 else { return asking(design(intent, config).ask ?? "pick", config, context) }
+        let (found, why) = design(intent, config, size(context))
+        guard let d = found else { return asking(why ?? "pick", config, context) }
         let (all, servers) = pick(d, config, size(context))
         let live = Store.loadLive()
         var results = [Stats](repeating: Stats(), count: servers.count)
@@ -115,9 +136,10 @@ struct Provider: AppIntentTimelineProvider {
     }
 
     /// The gallery preview and placeholder: the picked design, else the first one, else "create one".
-    private func sample(_ intent: ConfigureWidget, _ context: Context) -> Entry {
+    private func sample(_ intent: I, _ context: Context) -> Entry {
         let config = Store.load() ?? Config()
-        guard let d = design(intent, config).0 ?? config.designs?.first else { return asking("create", config, context) }
+        let fits = config.designs?.first { $0.size == size(context) }
+        guard let d = design(intent, config, size(context)).0 ?? fits else { return asking("create", config, context) }
         let (all, servers) = pick(d, config, size(context))
         let demo = (servers.isEmpty ? [ServerConfig(name: "server", ssh: "")] : servers).enumerated().map { i, c in
             let wave = (0..<12).map { 30 + 12 * sin(Double($0) * 0.9 + Double(i)) }

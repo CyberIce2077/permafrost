@@ -85,9 +85,10 @@ Add them like any other widget: right-click the desktop, choose **Edit Widgets�
   name, size, servers (or all of them), stats in the order you pick, bars/rings/graphs/numbers,
   glass/tinted/clear, and power & restart buttons on Large and Extra Large. Start from a template
   or from scratch; each size shows as many servers and stats as fit, then "+N more".
-- **Right-click a widget › Edit Widget** picks which design it shows. A new widget asks you to
-  choose one first. Saving a design updates every widget that uses it; a widget whose design is
-  deleted asks for another. There's no built-in design: until you make one, widgets say so.
+- The widget gallery has one Ice Servers widget per size. **Right-click a widget › Edit Widget**
+  picks which design it shows, from the designs made for its size. A new widget asks you to choose
+  one first. Saving a design updates every widget that uses it; a widget whose design is deleted
+  asks for another. There's no built-in design: until you make one of a size, its widget says so.
 - While the app runs, widgets use its live stats. Otherwise they fetch fresh numbers over SSH on their own. macOS decides how often (usually every few
   minutes); while the app is open it also refreshes them whenever something changes.
 - Clicking a widget opens the app. Its power, restart and update buttons open the app, which asks
