@@ -2,6 +2,7 @@ import AppIntents
 import WidgetKit
 
 /// Right-click › Edit Widget: which design from Settings › Widgets this widget shows.
+/// Until one is picked, the widget asks for it.
 /// Also built into the app, which reads it to count the widgets using each design.
 struct ConfigureWidget: WidgetConfigurationIntent {
     static let title: LocalizedStringResource = "Ice Servers"
@@ -39,6 +40,6 @@ struct DesignQuery: EntityQuery {
     }
 
     func entities(for identifiers: [String]) async throws -> [DesignEntity] { all.filter { identifiers.contains($0.id) } }
+    // No defaultResult: a new widget starts without a design and asks for one.
     func suggestedEntities() async throws -> [DesignEntity] { all }
-    func defaultResult() async -> DesignEntity? { all.first }
 }

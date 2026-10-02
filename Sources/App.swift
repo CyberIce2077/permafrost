@@ -139,6 +139,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func application(_ application: NSApplication, open urls: [URL]) {
         guard main != nil else { return pendingURLs += urls }
         for url in urls where url.scheme == "iceservers" {
+            // iceservers://widgets: from a widget that hasn't picked a design yet.
+            if url.host == "widgets" {
+                showCustomWidgets()
+                continue
+            }
             let id = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "id" }?.value
             selectID = id
             showMain()
@@ -408,9 +413,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let fallback = self.config.designs?.first?.id ?? Design.overview.id
             var counts: [String: Int] = [:]
             for w in widgets where w.kind == "IceServers" {
-                let id = w.widgetConfigurationIntent(of: ConfigureWidget.self)?.design?.id
+                // Widgets that haven't picked a design show "Choose a design", not a design.
+                guard let id = w.widgetConfigurationIntent(of: ConfigureWidget.self)?.design?.id else { continue }
                 let known = self.config.designs?.contains { $0.id == id } == true
-                counts[known ? id! : fallback, default: 0] += 1
+                counts[known ? id : fallback, default: 0] += 1
             }
             DispatchQueue.main.async {
                 guard counts != self.placed else { return }

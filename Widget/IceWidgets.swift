@@ -34,6 +34,8 @@ struct Entry: TimelineEntry {
     var total = 0
     var online = 0
     var prefs = Prefs()
+    /// No design picked yet: the widget asks for one instead.
+    var choose = false
 }
 
 struct Provider: AppIntentTimelineProvider {
@@ -57,7 +59,7 @@ struct Provider: AppIntentTimelineProvider {
         }
     }
 
-    /// The picked design, or the default (first) one when none is picked or it was deleted.
+    /// The picked design, or the first one when it was deleted (or for the gallery preview, before one is picked).
     private func design(_ intent: ConfigureWidget, _ config: Config) -> Design {
         let all = config.designs ?? [.overview]
         return all.first { $0.id == intent.design?.id } ?? all.first ?? .overview
@@ -72,6 +74,7 @@ struct Provider: AppIntentTimelineProvider {
 
     private func fetch(_ intent: ConfigureWidget, _ context: Context) -> Entry {
         let config = Store.load() ?? Config()
+        if intent.design == nil { return Entry(size: size(context), design: .overview, servers: [], prefs: config.prefs ?? Prefs(), choose: true) }
         let d = design(intent, config)
         let (all, servers) = pick(d, config, size(context))
         let live = Store.loadLive()

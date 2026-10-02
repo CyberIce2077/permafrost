@@ -70,11 +70,13 @@ struct WidgetView: View {
                     ContainerRelativeShape().strokeBorder(L.border, lineWidth: 1)
                 }
             }
-            .widgetURL(URL(string: "iceservers://open?id=\(entry.servers.first?.id ?? "")"))
+            .widgetURL(URL(string: entry.choose ? "iceservers://widgets" : "iceservers://open?id=\(entry.servers.first?.id ?? "")"))
     }
 
     @ViewBuilder private var content: some View {
-        if entry.servers.isEmpty || stats.isEmpty {
+        if entry.choose {
+            choose
+        } else if entry.servers.isEmpty || stats.isEmpty {
             Text(entry.servers.isEmpty ? "Add a server in Ice Servers" : "Pick at least one stat")
                 .font(.system(size: 13, weight: .semibold))
                 .multilineTextAlignment(.center)
@@ -85,6 +87,28 @@ struct WidgetView: View {
         } else {
             single(entry.servers[0])
         }
+    }
+
+    /// A new widget, before a design is picked in Edit Widget. Clicking it opens Custom Widgets.
+    private var choose: some View {
+        let box: CGFloat = small ? 36 : 44
+        return VStack(spacing: small ? 6 : 8) {
+            RoundedRectangle(cornerRadius: box * 11 / 36)
+                .fill(LinearGradient(colors: [hex(0xFFC46B), hex(0xFF9500)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .overlay(DesignsGlyph().stroke(.white, style: StrokeStyle(lineWidth: 2 * box / 36, lineJoin: .round)).frame(width: box / 2, height: box / 2))
+                .frame(width: box, height: box)
+                .padding(.bottom, 2)
+            Text("Choose a design")
+                .font(.system(size: small ? 14 : 16, weight: .bold))
+                .foregroundStyle(L.text)
+            Text(small ? "Right-click › Edit Widget" : "Right-click this widget › Edit Widget and pick one of your designs from Ice Servers.")
+                .font(.system(size: small ? 11 : 12, weight: .medium))
+                .foregroundStyle(L.sub)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 260)
+        }
+        .textShadow(L)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var titleFont: Font { .system(size: size == "XL" ? 17 : small ? 13 : 15, weight: .bold) }
@@ -353,6 +377,18 @@ private struct Sparkline: Shape {
             let pt = CGPoint(x: r.width * Double(i) / Double(values.count - 1),
                              y: r.height * (54 - min(max(v, 0), 100) / 100 * 50) / 56)
             i == 0 ? p.move(to: pt) : p.addLine(to: pt)
+        }
+        return p
+    }
+}
+
+/// The Custom Widgets glyph from the main window's sidebar card (24×24: two squares over a bar).
+private struct DesignsGlyph: Shape {
+    func path(in r: CGRect) -> Path {
+        let k = r.width / 24
+        var p = Path()
+        for (x, y, w) in [(3.0, 3.0, 8.0), (13, 3, 8), (3, 13, 18)] {
+            p.addRoundedRect(in: CGRect(x: x * k, y: y * k, width: w * k, height: 8 * k), cornerSize: CGSize(width: 2 * k, height: 2 * k))
         }
         return p
     }
