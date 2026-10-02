@@ -5,15 +5,15 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>Ice Servers</string>
+	<string>Permafrost</string>
 	<key>CFBundleExecutable</key>
-	<string>IceWidgets</string>
+	<string>PermafrostWidgets</string>
 	<key>CFBundleIdentifier</key>
-	<string>app.iceservers.IceServers.Widgets</string>
+	<string>app.permafrost.Permafrost.Widgets</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Ice Servers Widgets</string>
+	<string>Permafrost Widgets</string>
 	<key>CFBundlePackageType</key>
 	<string>XPC!</string>
 	<key>CFBundleShortVersionString</key>

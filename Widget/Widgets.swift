@@ -2,10 +2,10 @@ import OSLog
 import SwiftUI
 import WidgetKit
 
-private let log = Logger(subsystem: "app.iceservers.IceServers.Widgets", category: "fetch")
+private let log = Logger(subsystem: "app.permafrost.Permafrost.Widgets", category: "fetch")
 
 @main
-struct IceWidgets: WidgetBundle {
+struct PermafrostWidgets: WidgetBundle {
     var body: some Widget {
         SmallWidget()
         MediumWidget()
@@ -16,24 +16,24 @@ struct IceWidgets: WidgetBundle {
 
 // One widget per size, so Edit Widget lists only the designs made for it (Shared/Intent.swift).
 struct SmallWidget: Widget {
-    var body: some WidgetConfiguration { configuration("IceServersS", ConfigureSmall.self, .systemSmall) }
+    var body: some WidgetConfiguration { configuration("PermafrostS", ConfigureSmall.self, .systemSmall) }
 }
 
 struct MediumWidget: Widget {
-    var body: some WidgetConfiguration { configuration("IceServersM", ConfigureMedium.self, .systemMedium) }
+    var body: some WidgetConfiguration { configuration("PermafrostM", ConfigureMedium.self, .systemMedium) }
 }
 
 struct LargeWidget: Widget {
-    var body: some WidgetConfiguration { configuration("IceServersL", ConfigureLarge.self, .systemLarge) }
+    var body: some WidgetConfiguration { configuration("PermafrostL", ConfigureLarge.self, .systemLarge) }
 }
 
 struct ExtraLargeWidget: Widget {
-    var body: some WidgetConfiguration { configuration("IceServersXL", ConfigureExtraLarge.self, .systemExtraLarge) }
+    var body: some WidgetConfiguration { configuration("PermafrostXL", ConfigureExtraLarge.self, .systemExtraLarge) }
 }
 
 private func configuration<I: DesignPicking>(_ kind: String, _ intent: I.Type, _ family: WidgetFamily) -> some WidgetConfiguration {
     // Plain Strings: WidgetKit traps on interpolated (formatted) text in the name or description.
-    let name: String = "Ice Servers"
+    let name: String = "Permafrost"
     let about: String = "Live stats and controls for your servers. Right-click › Edit Widget to pick one of your designs."
     return AppIntentConfiguration(kind: kind, intent: intent, provider: Provider<I>()) { WidgetView(entry: $0) }
         .configurationDisplayName(name)

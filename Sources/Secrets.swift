@@ -15,6 +15,7 @@ enum LocalSecrets {
         defer { IOObjectRelease(device) }
         let uuid = IORegistryEntryCreateCFProperty(device, kIOPlatformUUIDKey as CFString, kCFAllocatorDefault, 0)?
             .takeRetainedValue() as? String ?? ""
+        // The salt keeps the app's first name: changing it would make saved passwords unreadable.
         return HKDF<SHA256>.deriveKey(inputKeyMaterial: SymmetricKey(data: Data(uuid.utf8)),
                                       salt: Data("Ice Servers".utf8), info: Data("sudo passwords".utf8), outputByteCount: 32)
     }()

@@ -90,7 +90,7 @@ function page(P) {
 
   let rows = [];
   if (pane === 'general') rows = [
-    toggleRow('Open at login', 'Start Ice Servers when you log in to your Mac.', 'login'),
+    toggleRow('Open at login', 'Start Permafrost when you log in to your Mac.', 'login'),
     toggleRow('Show in menu bar', 'Status dots and quick actions from the menu bar.', 'menubar'),
     segRow('Refresh stats every', 'Faster refresh uses a little more network.', 'refresh', [['1', '1 s'], ['2', '2 s'], ['5', '5 s'], ['10', '10 s']]),
     segRow('Temperature', 'Used in the app and widgets.', 'unit', [['C', '°C'], ['F', '°F']]),
@@ -116,7 +116,7 @@ function page(P) {
     rows = S.servers.map((s) => (i) => `<div style="${rowStyle(i)}">${head(s.name, s.sudo === 'nopass' ? 'Passwordless sudo' : s.saved ? (s.sudo === 'always' ? 'Sudo password saved on this Mac · never asks' : 'Sudo password saved in Keychain' + (S.touchID ? ' · Touch ID required' : '')) : 'Not saved · asks when needed')}
 ${s.sudo === 'nopass' ? '' : `<button data-cmd="${s.saved ? 'forget' : 'savePassword'}" data-id="${s.id}" style="height: 36px; padding: 0 16px; border-radius: 18px; cursor: pointer; font-size: 13px; font-weight: 600; background: ${dark ? 'rgba(255,255,255,0.1)' : '#FFFFFF'}; border: 1px solid ${s.saved ? 'rgba(215,0,21,0.35)' : hair}; color: ${s.saved ? (dark ? '#FF6961' : '#C4000F') : acc}">${s.saved ? 'Forget' : 'Save Password…'}</button>`}</div>`);
     rows.push((i) => `<div style="${rowStyle(i)}">${head('Require Touch ID', 'Confirm before a saved sudo password is used.')}${sw(S.touchID, 'touchID', '', 'Require Touch ID')}</div>`);
-    rows.push((i) => `<div style="${rowStyle(i)} min-height: 52px; background: ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(120,120,128,0.08)'};">${head('Command time limits', 'If a sudo command runs longer, Ice Servers stops waiting, unlocks the controls and offers Retry.')}</div>`);
+    rows.push((i) => `<div style="${rowStyle(i)} min-height: 52px; background: ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(120,120,128,0.08)'};">${head('Command time limits', 'If a sudo command runs longer, Permafrost stops waiting, unlocks the controls and offers Retry.')}</div>`);
     rows.push(stepRow('Restart', 'From reboot until the server answers again.', 'limRestart', ' min', 1));
     rows.push(stepRow('Power on / off', 'Shutdown or boot until the new state is confirmed.', 'limPower', ' min', 1));
     rows.push(stepRow('Software updates', 'Large upgrades can take a while.', 'limUpdate', ' min', 5));
@@ -173,7 +173,7 @@ ${!P.reduce && P.glass < 25 ? `<div role="note" style="font-size: 12px; font-wei
   let widgets;
   if (ws.mode !== 'edit') {
     widgets = `<div style="display: flex; flex-direction: column; gap: 14px; height: 640px">
-<p style="margin: 0; font-size: 13px; line-height: 1.45; color: ${sub}; text-shadow: ${shadow}">Design widgets here. On the desktop, add <strong>Ice Servers</strong> from the widget gallery, then right-click it › Edit Widget and choose a design. Saving a design updates every widget that uses it.</p>
+<p style="margin: 0; font-size: 13px; line-height: 1.45; color: ${sub}; text-shadow: ${shadow}">Design widgets here. On the desktop, add <strong>Permafrost</strong> from the widget gallery, then right-click it › Edit Widget and choose a design. Saving a design updates every widget that uses it.</p>
 <div id="wsGrid" style="flex-grow: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-content: start; gap: 14px; padding-bottom: 4px">
 ${(S.designs || []).map((d) => `<article aria-label="${esc(d.name)}" style="box-sizing: border-box; padding: 8px; display: flex; flex-direction: column; gap: 10px; border-radius: 22px; background: ${cardBg}; border: 1px solid ${cardBorder}">
 <div style="height: 148px; border-radius: 16px; display: flex; align-items: center; justify-content: center; overflow: hidden; ${wallpaper}">${renderWidget(d, S.servers, 236, 128).html}</div>

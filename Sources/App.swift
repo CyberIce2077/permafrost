@@ -31,6 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     static let busyPhases = ["restarting", "stopping", "starting", "updating", "checking"]
 
     func applicationDidFinishLaunching(_ note: Notification) {
+        Store.moveOldFolder()
         if let saved = Store.load() {
             config = saved
         } else {
@@ -56,7 +57,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         save()
         countPlaced()
         // Widget buttons while the app runs (Widget/Actions.swift): "action serverID".
-        DistributedNotificationCenter.default().addObserver(forName: Notification.Name("app.iceservers.action"), object: nil, queue: .main) { n in
+        DistributedNotificationCenter.default().addObserver(forName: Notification.Name("app.permafrost.action"), object: nil, queue: .main) { n in
             guard let parts = (n.object as? String)?.split(separator: " "), parts.count == 2 else { return }
             self.run(String(parts[0]), on: String(parts[1]), quiet: true)
         }
@@ -151,12 +152,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    // MARK: widget links: iceservers://<open|power|restart|install|check>?id=<server>
+    // MARK: widget links: permafrost://<open|power|restart|install|check>?id=<server>
 
     func application(_ application: NSApplication, open urls: [URL]) {
         guard main != nil else { return pendingURLs += urls }
-        for url in urls where url.scheme == "iceservers" {
-            // iceservers://widgets: from a widget that hasn't picked a design yet.
+        for url in urls where url.scheme == "permafrost" {
+            // permafrost://widgets: from a widget that hasn't picked a design yet.
             if url.host == "widgets" {
                 showCustomWidgets()
                 continue
@@ -170,7 +171,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// Runs a widget's action once the app knows whether the server is up (it may have just launched).
-    /// An action from a widget button or an iceservers:// link. Only these four: anything on this Mac
+    /// An action from a widget button or an permafrost:// link. Only these four: anything on this Mac
     /// can open a link or post the widget's notification. `quiet`: from a widget, so the main window
     /// stays put; a confirmation is all that shows.
     private func run(_ action: String, on id: String, quiet: Bool = false, tries: Int = 40) {
@@ -336,7 +337,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let open = NSOpenPanel()
         open.directoryURL = URL(fileURLWithPath: realHome + "/.ssh")
         open.showsHiddenFiles = true
-        open.message = "Choose the private key Ice Servers should sign in with."
+        open.message = "Choose the private key Permafrost should sign in with."
         open.beginSheetModal(for: p.window) { response in
             guard response == .OK, let url = open.url else { return }
             p.call("keyChosen", ["path": url.path, "display": SSHKey.display(url.path)])
@@ -430,7 +431,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func countPlaced() {
         WidgetCenter.shared.getCurrentConfigurations { result in
             guard case .success(let widgets) = result else {
-                if case .failure(let e) = result { NSLog("Ice Servers: can't read desktop widgets: %@", e.localizedDescription) }
+                if case .failure(let e) = result { NSLog("Permafrost: can't read desktop widgets: %@", e.localizedDescription) }
                 return
             }
             var counts: [String: Int] = [:]
@@ -522,14 +523,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             i.target = target
             return i
         }
-        menu("Ice Servers", [
-            item("About Ice Servers", #selector(NSApplication.orderFrontStandardAboutPanel(_:))),
+        menu("Permafrost", [
+            item("About Permafrost", #selector(NSApplication.orderFrontStandardAboutPanel(_:))),
             .separator(),
             item("Settings…", #selector(showSettings), ",", self),
             item("Custom Widgets…", #selector(showCustomWidgets), "", self),
             .separator(),
-            item("Hide Ice Servers", #selector(NSApplication.hide(_:)), "h"),
-            item("Quit Ice Servers", #selector(NSApplication.terminate(_:)), "q"),
+            item("Hide Permafrost", #selector(NSApplication.hide(_:)), "h"),
+            item("Quit Permafrost", #selector(NSApplication.terminate(_:)), "q"),
         ])
         menu("File", [
             MenuAction("Add Server…", key: "n") { [self] in showServers { self.main.call("showAdd") } },
@@ -544,7 +545,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ])
         menu("Window", [
             item("Minimize", #selector(NSWindow.performMiniaturize(_:)), "m"),
-            item("Show Ice Servers", #selector(showMain), "0", self),
+            item("Show Permafrost", #selector(showMain), "0", self),
         ])
         NSApp.mainMenu = bar
     }

@@ -85,7 +85,15 @@ struct Prefs: Codable {
 let realHome = String(cString: getpwuid(getuid())!.pointee.pw_dir)
 
 enum Store {
-    static let url = URL(fileURLWithPath: realHome + "/Library/Application Support/Ice Servers/config.json")
+    static let url = URL(fileURLWithPath: realHome + "/Library/Application Support/Permafrost/config.json")
+
+    /// The app was first called Ice Servers: its settings folder (config, never-ask passwords) moves over once.
+    static func moveOldFolder() {
+        let folder = url.deletingLastPathComponent()
+        let old = folder.deletingLastPathComponent().appendingPathComponent("Ice Servers")
+        let fm = FileManager.default
+        if !fm.fileExists(atPath: folder.path), fm.fileExists(atPath: old.path) { try? fm.moveItem(at: old, to: folder) }
+    }
 
     static func load() -> Config? {
         try? JSONDecoder().decode(Config.self, from: Data(contentsOf: url))
@@ -135,7 +143,7 @@ enum Store {
 /// sudo passwords, one Keychain item per server.
 enum Keychain {
     private static func query(_ account: String) -> [CFString: Any] {
-        [kSecClass: kSecClassGenericPassword, kSecAttrService: "Ice Servers sudo", kSecAttrAccount: account]
+        [kSecClass: kSecClassGenericPassword, kSecAttrService: "Permafrost sudo", kSecAttrAccount: account]
     }
 
     static func get(_ account: String) -> String? { read(account).password }

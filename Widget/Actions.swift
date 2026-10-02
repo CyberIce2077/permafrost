@@ -2,7 +2,7 @@ import AppIntents
 import AppKit
 
 /// A widget button (Restart, Update, Power) that acts without opening the app: it hands the action
-/// to Ice Servers, launching it hidden if it isn't running. The app does the SSH and sudo work, with
+/// to Permafrost, launching it hidden if it isn't running. The app does the SSH and sudo work, with
 /// its usual confirmations, locks and password handling.
 struct ServerAction: AppIntent {
     static let title: LocalizedStringResource = "Server action"
@@ -20,7 +20,7 @@ struct ServerAction: AppIntent {
     }
 
     func perform() async throws -> some IntentResult {
-        let app = "app.iceservers.IceServers"
+        let app = "app.permafrost.Permafrost"
         if NSRunningApplication.runningApplications(withBundleIdentifier: app).isEmpty,
            let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: app) {
             let launch = NSWorkspace.OpenConfiguration()
@@ -30,7 +30,7 @@ struct ServerAction: AppIntent {
         } else {
             // The sandbox drops userInfo from distributed notifications, so the action rides in `object`.
             DistributedNotificationCenter.default().postNotificationName(
-                Notification.Name("app.iceservers.action"), object: "\(action) \(server)", userInfo: nil, deliverImmediately: true)
+                Notification.Name("app.permafrost.action"), object: "\(action) \(server)", userInfo: nil, deliverImmediately: true)
         }
         return .result()
     }

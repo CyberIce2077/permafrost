@@ -1,7 +1,7 @@
 import AppKit
 
 // ssh runs this app as its SSH_ASKPASS helper while adding a server with a password.
-if let password = ProcessInfo.processInfo.environment["ICE_ASKPASS"] {
+if let password = ProcessInfo.processInfo.environment["PERMAFROST_ASKPASS"] {
     print(password)
     exit(0)
 }

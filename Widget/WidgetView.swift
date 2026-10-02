@@ -71,14 +71,14 @@ struct WidgetView: View {
                     ContainerRelativeShape().strokeBorder(L.border, lineWidth: 1)
                 }
             }
-            .widgetURL(URL(string: entry.ask != nil ? "iceservers://widgets" : "iceservers://open?id=\(entry.servers.first?.id ?? "")"))
+            .widgetURL(URL(string: entry.ask != nil ? "permafrost://widgets" : "permafrost://open?id=\(entry.servers.first?.id ?? "")"))
     }
 
     @ViewBuilder private var content: some View {
         if let why = entry.ask {
             ask(why)
         } else if entry.servers.isEmpty || stats.isEmpty {
-            Text(entry.servers.isEmpty ? "Add a server in Ice Servers" : "Pick at least one stat")
+            Text(entry.servers.isEmpty ? "Add a server in Permafrost" : "Pick at least one stat")
                 .font(.system(size: 13, weight: .semibold))
                 .multilineTextAlignment(.center)
                 .foregroundStyle(L.sub)
@@ -96,9 +96,9 @@ struct WidgetView: View {
     private func ask(_ why: String) -> some View {
         let box: CGFloat = small ? 36 : 44
         let (title, body, short) = switch why {
-        case "create": ("Create a design", "Make a \(sizeName) design in Ice Servers › Custom Widgets, then pick it with right‑click › Edit Widget.", "Open Ice Servers")
+        case "create": ("Create a design", "Make a \(sizeName) design in Permafrost › Custom Widgets, then pick it with right‑click › Edit Widget.", "Open Permafrost")
         case "gone": ("Design deleted", "This widget's design was deleted. Right‑click › Edit Widget to pick another.", "Right‑click › Edit Widget")
-        default: ("Choose a design", "Right‑click this widget › Edit Widget and pick one of your designs from Ice Servers.", "Right‑click › Edit Widget")
+        default: ("Choose a design", "Right‑click this widget › Edit Widget and pick one of your designs from Permafrost.", "Right‑click › Edit Widget")
         }
         return VStack(spacing: small ? 6 : 8) {
             RoundedRectangle(cornerRadius: box * 11 / 36)

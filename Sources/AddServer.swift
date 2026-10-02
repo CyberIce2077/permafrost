@@ -53,7 +53,7 @@ enum Passwordless {
         var env: [String: String] = [:]
         if d.auth == "pw" {
             args += ["-o", "PubkeyAuthentication=no", "-o", "NumberOfPasswordPrompts=1"]
-            env = ["SSH_ASKPASS": Bundle.main.executablePath ?? "", "SSH_ASKPASS_REQUIRE": "force", "ICE_ASKPASS": d.sshPassword]
+            env = ["SSH_ASKPASS": Bundle.main.executablePath ?? "", "SSH_ASKPASS_REQUIRE": "force", "PERMAFROST_ASKPASS": d.sshPassword]
         } else {
             args += ["-o", "BatchMode=yes"] + d.keyArgs
         }
@@ -175,7 +175,7 @@ final class Probe {
             }
             // ssh asks this app for the password (see main.swift) instead of a terminal.
             let askpass = ["SSH_ASKPASS": Bundle.main.executablePath ?? "", "SSH_ASKPASS_REQUIRE": "force",
-                           "ICE_ASKPASS": d.sshPassword]
+                           "PERMAFROST_ASKPASS": d.sshPassword]
             let args = ["-T", "-o", "ConnectTimeout=5", "-o", "PubkeyAuthentication=no", "-o", "NumberOfPasswordPrompts=1",
                         "-o", "PreferredAuthentications=password,keyboard-interactive", "-p", d.port, d.target,
                         "k=$(cat); umask 077; mkdir -p ~/.ssh && { grep -qxF \"$k\" ~/.ssh/authorized_keys 2>/dev/null || echo \"$k\" >> ~/.ssh/authorized_keys; }"]

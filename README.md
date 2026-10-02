@@ -1,4 +1,4 @@
-# Ice Servers
+# Permafrost
 
 A small macOS app for watching and controlling the Linux servers on your home network.
 
@@ -27,7 +27,7 @@ Everything goes over plain SSH. Nothing is installed on the servers.
 ```
 
 This builds the app and its widget extension, copies them to `/Applications` and opens the app.
-`./build.sh` alone only builds `build/Ice Servers.app`.
+`./build.sh` alone only builds `build/Permafrost.app`.
 
 ## Adding servers
 
@@ -49,7 +49,7 @@ Shutting down, restarting and updating need sudo. For each server you choose:
 
 - **Ask once, remember securely**: kept in your macOS Keychain, optionally behind Touch ID.
 - **Remember, never ask**: kept outside the Keychain, so macOS never asks: encrypted (AES-GCM) with a
-  key derived from this Mac's hardware UUID, in `~/Library/Application Support/Ice Servers/sudo-passwords`
+  key derived from this Mac's hardware UUID, in `~/Library/Application Support/Permafrost/sudo-passwords`
   (readable only by you). A copy of that file is useless on another Mac, but any app running as you on
   this Mac could decrypt it, and anyone using your unlocked Mac can restart, shut down or update the server.
 - **Ask every time**: never saved.
@@ -64,7 +64,7 @@ cleanly before the server goes down. Each kind of command has a time limit (Sett
 Passwords, Command time limits): past it, the app stops waiting, marks the server Not responding,
 unlocks the controls and offers Retry. Nothing is stopped on the server, and it goes back to Online
 as soon as it answers.
-For passwordless sudo, allow just these commands (run `sudo visudo -f /etc/sudoers.d/ice-servers` on the server):
+For passwordless sudo, allow just these commands (run `sudo visudo -f /etc/sudoers.d/permafrost` on the server):
 
 ```
 youruser ALL=(root) NOPASSWD: /usr/bin/systemctl poweroff, /usr/bin/systemctl reboot, /usr/bin/apt-get
@@ -79,13 +79,13 @@ network card (`sudo ethtool -s <interface> wol g`).
 ## Widgets
 
 Add them like any other widget: right-click the desktop, choose **Edit Widgets…**, and find
-**Ice Servers**. They work on the desktop and in Notification Center, with or without the app running.
+**Permafrost**. They work on the desktop and in Notification Center, with or without the app running.
 
 - **Settings › Widgets** (or **Custom Widgets** in the sidebar) is where you design widgets:
   name, size, servers (or all of them), stats in the order you pick, bars/rings/graphs/numbers,
   glass/tinted/clear, and power & restart buttons on Large and Extra Large. Start from a template
   or from scratch; each size shows as many servers and stats as fit, then "+N more".
-- The widget gallery has one Ice Servers widget per size. **Right-click a widget › Edit Widget**
+- The widget gallery has one Permafrost widget per size. **Right-click a widget › Edit Widget**
   picks which design it shows, from the designs made for its size. A new widget asks you to choose
   one first. Saving a design updates every widget that uses it; a widget whose design is deleted
   asks for another. There's no built-in design: until you make one of a size, its widget says so.
@@ -117,8 +117,8 @@ NVMe drives work out of the box.
 
 ## Where things live
 
-- Settings: `~/Library/Application Support/Ice Servers/config.json`
-- sudo passwords: Keychain, service "Ice Servers sudo"; "never ask" ones in `sudo-passwords` (see above)
+- Settings: `~/Library/Application Support/Permafrost/config.json`
+- sudo passwords: Keychain, service "Permafrost sudo"; "never ask" ones in `sudo-passwords` (see above)
 
 ## License
 

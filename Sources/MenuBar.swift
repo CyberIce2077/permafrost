@@ -61,10 +61,10 @@ final class MenuBar: NSObject, NSMenuDelegate {
             menu.addItem(.separator())
         }
         menu.autoenablesItems = false
-        menu.addItem(MenuAction("Open Ice Servers") { ice.showMain() })
+        menu.addItem(MenuAction("Open Permafrost") { ice.showMain() })
         menu.addItem(MenuAction("Settings…") { ice.showSettings() })
         menu.addItem(.separator())
-        menu.addItem(MenuAction("Quit Ice Servers") { NSApp.terminate(nil) })
+        menu.addItem(MenuAction("Quit Permafrost") { NSApp.terminate(nil) })
     }
 
     /// The sidebar's 24×24 server glyph as a template image.

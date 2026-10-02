@@ -39,29 +39,29 @@ struct ExtraLargeDesigns: DynamicOptionsProvider {
 }
 
 struct ConfigureSmall: DesignPicking {
-    static let title: LocalizedStringResource = "Ice Servers"
-    static let description = IntentDescription("Pick a Small design. Make designs in Ice Servers › Custom Widgets.")
+    static let title: LocalizedStringResource = "Permafrost"
+    static let description = IntentDescription("Pick a Small design. Make designs in Permafrost › Custom Widgets.")
     @Parameter(title: "Design", optionsProvider: SmallDesigns()) var design: String?
     init() {}
 }
 
 struct ConfigureMedium: DesignPicking {
-    static let title: LocalizedStringResource = "Ice Servers"
-    static let description = IntentDescription("Pick a Medium design. Make designs in Ice Servers › Custom Widgets.")
+    static let title: LocalizedStringResource = "Permafrost"
+    static let description = IntentDescription("Pick a Medium design. Make designs in Permafrost › Custom Widgets.")
     @Parameter(title: "Design", optionsProvider: MediumDesigns()) var design: String?
     init() {}
 }
 
 struct ConfigureLarge: DesignPicking {
-    static let title: LocalizedStringResource = "Ice Servers"
-    static let description = IntentDescription("Pick a Large design. Make designs in Ice Servers › Custom Widgets.")
+    static let title: LocalizedStringResource = "Permafrost"
+    static let description = IntentDescription("Pick a Large design. Make designs in Permafrost › Custom Widgets.")
     @Parameter(title: "Design", optionsProvider: LargeDesigns()) var design: String?
     init() {}
 }
 
 struct ConfigureExtraLarge: DesignPicking {
-    static let title: LocalizedStringResource = "Ice Servers"
-    static let description = IntentDescription("Pick an Extra Large design. Make designs in Ice Servers › Custom Widgets.")
+    static let title: LocalizedStringResource = "Permafrost"
+    static let description = IntentDescription("Pick an Extra Large design. Make designs in Permafrost › Custom Widgets.")
     @Parameter(title: "Design", optionsProvider: ExtraLargeDesigns()) var design: String?
     init() {}
 }
@@ -69,10 +69,10 @@ struct ConfigureExtraLarge: DesignPicking {
 /// The design id a desktop widget picked, from the app's side.
 func pickedDesign(_ w: WidgetInfo) -> String? {
     switch w.kind {
-    case "IceServersS": w.widgetConfigurationIntent(of: ConfigureSmall.self)?.design
-    case "IceServersM": w.widgetConfigurationIntent(of: ConfigureMedium.self)?.design
-    case "IceServersL": w.widgetConfigurationIntent(of: ConfigureLarge.self)?.design
-    case "IceServersXL": w.widgetConfigurationIntent(of: ConfigureExtraLarge.self)?.design
+    case "PermafrostS": w.widgetConfigurationIntent(of: ConfigureSmall.self)?.design
+    case "PermafrostM": w.widgetConfigurationIntent(of: ConfigureMedium.self)?.design
+    case "PermafrostL": w.widgetConfigurationIntent(of: ConfigureLarge.self)?.design
+    case "PermafrostXL": w.widgetConfigurationIntent(of: ConfigureExtraLarge.self)?.design
     default: nil
     }
 }

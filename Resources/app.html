@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Ice Servers</title>
+<title>Permafrost</title>
 <link rel="stylesheet" href="common.css">
 <style>
 main::-webkit-scrollbar { display: none; }
@@ -406,7 +406,7 @@ function addSheet() {
 
   let body = '';
   if (A.step === 1) body = `<div style="display: flex; flex-direction: column; gap: 16px">
-<p style="margin: 0; font-size: 14px; color: var(--sub2)">Ice Servers connects over SSH. Give the server a short name you'll recognise in the sidebar and widgets.</p>
+<p style="margin: 0; font-size: 14px; color: var(--sub2)">Permafrost connects over SSH. Give the server a short name you'll recognise in the sidebar and widgets.</p>
 ${field('Name', 'name', 'type="text" placeholder="e.g. icecube" spellcheck="false"')}
 ${dup ? `<div role="alert" style="margin-top: -8px; font-size: 12px; font-weight: 600; color: #C4000F">There's already a server called ${esc(A.name.trim() || A.host.trim())}.</div>` : ''}
 <div style="display: grid; grid-template-columns: minmax(0, 1fr) 120px; gap: 12px">
@@ -432,12 +432,12 @@ ${A.auth === 'key' ? `<div style="display: flex; align-items: center; gap: 12px;
       ['always', 'Remember, never ask', 'Not recommended', 'Saved encrypted on this Mac, outside the Keychain. Never asks for Touch ID or your Mac password.'],
       ['every', 'Ask every time', '', 'Never saved. You type it for each power, restart or update.'],
       ['nopass', 'Passwordless sudo', 'Advanced', 'The server already allows these commands without a password.']];
-    const notes = { remember: `Stored in the macOS Keychain, encrypted and readable only by Ice Servers on this Mac while it’s unlocked. It is never synced to iCloud, written to logs, or sent anywhere except to sudo on ${esc(name)} over SSH. Forget it anytime in Settings.`,
+    const notes = { remember: `Stored in the macOS Keychain, encrypted and readable only by Permafrost on this Mac while it’s unlocked. It is never synced to iCloud, written to logs, or sent anywhere except to sudo on ${esc(name)} over SSH. Forget it anytime in Settings.`,
       always: `Encrypted with a key tied to this Mac, in a file only your user can read, outside the Keychain so macOS never asks. Admin actions run without asking you first: any app running as you, or anyone using this Mac while it’s unlocked, can restart, shut down or update ${esc(name)}.`,
       every: 'The password is held in memory only for the command you run, then discarded.',
       nopass: 'Only for servers where you’ve limited passwordless sudo to the power, reboot and update commands in sudoers.' };
     body = `<div style="display: flex; flex-direction: column; gap: 14px">
-<p style="margin: 0; font-size: 14px; color: var(--sub2)">Power, restart and updates run with <code style="font-family: ui-monospace, Menlo, monospace; font-size: 13px">sudo</code>. How should Ice Servers handle the password for <strong style="color: var(--text)">${esc(user)}</strong>?</p>
+<p style="margin: 0; font-size: 14px; color: var(--sub2)">Power, restart and updates run with <code style="font-family: ui-monospace, Menlo, monospace; font-size: 13px">sudo</code>. How should Permafrost handle the password for <strong style="color: var(--text)">${esc(user)}</strong>?</p>
 <div role="radiogroup" aria-label="Sudo password" style="display: flex; flex-direction: column; gap: 8px">
 ${defs.map(([k, label, tag, desc]) => {
       const on = A.sudo === k;
@@ -541,7 +541,7 @@ function nopassPanel(user) {
   const all = !n.error && Object.values(n.allowed).every(Boolean);
   return `<div style="display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 16px; background: rgba(255,255,255,calc(0.75 * var(--wk))); border: 1px solid rgba(var(--hair),0.12)">
 ${rows}
-${all ? '' : `<div style="display: flex; align-items: flex-end; gap: 12px"><div style="flex-grow: 1; min-width: 0; font-size: 12px; line-height: 1.45; color: var(--sub2)">${n.error ? '' : `To allow them, add this line with <code style="font-family: ui-monospace, Menlo, monospace">sudo visudo -f /etc/sudoers.d/ice-servers</code> on ${esc(A.host.trim())}, or pick another option:<br><code style="font-family: ui-monospace, Menlo, monospace; color: var(--text); -webkit-user-select: text; user-select: text">${esc(user)} ALL=(root) NOPASSWD: /usr/bin/systemctl reboot, /usr/bin/systemctl poweroff, /usr/bin/apt-get</code>`}</div>
+${all ? '' : `<div style="display: flex; align-items: flex-end; gap: 12px"><div style="flex-grow: 1; min-width: 0; font-size: 12px; line-height: 1.45; color: var(--sub2)">${n.error ? '' : `To allow them, add this line with <code style="font-family: ui-monospace, Menlo, monospace">sudo visudo -f /etc/sudoers.d/permafrost</code> on ${esc(A.host.trim())}, or pick another option:<br><code style="font-family: ui-monospace, Menlo, monospace; color: var(--text); -webkit-user-select: text; user-select: text">${esc(user)} ALL=(root) NOPASSWD: /usr/bin/systemctl reboot, /usr/bin/systemctl poweroff, /usr/bin/apt-get</code>`}</div>
 <button data-cmd="aRecheck" style="height: 36px; flex-shrink: 0; padding: 0 14px; border-radius: 18px; border: 1px solid rgba(var(--hair),0.18); background: var(--solid); font-size: 13px; font-weight: 600; color: var(--accent); cursor: pointer">Check Again</button></div>`}
 </div>`;
 }
