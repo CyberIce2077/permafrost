@@ -67,17 +67,24 @@ final class MenuBar: NSObject, NSMenuDelegate {
         menu.addItem(MenuAction("Quit Permafrost") { NSApp.terminate(nil) })
     }
 
-    /// The sidebar's 24×24 server glyph as a template image.
+    /// The icon's menu bar version (design: Icons › 6 · Icicle Server): a server with icicles, as a template image.
     private static let glyph: NSImage = {
         let img = NSImage(size: NSSize(width: 18, height: 18), flipped: true) { r in
             let k = r.width / 24
             NSColor.black.set()
-            for y in [4.0, 13.0] {
-                let box = NSBezierPath(roundedRect: NSRect(x: 3 * k, y: y * k, width: 18 * k, height: 7 * k), xRadius: 2 * k, yRadius: 2 * k)
-                box.lineWidth = 1.8 * k
-                box.stroke()
-                NSBezierPath(ovalIn: NSRect(x: 6.1 * k, y: (y + 2.6) * k, width: 1.8 * k, height: 1.8 * k)).fill()
+            let p = NSBezierPath(roundedRect: NSRect(x: 3 * k, y: 7 * k, width: 18 * k, height: 7 * k), xRadius: 2 * k, yRadius: 2 * k)
+            p.move(to: NSPoint(x: 6 * k, y: 10.5 * k)); p.line(to: NSPoint(x: 13 * k, y: 10.5 * k))
+            // Icicles: M7 14l1 4 1-4 · M12 14l1 6 1-6 · M17 14l.8 3 .8-3
+            for (x, w, h) in [(7.0, 1.0, 4.0), (12, 1, 6), (17, 0.8, 3)] {
+                p.move(to: NSPoint(x: x * k, y: 14 * k))
+                p.line(to: NSPoint(x: (x + w) * k, y: (14 + h) * k))
+                p.line(to: NSPoint(x: (x + 2 * w) * k, y: 14 * k))
             }
+            p.lineWidth = 1.7 * k
+            p.lineCapStyle = .round
+            p.lineJoinStyle = .round
+            p.stroke()
+            NSBezierPath(ovalIn: NSRect(x: 16.1 * k, y: 9.6 * k, width: 1.8 * k, height: 1.8 * k)).fill()
             return true
         }
         img.isTemplate = true
