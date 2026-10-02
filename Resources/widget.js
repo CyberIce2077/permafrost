@@ -105,7 +105,7 @@ ${d.style === 'bars' && !small && live ? `<span style="display: block; height: 5
 ${d.style === 'graph' && !small && live && !off ? `<svg viewBox="0 0 240 56" preserveAspectRatio="none" style="width: 100%; height: 14px; display: block"><polyline points="${hist.length > 1 ? pts(hist, 100) : ''}" fill="none" stroke="${df[2]}" stroke-width="2" vector-effect="non-scaling-stroke"></polyline></svg>` : ''}
 </span>`;
       }).join('');
-      return `<div style="display: grid; grid-template-columns: ${cols2}; column-gap: 10px; align-items: center; box-sizing: border-box; min-height: ${d.size === 'XL' ? '52px' : big ? '50px' : '22px'}; padding: ${big ? '5px 12px' : '0'}; border-radius: 14px; background: ${big ? Lk.tile : 'transparent'}">
+      return `<div style="display: grid; grid-template-columns: ${cols2}; column-gap: 10px; align-items: center; box-sizing: border-box; min-height: ${d.size === 'XL' ? '52px' : big ? '50px' : '22px'}; padding: ${big ? '5px 12px' : '0'}; border-radius: 14px; background: ${big ? Lk.tile + '; flex: 1 1 0; max-height: 66px' : 'transparent'}">
 <span style="display: flex; align-items: center; gap: 7px; min-width: 0"><span style="width: 7px; height: 7px; border-radius: 4px; flex-shrink: 0; background: ${off ? '#8E8E93' : '#30D158'}"></span><span style="font-size: ${big ? '13px' : '12px'}; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: ${Lk.text}; text-shadow: ${Lk.shadow}">${esc(s.name)}</span></span>
 ${cells}
 ${ctl ? `<span style="width: 36px; height: 36px; border-radius: 18px; display: flex; align-items: center; justify-content: center; background: ${off ? 'rgba(120,120,128,0.45)' : '#248A3D'}">${POWER_SVG}</span>` : ''}
@@ -115,7 +115,7 @@ ${ctl ? `<span style="width: 36px; height: 36px; border-radius: 18px; display: f
 <span style="${titleStyle}">${esc(d.name || 'Servers')}</span>
 <span style="${subPlain}">${small ? online + '/' + ids.length + ' online' : online + ' of ' + ids.length + ' online'}</span>
 </div>
-<div style="display: flex; flex-direction: column; gap: ${big ? '6px' : '4px'}; min-height: 0">${rows}</div>
+<div style="display: flex; flex-direction: column; gap: ${big ? '6px' : '4px'}; min-height: 0${big ? '; flex-grow: 1' : ''}">${rows}</div>
 ${hidRows ? `<span style="${subPlain}">+${hidRows} more</span>` : ''}`;
   }
 

@@ -197,9 +197,11 @@ struct WidgetView: View {
                     .font(.system(size: 11, weight: .semibold)).foregroundStyle(L.sub).lineLimit(1)
             }
             .textShadow(L)
+            // Large and Extra Large rows share the height, up to 66 pt each.
             VStack(spacing: big ? 6 : 4) {
                 ForEach(entry.servers.indices, id: \.self) { row(entry.servers[$0]) }
             }
+            .frame(maxHeight: big ? .infinity : nil, alignment: .top)
             if more > 0 {
                 Text("+\(more) more").font(.system(size: 11, weight: .semibold)).foregroundStyle(L.sub).textShadow(L)
             }
@@ -225,7 +227,7 @@ struct WidgetView: View {
             .frame(maxHeight: .infinity)
             .background(RoundedRectangle(cornerRadius: 14).fill(big ? L.tile : .clear))
         }
-        .frame(height: height)
+        .frame(minHeight: height, maxHeight: big ? 66 : height)
     }
 
     @ViewBuilder private func cell(_ s: Stats, _ m: Metric) -> some View {
