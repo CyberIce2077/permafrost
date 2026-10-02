@@ -16,8 +16,8 @@ struct ServersWidget: Widget {
         AppIntentConfiguration(kind: "IceServers", intent: ConfigureWidget.self, provider: Provider()) { entry in
             WidgetView(entry: entry)
         }
-        .configurationDisplayName("Servers")
-        .description("Live stats and controls for your servers. Right-click › Edit Widget to choose them.")
+        .configurationDisplayName("Ice Servers")
+        .description("Live stats and controls for your servers. Right-click › Edit Widget to pick a design.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge])
         .contentMarginsDisabled()
     }
@@ -25,14 +25,15 @@ struct ServersWidget: Widget {
 
 struct Entry: TimelineEntry {
     var date = Date()
+    /// The widget's real size on the desktop ("S", "M", "L", "XL"); the design is laid out at it.
     var size: String
-    var style: WidgetStyle
+    var design: Design
+    /// The servers that fit, in order.
     var servers: [Stats]
-    /// "All servers" (a compact row each) rather than one server.
-    var all = false
+    /// All the design's servers, and how many of them are online.
+    var total = 0
+    var online = 0
     var prefs = Prefs()
-    /// The name set in Edit Widget, shown instead of "All servers".
-    var title: String?
 }
 
 struct Provider: AppIntentTimelineProvider {
@@ -56,31 +57,23 @@ struct Provider: AppIntentTimelineProvider {
         }
     }
 
-    /// What this widget shows: its style, its servers (at most `maxServersPerWidget`), and whether
-    /// it's the multi-server table. Edit Widget choices win; empty ones follow Settings › Widgets.
-    private func pick(_ intent: ConfigureWidget, _ config: Config, _ size: String) -> (WidgetStyle, [ServerConfig], Bool) {
-        var style = config.widgets[size] ?? WidgetStyle()
-        if let stats = intent.stats, !stats.isEmpty {
-            style.metrics = Dictionary(uniqueKeysWithValues: StatOption.allCases.map { ($0.rawValue, stats.contains($0)) })
-        }
-        if let s = intent.style { style.style = s.rawValue }
-        if let l = intent.look { style.look = l.rawValue }
-        if let chosen = intent.servers, !chosen.isEmpty {
-            let servers = chosen.compactMap { c in config.servers.first { $0.id == c.id } }.prefix(maxServersPerWidget)
-            return (style, Array(servers), servers.count > 1)
-        }
-        let one = config.servers.filter { $0.id == style.server }
-        if !one.isEmpty { return (style, one, false) }
-        return (style, Array(config.servers.filter { $0.widgets ?? true }.prefix(maxServersPerWidget)), true)
+    /// The picked design, or the default (first) one when none is picked or it was deleted.
+    private func design(_ intent: ConfigureWidget, _ config: Config) -> Design {
+        let all = config.designs ?? [.overview]
+        return all.first { $0.id == intent.design?.id } ?? all.first ?? .overview
     }
 
-    private func title(_ intent: ConfigureWidget) -> String? {
-        intent.name.flatMap { $0.trimmingCharacters(in: .whitespaces).isEmpty ? nil : $0 }
+    /// The design's servers, and the ones that fit at this size.
+    private func pick(_ d: Design, _ config: Config, _ size: String) -> ([ServerConfig], [ServerConfig]) {
+        let all = d.servers(in: config)
+        let caps = Design.caps(size: size, style: d.style, controls: d.controls, multi: all.count > 1)
+        return (all, Array(all.prefix(caps.rows)))
     }
 
     private func fetch(_ intent: ConfigureWidget, _ context: Context) -> Entry {
         let config = Store.load() ?? Config()
-        let (style, servers, all) = pick(intent, config, size(context))
+        let d = design(intent, config)
+        let (all, servers) = pick(d, config, size(context))
         let live = Store.loadLive()
         var results = [Stats](repeating: Stats(), count: servers.count)
         let lock = NSLock()
@@ -89,7 +82,10 @@ struct Provider: AppIntentTimelineProvider {
             let s = live?.first { $0.id == servers[i].id } ?? Self.stats(servers[i])
             lock.withLock { results[i] = s }
         }
-        return Entry(size: size(context), style: style, servers: results, all: all, prefs: config.prefs ?? Prefs(), title: title(intent))
+        // Rows that don't fit only count as online when the app's live stats say so.
+        let hidden = all.dropFirst(servers.count).filter { c in live?.first { $0.id == c.id }?.online == true }.count
+        return Entry(size: size(context), design: d, servers: results, total: all.count,
+                     online: results.filter(\.online).count + hidden, prefs: config.prefs ?? Prefs())
     }
 
     /// One short SSH session: ~3 s of samples plus the update count.
@@ -111,15 +107,15 @@ struct Provider: AppIntentTimelineProvider {
 
     private func sample(_ intent: ConfigureWidget, _ context: Context) -> Entry {
         let config = Store.load() ?? Config()
-        let (style, servers, all) = pick(intent, config, size(context))
-        let names = servers.isEmpty ? ["server"] : servers.map(\.name)
-        let demo = names.enumerated().map { i, name in
+        let d = design(intent, config)
+        let (all, servers) = pick(d, config, size(context))
+        let demo = (servers.isEmpty ? [ServerConfig(name: "server", ssh: "")] : servers).enumerated().map { i, c in
             let wave = (0..<12).map { 30 + 12 * sin(Double($0) * 0.9 + Double(i)) }
-            return Stats(id: "", name: name, online: true, cpu: wave, mem: wave.map { $0 + 25 },
+            return Stats(id: c.id, name: c.name, online: true, cpu: wave, mem: wave.map { $0 + 25 },
                          down: wave.map { $0 / 2 }, up: wave.map { $0 / 5 }, temp: wave.map { $0 + 18 }, memUsed: 19.5, memTotal: 32,
                          diskUsed: 580, diskTotal: 1000, diskFree: 420, uptime: 1_036_800, updates: 0)
         }
-        return Entry(size: size(context), style: style, servers: demo, all: all, prefs: config.prefs ?? Prefs(), title: title(intent))
+        return Entry(size: size(context), design: d, servers: demo, total: max(all.count, demo.count), online: max(all.count, demo.count), prefs: config.prefs ?? Prefs())
     }
 }
 

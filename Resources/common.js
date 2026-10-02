@@ -11,8 +11,6 @@ const LIVE = ['online', 'updating', 'checking'];
 const COLORS = { online: ['#1E7A34', 'rgba(52,199,89,0.16)', '#30D158'], off: ['var(--sub2)', 'rgba(120,120,128,0.16)', '#8E8E93'] };
 const colorsFor = (phase) => COLORS[phase] || ['#B33000', 'rgba(255,159,10,0.18)', '#FF9F0A'];
 const RING = 2 * Math.PI * 38;
-// Widgets lay out at most this many servers (Shared/Store.swift has the same limit).
-const MAX_SERVERS = 4;
 
 const last = (a) => a[a.length - 1];
 const pts = (arr, max) => arr.map((v, i) => (i * 240 / (arr.length - 1)).toFixed(1) + ',' + (54 - Math.min(Math.max(v, 0), max) / max * 50).toFixed(1)).join(' ');
@@ -116,7 +114,7 @@ function toast(o) {
   const el = layer('toast');
   // With Undo it's the design's Settings toast; otherwise the main window's.
   el.innerHTML = o.undo || window.SETTINGS_TOAST
-    ? `<div role="status" style="position: fixed; left: 50%; top: 20px; transform: translateX(-50%); z-index: 20; height: 44px; padding: 0 18px; display: flex; align-items: center; gap: 14px; border-radius: 22px; background: rgba(255,255,255,calc(0.92 * var(--wk))); box-shadow: 0 12px 30px rgba(8,28,60,0.25); font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap">${esc(o.text)}${o.undo ? `<button data-cmd="undoRemove" style="height: 32px; padding: 0 14px; border-radius: 16px; border: 0; background: rgba(var(--accent-rgb),0.12); color: var(--accent); font-size: 13px; font-weight: 700; cursor: pointer">Undo</button>` : ''}</div>`
+    ? `<div role="status" style="position: fixed; left: 50%; top: 20px; transform: translateX(-50%); z-index: 20; height: 44px; padding: 0 18px; display: flex; align-items: center; gap: 14px; border-radius: 22px; background: rgba(255,255,255,calc(0.92 * var(--wk))); box-shadow: 0 12px 30px rgba(8,28,60,0.25); font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap">${esc(o.text)}${o.undo ? `<button data-cmd="${o.undo === true ? 'undoRemove' : o.undo}" style="height: 32px; padding: 0 14px; border-radius: 16px; border: 0; background: rgba(var(--accent-rgb),0.12); color: var(--accent); font-size: 13px; font-weight: 700; cursor: pointer">Undo</button>` : ''}</div>`
     : `<div role="status" style="position: fixed; left: 50%; top: 20px; transform: translateX(-50%); z-index: 20; display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 20px 0 14px; border-radius: 24px; background: rgba(255,255,255,calc(0.86 * var(--wk))); backdrop-filter: blur(30px) saturate(180%); -webkit-backdrop-filter: blur(30px) saturate(180%); border: 1px solid rgba(255,255,255,calc(0.95 * var(--wk))); box-shadow: 0 12px 30px rgba(8,28,60,0.25); font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap"><span style="width: 26px; height: 26px; border-radius: 13px; background: #248A3D; display: flex; align-items: center; justify-content: center">${CHECK(14, 3)}</span>${esc(o.text)}</div>`;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { el.innerHTML = ''; }, o.undo ? 5000 : 3000);
@@ -178,7 +176,7 @@ function hidePassword() {
 
 // Handles the sheet's own buttons; pages call this first from their act().
 function sheetAct(d) {
-  if (d.cmd === 'undoRemove') { post({ cmd: 'undoRemove' }); layer('toast').innerHTML = ''; return true; }
+  if (d.cmd === 'undoRemove' || d.cmd === 'undoDesign') { post({ cmd: d.cmd }); layer('toast').innerHTML = ''; return true; }
   if (d.cmd === 'pwCancel') { post({ cmd: 'passwordCancel' }); return true; }
   if (d.cmd === 'pwRemember') {
     pw.remember = !pw.remember;

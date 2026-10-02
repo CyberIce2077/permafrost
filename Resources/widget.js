@@ -1,130 +1,128 @@
-// The widget as the design draws it. Widget Settings uses it for the preview;
+// The widget as the design draws it (Settings › Widgets: gallery thumbnails and the editor preview).
 // Widget/WidgetView.swift is the SwiftUI port that runs on the desktop.
-const METRICS = [
-  { k: 'cpu', label: 'CPU', color: '#0A84FF' },
-  { k: 'mem', label: 'Memory', color: '#5E5CE6' },
-  { k: 'net', label: 'Network', color: '#FF9F0A' },
-  { k: 'disk', label: 'Disk', color: '#34C759' },
-  { k: 'temp', label: 'Temperature', color: '#FF453A' },
-];
-
-const LOOKS = {
-  glass: { bg: 'rgba(255,255,255,0.64)', border: 'rgba(255,255,255,0.8)', text: '#1D1D1F', sub: '#4A4A4F', tile: 'rgba(255,255,255,0.6)', track: 'rgba(120,120,128,0.2)', ok: '#1E7A34', shadow: 'none', btnBg: 'rgba(255,255,255,0.75)' },
-  tinted: { bg: 'rgba(16,52,104,0.62)', border: 'rgba(255,255,255,0.28)', text: '#FFFFFF', sub: 'rgba(255,255,255,0.8)', tile: 'rgba(255,255,255,0.12)', track: 'rgba(255,255,255,0.22)', ok: '#8CF5AE', shadow: 'none', btnBg: 'rgba(255,255,255,0.16)' },
-  clear: { bg: 'rgba(255,255,255,0.14)', border: 'rgba(255,255,255,0.55)', text: '#FFFFFF', sub: 'rgba(255,255,255,0.9)', tile: 'rgba(255,255,255,0.14)', track: 'rgba(255,255,255,0.3)', ok: '#A6FFC2', shadow: '0 1px 3px rgba(0,0,0,0.4)', btnBg: 'rgba(255,255,255,0.18)' },
+const W_DEFS = { cpu: ['CPU', 'CPU', '#0A84FF'], mem: ['Memory', 'RAM', '#5E5CE6'], net: ['Network', 'Net', '#FF9F0A'], disk: ['Disk', 'Disk', '#34C759'], temp: ['Temperature', 'Temp', '#FF453A'] };
+const W_ORDER = ['cpu', 'mem', 'net', 'disk', 'temp'];
+const W_DIMS = { S: [172, 172, 26, 'Small'], M: [364, 172, 26, 'Medium'], L: [364, 384, 28, 'Large'], XL: [748, 384, 30, 'Extra Large'] };
+const W_LOOKS = {
+  glass: { bg: 'rgba(255,255,255,0.64)', border: 'rgba(255,255,255,0.8)', text: '#1D1D1F', sub: '#4A4A4F', tile: 'rgba(255,255,255,0.6)', track: 'rgba(120,120,128,0.2)', ok: '#1E7A34', shadow: 'none', btnBg: 'rgba(255,255,255,0.8)' },
+  tinted: { bg: 'rgba(16,52,104,0.66)', border: 'rgba(255,255,255,0.28)', text: '#FFFFFF', sub: 'rgba(255,255,255,0.82)', tile: 'rgba(255,255,255,0.12)', track: 'rgba(255,255,255,0.22)', ok: '#8CF5AE', shadow: 'none', btnBg: 'rgba(255,255,255,0.16)' },
+  clear: { bg: 'rgba(255,255,255,0.14)', border: 'rgba(255,255,255,0.55)', text: '#FFFFFF', sub: 'rgba(255,255,255,0.92)', tile: 'rgba(255,255,255,0.14)', track: 'rgba(255,255,255,0.3)', ok: '#A6FFC2', shadow: '0 1px 3px rgba(0,0,0,0.45)', btnBg: 'rgba(255,255,255,0.18)' },
 };
+const C1 = 2 * Math.PI * 38, C2 = 2 * Math.PI * 36;
+const POWER_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v8"></path><path d="M6.4 6.6a8 8 0 1 0 11.2 0"></path></svg>';
 
-const DIMS = { S: [172, 172, 26], M: [364, 172, 26], L: [364, 384, 28], XL: [748, 384, 30] };
+// The servers a design shows (Shared/Store.swift has the same rule).
+const designServers = (d, servers) => d.all ? servers.filter((s) => s.widgets !== false) : d.servers.map((id) => servers.find((s) => s.id === id)).filter(Boolean);
 
-function widgetPreview(w, servers) {
-  const L = LOOKS[w.look] || LOOKS.glass, d = DIMS[w.size];
-  const one = servers.find((s) => s.id === w.server);
-  const list = one ? [one] : servers.filter((s) => s.widgets !== false).slice(0, MAX_SERVERS);
-  const box = `box-sizing: border-box; width: ${d[0]}px; height: ${d[1]}px; padding: ${w.size === 'S' ? '14px' : '16px'}; display: flex; border-radius: ${d[2]}px; background: ${L.bg}; backdrop-filter: blur(36px) saturate(180%); -webkit-backdrop-filter: blur(36px) saturate(180%); border: 1px solid ${L.border}; box-shadow: 0 16px 40px rgba(8,28,60,0.25), inset 0 1px 0 rgba(255,255,255,0.6); transition: width 0.25s, height 0.25s`;
-  if (!list.length) return `<section aria-label="Widget preview" style="${box}; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: ${L.sub}">Add a server in Ice Servers</section>`;
-  return one ? widget(w, L, list, box) : allServers(w, L, list, box);
+function designCaps(d, multi) {
+  const ctl = !!d.controls && (d.size === 'L' || d.size === 'XL');
+  if (multi) return { rows: { S: 4, M: 4, L: 5, XL: 5 }[d.size], stats: { S: 1, M: 2, L: ctl ? 2 : 3, XL: 5 }[d.size] };
+  return { rows: 1, stats: { S: d.style === 'bars' ? 3 : 2, M: 4, L: 6, XL: 6 }[d.size] };
 }
 
-// "All servers": one compact row per server (design: WidgetOptions › allMode).
-function allServers(w, L, list, box) {
-  const picked = METRICS.filter((m) => w.metrics[m.k]).slice(0, { S: 1, M: 2, L: 3, XL: 4 }[w.size]);
-  const tall = w.size === 'L' || w.size === 'XL';
-  const cols = `minmax(0, 1.4fr) repeat(${picked.length}, minmax(0, 1fr))${w.size === 'XL' ? ' 44px' : ''}`;
-  const online = list.filter((s) => LIVE.includes(s.phase)).length;
-  const rows = list.map((s) => {
-    const live = LIVE.includes(s.phase), off = !live;
-    const t = s.temp.length ? last(s.temp) : null, nm = netMax(s);
-    const v = { cpu: last(s.cpu), mem: last(s.mem), net: last(s.down) / nm * 100, disk: s.disk, temp: t || 0 };
-    const text = { cpu: Math.round(last(s.cpu)) + '%', mem: s.memUsed.toFixed(1) + ' GB', net: rate(last(s.down)), disk: Math.round(s.disk) + '%', temp: deg(t) };
-    const hist = { cpu: s.cpu, mem: s.mem, net: s.down.map((x) => x / nm * 100), disk: s.cpu.map(() => s.disk), temp: s.temp.length > 1 ? s.temp : s.cpu.map(() => t || 0) };
-    const cells = picked.map((m) => {
-      const val = off ? 0 : v[m.k], txt = off ? (m.k === 'disk' && s.diskTotal ? text.disk : '—') : text[m.k];
-      const color = (m.k === 'disk' && val > 80) || (m.k === 'temp' && val >= 70) ? '#FF9F0A' : m.color;
-      return `<div style="display: flex; flex-direction: column; gap: 3px; min-width: 0">
-<span style="font-size: ${tall ? '12px' : '11px'}; font-weight: 700; white-space: nowrap; color: ${off ? L.sub : L.text}; text-shadow: ${L.shadow}">${tall && !off ? m.label.slice(0, 4) + ' ' + txt : txt}</span>
-${!off && w.size !== 'S' && w.style !== 'graph' ? `<span style="display: block; height: 5px; border-radius: 3px; background: ${L.track}"><span style="display: block; height: 100%; border-radius: 3px; width: ${Math.min(val, 100)}%; background: ${color}"></span></span>` : ''}
-${!off && w.size !== 'S' && w.style === 'graph' ? `<svg viewBox="0 0 240 56" preserveAspectRatio="none" style="width: 100%; height: 14px; display: block" aria-hidden="true"><polyline points="${pts(hist[m.k], 100)}" fill="none" stroke="${m.color}" stroke-width="2" vector-effect="non-scaling-stroke"></polyline></svg>` : ''}
-</div>`;
-    }).join('');
-    return `<div style="display: grid; grid-template-columns: ${cols}; column-gap: 12px; align-items: center; box-sizing: border-box; min-height: ${{ XL: '58px', L: '64px', M: '24px', S: '20px' }[w.size]}; padding: ${tall ? '6px 12px' : '0'}; border-radius: 14px; background: ${tall ? L.tile : 'transparent'}">
-<div style="display: flex; align-items: center; gap: 8px; min-width: 0"><span style="width: 7px; height: 7px; border-radius: 4px; flex-shrink: 0; background: ${live ? '#30D158' : '#8E8E93'}"></span><span style="font-size: ${tall ? '14px' : '12px'}; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: ${L.text}; text-shadow: ${L.shadow}">${esc(s.name)}</span></div>
-${cells}
-${w.size === 'XL' ? `<button data-cmd="power" data-id="${s.id}" aria-label="${off ? 'Turn on ' : 'Turn off '}${esc(s.name)}" style="width: 44px; height: 44px; border-radius: 22px; border: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; background: ${off ? L.track : '#248A3D'}">${ICON.power(16, off ? L.text : '#FFFFFF', 2.2)}</button>` : ''}
-</div>`;
-  }).join('');
-  return `<section aria-label="Widget preview" style="${box}; flex-direction: column; gap: 12px">
-<div style="display: flex; flex-direction: column; width: 100%; min-width: 0; gap: ${w.size === 'S' || w.size === 'M' ? '5px' : '8px'}">
-<div style="display: flex; justify-content: space-between; align-items: baseline; gap: 8px"><span style="font-size: ${w.size === 'XL' ? '17px' : '14px'}; font-weight: 700; color: ${L.text}; text-shadow: ${L.shadow}">${w.size === 'S' ? 'Servers' : 'All servers'}</span><span style="font-size: 11px; font-weight: 600; white-space: nowrap; color: ${L.sub}; text-shadow: ${L.shadow}">${online} of ${list.length} online</span></div>
-${rows}
-</div>
-</section>`;
+// One stat of one server: [0–100 value, text, history].
+function wReading(k, s) {
+  if (!LIVE.includes(s.phase)) return k === 'disk' && s.diskTotal ? [s.disk, Math.round(s.disk) + '%', []] : [0, '—', []];
+  const nm = netMax(s), t = s.temp.length ? last(s.temp) : null;
+  switch (k) {
+    case 'cpu': return [last(s.cpu), Math.round(last(s.cpu)) + '%', s.cpu];
+    case 'mem': return [last(s.mem), Math.round(last(s.mem)) + '%', s.mem];
+    case 'net': return [last(s.down) / nm * 100, rate(last(s.down)), s.down.map((x) => x / nm * 100)];
+    case 'temp': return [t || 0, deg(t), s.temp.length > 1 ? s.temp : s.cpu.map(() => t || 0)];
+    default: return [s.disk, Math.round(s.disk) + '%', s.cpu.map(() => s.disk)];
+  }
 }
+const wWarn = (k, v) => (k === 'disk' && v > 80) || (k === 'temp' && v >= 70);
 
-function widget(w, L, list, box) {
-  const many = list.length > 1;
-  const shown = METRICS.filter((m) => w.metrics[m.k]).slice(0, { S: many ? 1 : 2, M: many ? 2 : 4, L: many ? 2 : 4, XL: 4 }[w.size]);
-  const row = many && (w.size === 'M' || w.size === 'XL');
-  let cols;
-  if (w.size === 'S') cols = w.style === 'bars' ? 1 : Math.min(2, shown.length);
-  else if (w.size === 'M') cols = many ? (w.style === 'bars' ? 1 : Math.min(2, shown.length)) : Math.min(w.style === 'bars' ? 2 : 4, shown.length);
-  else cols = Math.min(2, shown.length);
-  const showActions = w.size === 'XL' || (w.size === 'L' && !many);
-  const showPower = w.size === 'L' || w.size === 'XL';
+// Draws design `d` at its size, scaled down to fit maxW × maxH. Returns { html, scale, hidRows, cap, multi, ids }.
+function renderWidget(d, servers, maxW, maxH) {
+  const dm = W_DIMS[d.size], w = dm[0], h = dm[1];
+  const sc = Math.min(1, maxW / w, maxH / h);
+  const Lk = W_LOOKS[d.look] || W_LOOKS.glass;
+  const ids = designServers(d, servers);
+  const stats = d.stats.filter((k) => W_DEFS[k]);
+  const empty = ids.length === 0 || stats.length === 0;
+  const single = !empty && ids.length === 1, multi = !empty && ids.length > 1;
+  const big = d.size === 'L' || d.size === 'XL', ctl = !!d.controls && big, small = d.size === 'S';
+  const cap = designCaps(d, multi);
+  const titleStyle = `font-size: ${d.size === 'XL' ? '17px' : small ? '13px' : '15px'}; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: ${Lk.text}; text-shadow: ${Lk.shadow}`;
+  const subPlain = `font-size: 11px; font-weight: 600; white-space: nowrap; color: ${Lk.sub}; text-shadow: ${Lk.shadow}`;
+  let body = '', hidRows = 0;
 
-  const columns = list.map((s, idx) => {
-    const live = LIVE.includes(s.phase);
-    const nm = netMax(s);
-    const t = s.temp.length ? last(s.temp) : null;
-    const v = { cpu: last(s.cpu), mem: last(s.mem), net: last(s.down) / nm * 100, disk: s.disk, temp: t || 0 };
-    const text = { cpu: Math.round(last(s.cpu)) + '%', mem: s.memUsed.toFixed(1) + ' GB', net: rate(last(s.down)), disk: Math.round(s.disk) + '%', temp: deg(t) };
-    const hist = { cpu: s.cpu, mem: s.mem, net: s.down.map((x) => x / nm * 100), disk: s.cpu.map(() => s.disk), temp: s.temp.length > 1 ? s.temp : s.cpu.map(() => t || 0) };
-    const c = colorsFor(s.phase);
-    const on = s.phase !== 'off' && s.phase !== 'stopping';
-    const status = s.phase === 'online' ? 'Online · up ' + uptime(s.uptime, true) : LABELS[s.phase];
-    const cant = s.phase !== 'online' ? 'disabled' : '';
-    const updLabel = s.phase === 'updating' ? `Updating ${s.progress}%` : s.phase === 'checking' ? 'Checking…' : s.updates > 0 ? `${s.updates} Update${s.updates === 1 ? '' : 's'}` : 'Check';
+  if (empty) body = `<div style="margin: auto; max-width: 80%; font-size: 13px; font-weight: 600; text-align: center; color: ${Lk.sub}">Pick at least one server and one stat</div>`;
 
-    const tiles = shown.map((m) => {
-      const val = live ? v[m.k] : 0, txt = live ? text[m.k] : '—';
-      const labelStyle = `font-size: 11px; font-weight: 600; color: ${L.sub}; text-shadow: ${L.shadow}; white-space: nowrap`;
-      const valueStyle = `font-size: ${w.style === 'rings' || w.size === 'S' ? '13px' : '16px'}; font-weight: 700; color: ${L.text}; text-shadow: ${L.shadow}; white-space: nowrap`;
+  if (single) {
+    const s = ids[0], off = !LIVE.includes(s.phase);
+    const shown = stats.slice(0, cap.stats), n = shown.length;
+    const cols = small ? (d.style === 'bars' ? 1 : Math.min(2, n)) : d.size === 'M' ? (d.style === 'bars' ? Math.min(2, n) : Math.min(4, n)) : d.size === 'L' ? Math.min(2, n) : Math.min(3, n);
+    const tiles = shown.map((k, mi) => {
+      const df = W_DEFS[k], [v, txt, hist] = wReading(k, s);
+      const label = `<span style="font-size: 11px; font-weight: 600; white-space: nowrap; color: ${Lk.sub}; text-shadow: ${Lk.shadow}">${small ? df[1] : df[0]}</span>`;
+      const value = `<span style="font-size: ${d.style === 'rings' || small ? '13px' : '16px'}; font-weight: 700; white-space: nowrap; color: ${Lk.text}; text-shadow: ${Lk.shadow}">${txt}</span>`;
       let inner;
-      if (w.style === 'rings') {
-        inner = `<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; height: 100%">
-<svg width="46" height="46" viewBox="0 0 100 100" aria-hidden="true" style="transform: rotate(-90deg); flex-shrink: 0"><circle cx="50" cy="50" r="38" fill="none" stroke="${L.track}" stroke-width="13"></circle><circle cx="50" cy="50" r="38" fill="none" stroke="${m.color}" stroke-width="13" stroke-linecap="round" stroke-dasharray="${(val / 100 * RING).toFixed(1)} ${RING.toFixed(1)}"></circle></svg>
-<span style="${valueStyle}">${txt}</span>
-<span style="${labelStyle}">${m.label}</span>
-</div>`;
-      } else if (w.style === 'graph') {
-        inner = `<div style="display: flex; flex-direction: column; gap: 4px; height: 100%">
-<div style="display: flex; justify-content: space-between; align-items: baseline; gap: 6px"><span style="${labelStyle}">${m.label}</span><span style="${valueStyle}">${txt}</span></div>
-<svg viewBox="0 0 240 56" preserveAspectRatio="none" style="width: 100%; flex-grow: 1; min-height: 20px; display: block" aria-hidden="true"><polyline points="${pts(live ? hist[m.k] : hist[m.k].map(() => 0), 100)}" fill="none" stroke="${m.color}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"></polyline></svg>
-</div>`;
-      } else {
-        inner = `<div style="display: flex; flex-direction: column; justify-content: center; gap: 6px; height: 100%">
-<div style="display: flex; justify-content: space-between; align-items: baseline; gap: 6px"><span style="${labelStyle}">${m.label}</span><span style="${valueStyle}">${txt}</span></div>
-<div style="height: 6px; border-radius: 3px; background: ${L.track}"><div style="height: 100%; border-radius: 3px; background: ${(m.k === 'disk' && val > 80) || (m.k === 'temp' && val >= 70) ? '#FF9F0A' : m.color}; width: ${Math.min(val, 100)}%"></div></div>
-</div>`;
-      }
-      return `<div style="box-sizing: border-box; min-width: 0; min-height: 0; padding: ${w.size === 'S' ? '6px 8px' : '8px 10px'}; border-radius: 14px; background: ${L.tile}">${inner}</div>`;
+      if (d.style === 'rings') inner = `<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; height: 100%">
+<svg width="44" height="44" viewBox="0 0 100 100" style="transform: rotate(-90deg); flex-shrink: 0"><circle cx="50" cy="50" r="38" fill="none" stroke="${Lk.track}" stroke-width="13"></circle><circle cx="50" cy="50" r="38" fill="none" stroke="${df[2]}" stroke-width="13" stroke-linecap="round" stroke-dasharray="${(Math.min(v, 100) / 100 * C1).toFixed(1)} ${C1.toFixed(1)}"></circle></svg>
+${value}${label}</div>`;
+      else if (d.style === 'graph') inner = `<div style="display: flex; flex-direction: column; gap: 4px; height: 100%">
+<div style="display: flex; justify-content: space-between; align-items: baseline; gap: 6px">${label}${value}</div>
+<svg viewBox="0 0 240 56" preserveAspectRatio="none" style="width: 100%; flex-grow: 1; min-height: 18px; display: block"><polyline points="${hist.length > 1 ? pts(hist, 100) : ''}" fill="none" stroke="${df[2]}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"></polyline></svg></div>`;
+      else if (d.style === 'numbers') inner = `<div style="display: flex; flex-direction: column; justify-content: center; gap: 2px; height: 100%">
+${label}<span style="font-size: ${small ? '22px' : '28px'}; font-weight: 700; letter-spacing: -0.02em; white-space: nowrap; color: ${wWarn(k, v) && !off ? '#FF9F0A' : Lk.text}; text-shadow: ${Lk.shadow}">${txt}</span></div>`;
+      else inner = `<div style="display: flex; flex-direction: column; justify-content: center; gap: 6px; height: 100%">
+<div style="display: flex; justify-content: space-between; align-items: baseline; gap: 6px">${label}${value}</div>
+<div style="height: 6px; border-radius: 3px; background: ${Lk.track}"><div style="height: 100%; border-radius: 3px; width: ${Math.min(v, 100)}%; background: ${wWarn(k, v) ? '#FF9F0A' : df[2]}"></div></div></div>`;
+      return `<div style="box-sizing: border-box; min-width: 0; min-height: 0; padding: ${small ? '5px 8px' : '8px 10px'}; border-radius: 14px; background: ${Lk.tile}">${inner}</div>`;
     }).join('');
-
-    const divider = row && idx > 0 ? `padding-left: 16px; border-left: 1px solid ${w.look === 'glass' ? 'rgba(60,60,67,0.14)' : 'rgba(255,255,255,0.25)'};` : '';
-    return `<div style="flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: ${w.size === 'S' ? '8px' : '10px'}; ${divider}">
-<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px">
+    const btn = `height: 40px; border-radius: 20px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600`;
+    body = `<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px">
 <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
-<span style="font-size: ${w.size === 'S' ? '14px' : '15px'}; font-weight: 700; color: ${L.text}; text-shadow: ${L.shadow}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">${esc(s.name)}</span>
-<span style="display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; white-space: nowrap; color: ${s.phase === 'online' ? L.ok : w.look === 'glass' ? c[0] : L.sub}; text-shadow: ${L.shadow}"><span style="width: 6px; height: 6px; border-radius: 3px; background: ${c[2]}; flex-shrink: 0"></span>${status}</span>
+<span style="${titleStyle}">${esc(s.name)}</span>
+<span style="display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; white-space: nowrap; color: ${off ? Lk.sub : Lk.ok}; text-shadow: ${Lk.shadow}"><span style="width: 6px; height: 6px; border-radius: 3px; flex-shrink: 0; background: ${off ? '#8E8E93' : '#30D158'}"></span>${off ? 'Offline' : small ? 'Online' : 'Online · up ' + uptime(s.uptime, true)}</span>
 </div>
-${showPower ? `<button data-cmd="power" data-id="${s.id}" aria-label="Turn ${esc(s.name)} ${on ? 'off' : 'on'}" ${BUSY.includes(s.phase) ? 'disabled' : ''} style="width: 44px; height: 44px; flex-shrink: 0; border-radius: 22px; border: 0; display: flex; align-items: center; justify-content: center; background: ${on ? '#248A3D' : 'rgba(120,120,128,0.5)'}; cursor: pointer; box-shadow: ${on ? '0 4px 12px rgba(36,138,61,0.35), ' : ''}inset 0 1px 0 rgba(255,255,255,0.35)">${ICON.power(18, '#FFFFFF', 2.2)}</button>` : ''}
+${ctl ? `<span style="width: 40px; height: 40px; flex-shrink: 0; border-radius: 20px; display: flex; align-items: center; justify-content: center; background: ${off ? 'rgba(120,120,128,0.45)' : '#248A3D'}">${POWER_SVG}</span>` : ''}
 </div>
 <div style="flex-grow: 1; min-height: 0; display: grid; grid-template-columns: repeat(${Math.max(1, cols)}, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 8px">${tiles}</div>
-${showActions ? `<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
-<button data-cmd="restart" data-id="${s.id}" ${cant} style="height: 44px; border: 1px solid ${L.border}; border-radius: 22px; background: ${L.btnBg}; display: flex; align-items: center; justify-content: center; gap: 7px; font-size: 13px; font-weight: 600; color: ${L.text}; cursor: pointer">${ICON.restart(15, 2.2)}Restart</button>
-<button data-cmd="${s.updates > 0 ? 'install' : 'check'}" data-id="${s.id}" ${cant} style="height: 44px; border: 0; border-radius: 22px; background: #0066CC; display: flex; align-items: center; justify-content: center; gap: 7px; font-size: 13px; font-weight: 600; color: #FFFFFF; cursor: pointer; box-shadow: 0 4px 12px rgba(0,102,204,0.3), inset 0 1px 0 rgba(255,255,255,0.35)">${ICON.download(15, 2.2)}${updLabel}</button>
-</div>` : ''}
-</div>`;
-  }).join('');
+${ctl ? `<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+<span style="${btn}; box-sizing: content-box; color: ${Lk.text}; background: ${Lk.btnBg}; border: 1px solid ${Lk.border}">Restart</span>
+<span style="${btn}; color: #FFFFFF; background: #0066CC">${s.updates ? s.updates + ' Updates' : 'Check Updates'}</span>
+</div>` : ''}`;
+  }
 
-  return `<section aria-label="Widget preview" style="${box}; flex-direction: ${row ? 'row' : 'column'}; gap: ${row ? '16px' : '12px'}">${columns}</section>`;
+  if (multi) {
+    const rowsIds = ids.slice(0, cap.rows), sh = stats.slice(0, cap.stats);
+    const online = ids.filter((s) => LIVE.includes(s.phase)).length;
+    hidRows = Math.max(0, ids.length - cap.rows);
+    const cols2 = `minmax(0, 1.3fr) repeat(${sh.length}, minmax(0, 1fr))${ctl ? ' 40px' : ''}`;
+    const rows = rowsIds.map((s) => {
+      const off = !LIVE.includes(s.phase);
+      const cells = sh.map((k) => {
+        const df = W_DEFS[k], [v, txt, hist] = wReading(k, s), live = !off || k === 'disk';
+        const ring = d.style === 'rings' && !small && live;
+        return `<span style="display: flex; flex-direction: ${ring ? 'row; align-items: center; gap: 5px' : 'column; gap: 3px'}; min-width: 0">
+${ring ? `<svg width="18" height="18" viewBox="0 0 100 100" style="transform: rotate(-90deg); flex-shrink: 0"><circle cx="50" cy="50" r="36" fill="none" stroke="${Lk.track}" stroke-width="18"></circle><circle cx="50" cy="50" r="36" fill="none" stroke="${df[2]}" stroke-width="18" stroke-dasharray="${(Math.min(v, 100) / 100 * C2).toFixed(1)} ${C2.toFixed(1)}"></circle></svg>` : ''}
+<span style="font-size: ${big ? '12px' : '11px'}; font-weight: 700; white-space: nowrap; color: ${live ? (wWarn(k, v) && d.style === 'numbers' ? '#FF9F0A' : Lk.text) : Lk.sub}; text-shadow: ${Lk.shadow}">${txt}</span>
+${d.style === 'bars' && !small && live ? `<span style="display: block; height: 5px; border-radius: 3px; background: ${Lk.track}"><span style="display: block; height: 100%; border-radius: 3px; width: ${Math.min(v, 100)}%; background: ${wWarn(k, v) ? '#FF9F0A' : df[2]}"></span></span>` : ''}
+${d.style === 'graph' && !small && live && !off ? `<svg viewBox="0 0 240 56" preserveAspectRatio="none" style="width: 100%; height: 14px; display: block"><polyline points="${hist.length > 1 ? pts(hist, 100) : ''}" fill="none" stroke="${df[2]}" stroke-width="2" vector-effect="non-scaling-stroke"></polyline></svg>` : ''}
+</span>`;
+      }).join('');
+      return `<div style="display: grid; grid-template-columns: ${cols2}; column-gap: 10px; align-items: center; box-sizing: border-box; min-height: ${d.size === 'XL' ? '52px' : big ? '50px' : '22px'}; padding: ${big ? '5px 12px' : '0'}; border-radius: 14px; background: ${big ? Lk.tile : 'transparent'}">
+<span style="display: flex; align-items: center; gap: 7px; min-width: 0"><span style="width: 7px; height: 7px; border-radius: 4px; flex-shrink: 0; background: ${off ? '#8E8E93' : '#30D158'}"></span><span style="font-size: ${big ? '13px' : '12px'}; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: ${Lk.text}; text-shadow: ${Lk.shadow}">${esc(s.name)}</span></span>
+${cells}
+${ctl ? `<span style="width: 36px; height: 36px; border-radius: 18px; display: flex; align-items: center; justify-content: center; background: ${off ? 'rgba(120,120,128,0.45)' : '#248A3D'}">${POWER_SVG}</span>` : ''}
+</div>`;
+    }).join('');
+    body = `<div style="display: flex; justify-content: space-between; align-items: baseline; gap: 8px">
+<span style="${titleStyle}">${esc(d.name || 'Servers')}</span>
+<span style="${subPlain}">${small ? online + '/' + ids.length + ' online' : online + ' of ' + ids.length + ' online'}</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: ${big ? '6px' : '4px'}; min-height: 0">${rows}</div>
+${hidRows ? `<span style="${subPlain}">+${hidRows} more</span>` : ''}`;
+  }
+
+  const html = `<div style="position: relative; flex-shrink: 0; width: ${(w * sc).toFixed(1)}px; height: ${(h * sc).toFixed(1)}px">
+<div aria-hidden="true" style="position: absolute; left: 0; top: 0; width: ${w}px; height: ${h}px; transform: scale(${sc.toFixed(3)}); transform-origin: 0 0; box-sizing: border-box; padding: ${small ? '14px' : '16px'}; display: flex; flex-direction: column; gap: ${small ? '8px' : '10px'}; overflow: hidden; border-radius: ${dm[2]}px; color: ${Lk.text}; background: ${Lk.bg}; backdrop-filter: blur(30px) saturate(180%); -webkit-backdrop-filter: blur(30px) saturate(180%); border: 1px solid ${Lk.border}; box-shadow: 0 14px 34px rgba(8,28,60,0.28), inset 0 1px 0 rgba(255,255,255,0.5)">
+${body}
+</div>
+</div>`;
+  return { html, scale: sc, hidRows, cap, multi, ids };
 }

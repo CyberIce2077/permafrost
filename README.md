@@ -74,12 +74,13 @@ network card (`sudo ethtool -s <interface> wol g`).
 Add them like any other widget: right-click the desktop, choose **Edit Widgets…**, and find
 **Ice Servers**. They work on the desktop and in Notification Center, with or without the app running.
 
-- **Settings › Widgets** chooses the servers (up to 4) and stats the widgets show.
-- **Right-click › Edit Widget** sets up one widget on its own: name, servers (up to 4), stats,
-  style and appearance. Anything left empty follows Settings › Widgets.
-- **Ice Servers › Widget Settings…** fine-tunes each size: one server or all, bars/rings/graphs,
-  and glass/tinted/clear.
-- Widgets fetch fresh numbers over SSH on their own. macOS decides how often (usually every few
+- **Settings › Widgets** (or **Custom Widgets** in the sidebar) is where you design widgets:
+  name, size, servers (or all of them), stats in the order you pick, bars/rings/graphs/numbers,
+  glass/tinted/clear, and power & restart buttons on Large and Extra Large. Start from a template
+  or from scratch; each size shows as many servers and stats as fit, then "+N more".
+- **Right-click a widget › Edit Widget** picks which design it shows. Widgets that haven't picked
+  one show the first design. Saving a design updates every widget that uses it.
+- While the app runs, widgets use its live stats. Otherwise they fetch fresh numbers over SSH on their own. macOS decides how often (usually every few
   minutes); while the app is open it also refreshes them whenever something changes.
 - Clicking a widget opens the app. Its power, restart and update buttons open the app, which asks
   before doing anything to the server.

@@ -9,10 +9,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var servers: [Server] = []
     var main: Panel!
     var settings: Panel?
-    var widgetEditor: Panel?
     let alerts = Alerts()
     let menuBar = MenuBar()
     private var undo: (server: Server, index: Int, forget: Bool, timer: Timer)?
+    private var deletedDesign: (design: Design, index: Int)?
+    /// How many desktop widgets use each design, by id.
+    private var placed: [String: Int] = [:]
 
     var prefs: Prefs {
         get { config.prefs ?? Prefs() }
@@ -33,6 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             config.servers = Store.shellAliases()
         }
+        if config.designs == nil { config.designs = [.overview] }
         servers = config.servers.map(Server.init)
         buildMenu()
 
@@ -46,9 +49,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.servers.filter { $0.phase == "online" }.forEach { $0.countUpdates() }
         }
         save()
+        countPlaced()
         NSApp.activate()
         application(NSApp, open: pendingURLs)
     }
+
+    /// Desktop widgets may have been added or changed in Edit Widget while the app was in the back.
+    func applicationDidBecomeActive(_ note: Notification) { countPlaced() }
 
     /// With the menu bar item on, closing the window keeps the app (and its alerts) running.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { !prefs.menubar }
@@ -92,7 +99,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 state["select"] = id
                 self.selectID = nil
             }
-            state["widgets"] = ["S", "M", "L", "XL"].reduce(into: [String: Any]()) { $0[$1] = self.config.widgets[$1, default: WidgetStyle()].json }
+            state["designs"] = (self.config.designs ?? []).map(\.json)
+            state["placed"] = self.placed
             self.main.render(state)
             Store.saveLive(self.servers.map { s in
                 var st = s.parser.stats
@@ -107,7 +115,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             self.settings?.render(state)
             self.menuBar.update()
-            self.widgetEditor?.render(state)
         }
     }
 
@@ -183,25 +190,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case "install": server?.installUpdates()
         case "check": server?.checkUpdates()
         case "menu": if p === main { serverMenu(server, in: p) }
-        case "set": setWidgetStyle(m["size"] as? String ?? "", m["patch"] as? [String: Any] ?? [:])
         // Settings › Widgets
-        case "serverWidgets":
-            guard let s = server else { return }
-            let on = m["on"] as? Bool ?? true
-            if on, servers.filter({ $0.cfg.widgets ?? true }).count >= maxServersPerWidget { return }
-            s.cfg.widgets = on
+        case "saveDesign":
+            guard let data = try? JSONSerialization.data(withJSONObject: m["design"] ?? [:]),
+                  let d = try? JSONDecoder().decode(Design.self, from: data) else { return }
+            var list = config.designs ?? []
+            if let i = list.firstIndex(where: { $0.id == d.id }) { list[i] = d } else { list.append(d) }
+            config.designs = list
             save()
             changed()
-        case "wStat":
-            // On in every size → off everywhere; otherwise on everywhere. Each size keeps at least one stat.
-            guard let key = m["key"] as? String else { return }
-            let sizes = ["S", "M", "L", "XL"]
-            let on = sizes.allSatisfy { config.widgets[$0, default: WidgetStyle()].metrics[key] == true }
-            for size in sizes {
-                var w = config.widgets[size, default: WidgetStyle()]
-                w.metrics[key] = !on
-                if w.metrics.values.contains(true) { config.widgets[size] = w }
-            }
+        case "dupDesign":
+            guard var list = config.designs, let i = list.firstIndex(where: { $0.id == m["id"] as? String }) else { return }
+            var copy = list[i]
+            copy.id = UUID().uuidString
+            copy.name += " copy"
+            list.insert(copy, at: i + 1)
+            config.designs = list
+            save()
+            changed()
+        case "deleteDesign":
+            // Widgets using it fall back to the default (first) design until Undo.
+            guard var list = config.designs, let i = list.firstIndex(where: { $0.id == m["id"] as? String }) else { return }
+            deletedDesign = (list.remove(at: i), i)
+            config.designs = list
+            save()
+            changed()
+        case "undoDesign":
+            guard let (d, i) = deletedDesign else { return }
+            deletedDesign = nil
+            var list = config.designs ?? []
+            list.insert(d, at: min(i, list.count))
+            config.designs = list
             save()
             changed()
         // Add Server wizard
@@ -240,7 +259,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             settingsPane = m["pane"] as? String
             showSettings()
             changed()
-        case "showWidgets": showWidgetEditor()
         case "showAdd":
             showMain()
             main.call("showAdd")
@@ -317,7 +335,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         u.timer.invalidate()
         undo = nil
         if u.forget { u.server.forgetPassword() }
-        for (size, w) in config.widgets where w.server == u.server.cfg.id { config.widgets[size]?.server = "all" }
+        for i in (config.designs ?? []).indices { config.designs?[i].servers.removeAll { $0 == u.server.cfg.id } }
         save()
     }
 
@@ -363,29 +381,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func showSettings() {
         if settings == nil {
-            settings = Panel(page: "settings", size: NSSize(width: 1000, height: 680), radius: 28)
+            settings = Panel(page: "settings", size: NSSize(width: 1180, height: 760), radius: 28)
             settings?.look(prefs)
         }
         settings?.window.makeKeyAndOrderFront(nil)
         NSApp.activate()
+        countPlaced()
     }
 
-    @objc func showWidgetEditor() {
-        if widgetEditor == nil { widgetEditor = Panel(page: "widgets", size: NSSize(width: 1280, height: 820), radius: 16, glass: false) }
+    @objc func showCustomWidgets() {
+        settingsPane = "widgets"
+        showSettings()
         changed()
-        widgetEditor?.window.makeKeyAndOrderFront(nil)
-        NSApp.activate()
     }
 
-    private func setWidgetStyle(_ size: String, _ patch: [String: Any]) {
-        guard ["S", "M", "L", "XL"].contains(size) else { return }
-        var dict = config.widgets[size, default: WidgetStyle()].json
-        patch.forEach { dict[$0] = $1 }
-        guard let data = try? JSONSerialization.data(withJSONObject: dict),
-              let style = try? JSONDecoder().decode(WidgetStyle.self, from: data) else { return }
-        config.widgets[size] = style
-        save()
-        changed()
+    /// Counts the desktop widgets using each design; a widget with no pick shows the default (first) one.
+    func countPlaced() {
+        WidgetCenter.shared.getCurrentConfigurations { result in
+            guard case .success(let widgets) = result else {
+                if case .failure(let e) = result { NSLog("Ice Servers: can't read desktop widgets: %@", e.localizedDescription) }
+                return
+            }
+            let fallback = self.config.designs?.first?.id ?? Design.overview.id
+            var counts: [String: Int] = [:]
+            for w in widgets where w.kind == "IceServers" {
+                let id = w.widgetConfigurationIntent(of: ConfigureWidget.self)?.design?.id
+                let known = self.config.designs?.contains { $0.id == id } == true
+                counts[known ? id! : fallback, default: 0] += 1
+            }
+            DispatchQueue.main.async {
+                guard counts != self.placed else { return }
+                self.placed = counts
+                self.changed()
+            }
+        }
     }
 
     // MARK: dialogs
@@ -465,7 +494,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             item("About Ice Servers", #selector(NSApplication.orderFrontStandardAboutPanel(_:))),
             .separator(),
             item("Settings…", #selector(showSettings), ",", self),
-            item("Widget Settings…", #selector(showWidgetEditor), "", self),
+            item("Custom Widgets…", #selector(showCustomWidgets), "", self),
             .separator(),
             item("Hide Ice Servers", #selector(NSApplication.hide(_:)), "h"),
             item("Quit Ice Servers", #selector(NSApplication.terminate(_:)), "q"),
@@ -635,7 +664,5 @@ final class Panel: NSObject, WKScriptMessageHandler, NSWindowDelegate {
         guard self !== ice.main else { return }
         web.configuration.userContentController.removeScriptMessageHandler(forName: "ice")
         if self === ice.settings { ice.settings = nil }
-        if self === ice.widgetEditor { ice.widgetEditor = nil }
-        if self === ice.settings || self === ice.widgetEditor { ice.changed() }
     }
 }

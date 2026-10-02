@@ -26,6 +26,14 @@ main > * { flex-shrink: 0; }
 <div style="padding: 0 10px 6px; font-size: 12px; font-weight: 600; color: var(--sub); letter-spacing: 0.02em">Servers</div>
 <div id="list" style="display: contents"></div>
 <div style="flex-grow: 1"></div>
+<button data-cmd="customWidgets" aria-label="Custom widgets: design widgets for your desktop" style="box-sizing: content-box; display: flex; align-items: center; gap: 12px; margin: 0 2px 6px; padding: 12px; border-radius: 16px; cursor: pointer; text-align: left; color: var(--text); background: rgba(255,255,255,calc(0.78 * var(--wk))); border: 1px solid rgba(255,255,255,calc(0.95 * var(--wk))); box-shadow: 0 6px 18px rgba(20,40,80,0.10), inset 0 1px 0 rgba(255,255,255,calc(1 * var(--wk)))">
+<span style="width: 36px; height: 36px; flex-shrink: 0; border-radius: 11px; display: flex; align-items: center; justify-content: center; background: linear-gradient(160deg, #FFC46B, #FF9500); box-shadow: inset 0 1px 0 rgba(255,255,255,0.5)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="2"></rect><rect x="13" y="3" width="8" height="8" rx="2"></rect><rect x="3" y="13" width="18" height="8" rx="2"></rect></svg></span>
+<span style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 13px; font-weight: 700">Custom Widgets</span>
+<span style="font-size: 12px; line-height: 1.3; color: var(--sub2)">Design widgets for your desktop</span>
+</span>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8A8A8E" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0"><path d="M9 5l7 7-7 7"></path></svg>
+</button>
 <div style="display: flex; align-items: center; gap: 6px">
 <button data-cmd="showAdd" aria-label="Add server" style="flex-grow: 1; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; border: 0; border-radius: 12px; background: transparent; font-size: 13px; font-weight: 600; color: var(--accent); cursor: pointer">
 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
@@ -587,6 +595,7 @@ function act(d) {
     case 'qeCancelRemove': qe.confirming = false; return qeRender();
     case 'qeRemove': post({ cmd: 'removeServer', id: qe.id, forget: true }); return closeQe();
     case 'qeAll': closeQe(); return post({ cmd: 'showSettings', pane: 'servers' });
+    case 'customWidgets': return post({ cmd: 'showSettings', pane: 'widgets' });
     case 'qeSave':
       if (!qeValid()) return;
       post({ cmd: 'editServer', id: qe.id, ...qe.d });

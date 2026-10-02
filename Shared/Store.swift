@@ -17,20 +17,41 @@ struct ServerConfig: Codable {
     var menu: Bool?
 }
 
-/// What the widgets of one size show. Keyed by size ("S", "M", "L", "XL") in `Config.widgets`.
-struct WidgetStyle: Codable {
-    var server = "all"
-    var metrics = ["cpu": true, "mem": true, "temp": true, "net": false, "disk": true]
-    var style = "bars"
-    var look = "glass"
-}
+/// A widget design from Settings › Widgets. Each desktop widget picks one in Edit Widget.
+struct Design: Codable, Equatable {
+    var id = UUID().uuidString
+    var name: String
+    /// The size it's designed (and previewed) at: "S", "M", "L" or "XL". On the desktop it fills whatever size the widget is.
+    var size = "M"
+    /// Every server shown in widgets (`ServerConfig.widgets`), including ones added later.
+    var all = true
+    var servers: [String] = []
+    /// In the order they're shown: "cpu", "mem", "net", "disk", "temp".
+    var stats = ["cpu", "temp"]
+    var style = "bars"  // bars rings graph numbers
+    var look = "glass"  // glass tinted clear
+    /// Power, Restart and Updates buttons (Large and Extra Large only).
+    var controls = false
 
-/// Widgets lay out at most this many servers; more would break the design.
-let maxServersPerWidget = 4
+    static let overview = Design(id: "overview", name: "Overview", size: "XL", stats: ["cpu", "mem", "disk", "temp"], controls: true)
+
+    /// The servers it shows, in order.
+    func servers(in config: Config) -> [ServerConfig] {
+        all ? config.servers.filter { $0.widgets ?? true } : servers.compactMap { id in config.servers.first { $0.id == id } }
+    }
+
+    /// How much fits at a size: server rows and stats (per server when there are several).
+    static func caps(size: String, style: String, controls: Bool, multi: Bool) -> (rows: Int, stats: Int) {
+        let ctl = controls && (size == "L" || size == "XL")
+        if multi { return (["S": 4, "M": 4, "L": 5, "XL": 5][size] ?? 4, ["S": 1, "M": 2, "L": ctl ? 2 : 3, "XL": 5][size] ?? 2) }
+        return (1, ["S": style == "bars" ? 3 : 2, "M": 4, "L": 6, "XL": 6][size] ?? 4)
+    }
+}
 
 struct Config: Codable {
     var servers: [ServerConfig] = []
-    var widgets: [String: WidgetStyle] = [:]
+    /// Widget designs; the first is the default for widgets that haven't picked one.
+    var designs: [Design]?
     /// Ask for Touch ID (or the Mac's password) before a saved sudo password is used.
     var touchID: Bool?
     var prefs: Prefs?
