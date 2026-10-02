@@ -137,9 +137,15 @@ final class Server {
     func powerOff() { systemctl("poweroff", action: "Shutting down", busy: "stopping") }
     func restart() { systemctl("reboot", action: "Restart", busy: "restarting") }
 
+    /// Scheduled 3 s out, so the command returns and SSH closes cleanly before systemd shuts the
+    /// server down in order. The server decides before sudo runs: `--when` needs systemd 254+,
+    /// and a passwordless rule may only allow the plain command. Otherwise the plain command runs.
     private func systemctl(_ verb: String, action: String, busy: String) {
         guard phase == "online" else { return }
-        sudo("systemctl \(verb)", action: action, busy: busy) { [self] status, out in
+        let when = "--when=+3s"
+        let ok = sudoMode == "nopass" ? "sudo -n -l systemctl \(verb) \(when) >/dev/null 2>&1"
+            : "[ \"$(systemctl --version | awk 'NR==1{print $2}')\" -ge 254 ] 2>/dev/null"
+        sudo("systemctl \(verb) $(\(ok) && echo \(when))", action: action, busy: busy) { [self] status, out in
             // 255 = ssh lost the connection, which is what a shutdown looks like.
             if status == 0 || status == 255 {
                 holdUntil = Date() + 15
