@@ -5,9 +5,6 @@
 <title>Ice Servers</title>
 <link rel="stylesheet" href="common.css">
 <style>
-.light { width: 12px; height: 12px; padding: 0; border: 0; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
-.light svg { opacity: 0; }
-.lights:hover .light svg { opacity: 1; }
 main::-webkit-scrollbar { display: none; }
 main > * { flex-shrink: 0; }
 .qe-field { box-sizing: border-box; width: 100%; height: 40px; padding: 0 12px; border-radius: 11px; border: 1px solid rgba(60,60,67,0.2); background: #FFFFFF; font-size: 14px; font-weight: 400; color: #1D1D1F; outline: none; }
@@ -15,14 +12,10 @@ main > * { flex-shrink: 0; }
 </style>
 </head>
 <body>
-<div style="position: fixed; inset: 0; padding: 10px; display: flex; gap: 10px; border-radius: 28px; background: var(--win); border: 1px solid rgba(255,255,255,calc(0.65 * var(--wk))); box-shadow: inset 0 1px 0 rgba(255,255,255,calc(0.9 * var(--wk)))">
+<div class="shell">
 
-<nav aria-label="Servers" style="width: 248px; flex-shrink: 0; box-sizing: border-box; padding: 16px 12px 12px; display: flex; flex-direction: column; gap: 6px; border-radius: 20px; background: rgba(255,255,255,calc(0.5 * var(--wk))); border: 1px solid rgba(255,255,255,calc(0.75 * var(--wk))); box-shadow: 0 8px 24px rgba(20,40,80,0.08), inset 0 1px 0 rgba(255,255,255,calc(0.95 * var(--wk)))">
-<div class="lights" style="display: flex; gap: 8px; padding: 0 6px 18px">
-<button class="light" data-cmd="close" aria-label="Close" style="background: #FF5F57"><svg width="6" height="6" viewBox="0 0 6 6" stroke="rgba(0,0,0,0.5)" stroke-width="1.2" stroke-linecap="round"><path d="M1 1l4 4M5 1L1 5"></path></svg></button>
-<button class="light" data-cmd="minimize" aria-label="Minimize" style="background: #FEBC2E"><svg width="8" height="8" viewBox="0 0 8 8" stroke="rgba(0,0,0,0.5)" stroke-width="1.2" stroke-linecap="round"><path d="M1 4h6"></path></svg></button>
-<button class="light" data-cmd="zoom" aria-label="Zoom" style="background: #28C840"><svg width="6" height="6" viewBox="0 0 6 6" fill="rgba(0,0,0,0.5)"><path d="M0 0h4L0 4zM6 6H2l4-4z"></path></svg></button>
-</div>
+<nav class="side" aria-label="Servers">
+<div id="lights"></div>
 <div style="padding: 0 10px 6px; font-size: 12px; font-weight: 600; color: var(--sub); letter-spacing: 0.02em">Servers</div>
 <div id="list" style="display: contents"></div>
 <div style="flex-grow: 1"></div>
@@ -58,6 +51,7 @@ Add Server
 
 <script src="common.js"></script>
 <script>
+$('lights').outerHTML = LIGHTS;
 let S = { servers: [] }, sel = null;
 
 const CARD = 'box-sizing: border-box; height: 164px; padding: 16px 18px; border-radius: 22px; background: rgba(255,255,255,calc(0.72 * var(--wk))); border: 1px solid rgba(255,255,255,calc(0.9 * var(--wk))); box-shadow: 0 6px 20px rgba(20,40,80,0.07), inset 0 1px 0 rgba(255,255,255,calc(1 * var(--wk)))';

@@ -96,6 +96,12 @@ document.addEventListener('click', (e) => {
 addEventListener('load', () => post({ cmd: 'ready' }));
 
 // Toast and sudo password sheet, shared by the main window and Settings (design: SudoPrompt).
+// The window's close, minimize and zoom buttons (common.css › .lights).
+const LIGHTS = `<div class="lights">
+<button class="light" data-cmd="close" aria-label="Close" style="background: #FF5F57"><svg width="6" height="6" viewBox="0 0 6 6" stroke="rgba(0,0,0,0.5)" stroke-width="1.2" stroke-linecap="round"><path d="M1 1l4 4M5 1L1 5"></path></svg></button>
+<button class="light" data-cmd="minimize" aria-label="Minimize" style="background: #FEBC2E"><svg width="8" height="8" viewBox="0 0 8 8" stroke="rgba(0,0,0,0.5)" stroke-width="1.2" stroke-linecap="round"><path d="M1 4h6"></path></svg></button>
+<button class="light" data-cmd="zoom" aria-label="Zoom" style="background: #28C840"><svg width="6" height="6" viewBox="0 0 6 6" fill="rgba(0,0,0,0.5)"><path d="M0 0h4L0 4zM6 6H2l4-4z"></path></svg></button>
+</div>`;
 const LOCK = (px, stroke = '#FFFFFF') => `<svg width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>`;
 const CHECK = (px, w) => `<svg width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>`;
 const OVERLAY = 'position: fixed; inset: 0; border-radius: 28px; display: flex; align-items: center; justify-content: center';
