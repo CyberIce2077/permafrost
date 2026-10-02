@@ -43,7 +43,8 @@ function renderWidget(d, servers, maxW, maxH) {
   const stats = d.stats.filter((k) => W_DEFS[k]);
   const empty = ids.length === 0 || stats.length === 0;
   const single = !empty && ids.length === 1, multi = !empty && ids.length > 1;
-  const big = d.size === 'L' || d.size === 'XL', ctl = !!d.controls && big, small = d.size === 'S';
+  // Medium gets buttons too, as icons, but only for one server.
+  const big = d.size === 'L' || d.size === 'XL', ctl = !!d.controls && (big || (d.size === 'M' && single)), small = d.size === 'S';
   const cap = designCaps(d, multi);
   const titleStyle = `font-size: ${d.size === 'XL' ? '17px' : small ? '13px' : '15px'}; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: ${Lk.text}; text-shadow: ${Lk.shadow}`;
   const subPlain = `font-size: 11px; font-weight: 600; white-space: nowrap; color: ${Lk.sub}; text-shadow: ${Lk.shadow}`;
@@ -54,7 +55,7 @@ function renderWidget(d, servers, maxW, maxH) {
   if (single) {
     const s = ids[0], off = !LIVE.includes(s.phase);
     const shown = stats.slice(0, cap.stats), n = shown.length;
-    const cols = small ? (d.style === 'bars' ? 1 : Math.min(2, n)) : d.size === 'M' ? (d.style === 'bars' ? Math.min(2, n) : Math.min(4, n)) : d.size === 'L' ? Math.min(2, n) : Math.min(3, n);
+    const cols = small ? (d.style === 'bars' ? 1 : Math.min(2, n)) : d.size === 'M' ? (d.style === 'rings' || d.style === 'numbers' ? Math.min(4, n) : Math.min(2, n)) : d.size === 'L' ? Math.min(2, n) : Math.min(3, n);
     const tiles = shown.map((k, mi) => {
       const df = W_DEFS[k], [v, txt, hist] = wReading(k, s);
       const label = `<span style="font-size: 11px; font-weight: 600; white-space: nowrap; color: ${Lk.sub}; text-shadow: ${Lk.shadow}">${small ? df[1] : df[0]}</span>`;
@@ -79,10 +80,13 @@ ${label}<span style="font-size: ${small ? '22px' : '28px'}; font-weight: 700; le
 <span style="${titleStyle}">${esc(s.name)}</span>
 <span style="display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; white-space: nowrap; color: ${off ? Lk.sub : Lk.ok}; text-shadow: ${Lk.shadow}"><span style="width: 6px; height: 6px; border-radius: 3px; flex-shrink: 0; background: ${off ? '#8E8E93' : '#30D158'}"></span>${off ? 'Offline' : small ? 'Online' : 'Online · up ' + uptime(s.uptime, true)}</span>
 </div>
-${ctl ? `<span style="width: 40px; height: 40px; flex-shrink: 0; border-radius: 20px; display: flex; align-items: center; justify-content: center; background: ${off ? 'rgba(120,120,128,0.45)' : '#248A3D'}">${POWER_SVG}</span>` : ''}
+<div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0">
+${ctl && d.size === 'M' ? `<span style="box-sizing: content-box; width: 34px; height: 34px; border-radius: 17px; display: flex; align-items: center; justify-content: center; color: ${Lk.text}; background: ${Lk.btnBg}; border: 1px solid ${Lk.border}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"></path><path d="M20 4v7h-7"></path></svg></span><span style="position: relative; width: 34px; height: 34px; border-radius: 17px; display: flex; align-items: center; justify-content: center; background: #0066CC"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"></path></svg>${!off && s.updates > 0 ? '<span style="position: absolute; top: 0; right: 0; box-sizing: content-box; width: 9px; height: 9px; border-radius: 5px; background: #FF3B30; border: 1.5px solid #FFFFFF"></span>' : ''}</span>` : ''}
+${ctl ? `<span style="width: ${d.size === 'M' ? 34 : 40}px; height: ${d.size === 'M' ? 34 : 40}px; flex-shrink: 0; border-radius: 20px; display: flex; align-items: center; justify-content: center; background: ${off ? 'rgba(120,120,128,0.45)' : '#248A3D'}">${POWER_SVG}</span>` : ''}
+</div>
 </div>
 <div style="flex-grow: 1; min-height: 0; display: grid; grid-template-columns: repeat(${Math.max(1, cols)}, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 8px">${tiles}</div>
-${ctl ? `<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+${ctl && big ? `<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
 <span style="${btn}; box-sizing: content-box; color: ${Lk.text}; background: ${Lk.btnBg}; border: 1px solid ${Lk.border}">Restart</span>
 <span style="${btn}; color: #FFFFFF; background: #0066CC">${s.updates ? s.updates + ' Updates' : 'Check Updates'}</span>
 </div>` : ''}`;

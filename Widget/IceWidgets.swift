@@ -87,7 +87,8 @@ struct Provider: AppIntentTimelineProvider {
         let lock = NSLock()
         DispatchQueue.concurrentPerform(iterations: servers.count) { i in
             // The app's live stats when it's running; otherwise a short SSH session of our own.
-            let s = live?.first { $0.id == servers[i].id } ?? Self.stats(servers[i])
+            var s = live?.first { $0.id == servers[i].id } ?? Self.stats(servers[i])
+            s.color = servers[i].color
             lock.withLock { results[i] = s }
         }
         // Rows that don't fit only count as online when the app's live stats say so.
@@ -122,7 +123,7 @@ struct Provider: AppIntentTimelineProvider {
             let wave = (0..<12).map { 30 + 12 * sin(Double($0) * 0.9 + Double(i)) }
             return Stats(id: c.id, name: c.name, online: true, cpu: wave, mem: wave.map { $0 + 25 },
                          down: wave.map { $0 / 2 }, up: wave.map { $0 / 5 }, temp: wave.map { $0 + 18 }, memUsed: 19.5, memTotal: 32,
-                         diskUsed: 580, diskTotal: 1000, diskFree: 420, uptime: 1_036_800, updates: 0)
+                         diskUsed: 580, diskTotal: 1000, diskFree: 420, uptime: 1_036_800, updates: 0, color: c.color)
         }
         return Entry(size: size(context), design: d, servers: demo, total: max(all.count, demo.count), online: max(all.count, demo.count), prefs: config.prefs ?? Prefs())
     }

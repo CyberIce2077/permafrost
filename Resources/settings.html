@@ -198,7 +198,8 @@ ${(S.designs || []).map((d) => `<article aria-label="${esc(d.name)}" style="box-
     // The editor fills the window (design: WidgetEdit): preview on the left, options on the right.
     const d = ws.draft, isNew = ws.id === 'new';
     const r = renderWidget(d, S.servers, 640, 560), multi = r.ids.length > 1, cap = designCaps(d, multi);
-    const big = d.size === 'L' || d.size === 'XL', ctlOn = !!d.controls && big, n = placed(d);
+    const big = d.size === 'L' || d.size === 'XL', n = placed(d);
+    const ctlAvail = big || (d.size === 'M' && r.ids.length === 1), ctlOn = !!d.controls && ctlAvail;
     const chip = (label, on, cmd, val, lead, num) => `<button data-cmd="${cmd}" data-val="${val}" aria-pressed="${on}" style="display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 0 13px; border-radius: 18px; cursor: pointer; font-size: 13px; font-weight: 600; white-space: nowrap; color: ${on ? '#FFFFFF' : text}; background: ${on ? acc : softBg}; border: 1px solid ${on ? acc : hair}"><span style="${lead || 'display: none'}">${num || ''}</span>${esc(label)}</button>`;
     const hint = (t, warn) => t ? `<span style="font-size: 12px; line-height: 1.4; color: ${warn ? (dark ? '#FFD08A' : '#8A3B00') : sub}">${esc(t)}</span>` : '';
     const selCount = d.all ? S.servers.length : d.servers.length;
@@ -247,7 +248,7 @@ ${field('Stats', `<div style="display: flex; flex-wrap: wrap; gap: 8px">${W_ORDE
     }).join('')}</div>${statHint}`)}
 ${field('Style', segs([['bars', 'Bars'], ['rings', 'Rings'], ['graph', 'Graphs'], ['numbers', 'Numbers']], d.style, 'wsStyle'))}
 ${field('Appearance', segs([['glass', 'Glass'], ['tinted', 'Tinted'], ['clear', 'Clear']], d.look, 'wsLook'))}
-<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px"><div style="display: flex; flex-direction: column; gap: 2px"><span style="${ui.label}">Power &amp; restart buttons</span><span style="${ui.sub}">${big ? (multi ? 'A power button on each server row.' : 'Power, Restart and Updates. Sudo runs lock like in the app.') : 'Available on Large and Extra Large.'}</span></div>${swRow('Power and restart buttons', '', 'wsCtl', ctlOn, big)}</div>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px"><div style="display: flex; flex-direction: column; gap: 2px"><span style="${ui.label}">Power &amp; restart buttons</span><span style="${ui.sub}">${big ? (multi ? 'A power button on each server row.' : 'Power, Restart and Updates. Sudo runs lock like in the app.') : d.size === 'M' ? (r.ids.length === 1 ? 'Restart, Update and Power as icons next to the name.' : 'On Medium, buttons need a single server.') : 'Available on Medium (one server), Large and Extra Large.'}</span></div>${swRow('Power and restart buttons', '', 'wsCtl', ctlOn, ctlAvail)}</div>
 </div>
 </div>
 </div>`;

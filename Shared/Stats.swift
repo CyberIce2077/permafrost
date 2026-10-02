@@ -11,6 +11,8 @@ struct Stats: Codable {
     var memUsed = 0.0, memTotal = 0.0, diskUsed = 0.0, diskTotal = 0.0, diskFree = 0.0, uptime = 0.0
     var updates: Int?
     var mac: String?
+    /// The server's icon color, for widgets that show its icon.
+    var color: String?
 
     var disk: Double { diskUsed + diskFree > 0 ? diskUsed / (diskUsed + diskFree) * 100 : 0 }
 }
