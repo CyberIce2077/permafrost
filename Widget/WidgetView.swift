@@ -228,9 +228,11 @@ struct WidgetView: View {
         let updates = s.online ? s.updates ?? 0 : 0
         return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
+                // The app's server icon (sidebar), at 32 pt.
                 RoundedRectangle(cornerRadius: 10)
                     .fill(serverColor(s.color))
                     .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.white.opacity(0.5), lineWidth: 0.5).mask(alignment: .top) { Rectangle().frame(height: 1) })
+                    .overlay(ServerGlyph().stroke(.white, style: StrokeStyle(lineWidth: 1.8 * 18 / 24, lineCap: .round, lineJoin: .round)).frame(width: 18, height: 18))
                     .frame(width: 32, height: 32)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(s.name).font(.system(size: 14, weight: .bold)).foregroundStyle(L.text).lineLimit(1)
@@ -490,6 +492,20 @@ private struct Sparkline: Shape {
             let pt = CGPoint(x: r.width * Double(i) / Double(values.count - 1),
                              y: r.height * (54 - min(max(v, 0), 100) / 100 * 50) / 56)
             i == 0 ? p.move(to: pt) : p.addLine(to: pt)
+        }
+        return p
+    }
+}
+
+/// The app's server symbol (common.js › ICON.server): two racks with a light each, 24×24.
+private struct ServerGlyph: Shape {
+    func path(in r: CGRect) -> Path {
+        let k = r.width / 24
+        var p = Path()
+        for y in [4.0, 13.0] {
+            p.addRoundedRect(in: CGRect(x: 3 * k, y: y * k, width: 18 * k, height: 7 * k), cornerSize: CGSize(width: 2 * k, height: 2 * k))
+            p.move(to: CGPoint(x: 7 * k, y: (y + 3.5) * k))
+            p.addLine(to: CGPoint(x: 7.01 * k, y: (y + 3.5) * k))
         }
         return p
     }

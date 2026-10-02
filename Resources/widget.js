@@ -75,10 +75,14 @@ ${label}<span style="font-size: ${small ? '22px' : '28px'}; font-weight: 700; le
       return `<div style="box-sizing: border-box; min-width: 0; min-height: 0; padding: ${small ? '5px 8px' : '8px 10px'}; border-radius: 14px; background: ${Lk.tile}">${inner}</div>`;
     }).join('');
     const btn = `height: 40px; border-radius: 20px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600`;
+    // Medium shows the server's icon from the app, as on the desktop.
+    const icon = d.size === 'M' ? `<span style="width: 32px; height: 32px; flex-shrink: 0; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: ${SERVER_COLORS[s.color] || SERVER_COLORS.blue}; box-shadow: inset 0 1px 0 rgba(255,255,255,0.5)">${ICON.server.replace('width="20" height="20"', 'width="18" height="18"')}</span>` : '';
     body = `<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px">
+<div style="display: flex; align-items: center; gap: 10px; min-width: 0">${icon}
 <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
 <span style="${titleStyle}">${esc(s.name)}</span>
 <span style="display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; white-space: nowrap; color: ${off ? Lk.sub : Lk.ok}; text-shadow: ${Lk.shadow}"><span style="width: 6px; height: 6px; border-radius: 3px; flex-shrink: 0; background: ${off ? '#8E8E93' : '#30D158'}"></span>${off ? 'Offline' : small ? 'Online' : 'Online · up ' + uptime(s.uptime, true)}</span>
+</div>
 </div>
 <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0">
 ${ctl && d.size === 'M' ? `<span style="box-sizing: content-box; width: 34px; height: 34px; border-radius: 17px; display: flex; align-items: center; justify-content: center; color: ${Lk.text}; background: ${Lk.btnBg}; border: 1px solid ${Lk.border}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"></path><path d="M20 4v7h-7"></path></svg></span><span style="position: relative; width: 34px; height: 34px; border-radius: 17px; display: flex; align-items: center; justify-content: center; background: #0066CC"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"></path></svg>${!off && s.updates > 0 ? '<span style="position: absolute; top: 0; right: 0; box-sizing: content-box; width: 9px; height: 9px; border-radius: 5px; background: #FF3B30; border: 1.5px solid #FFFFFF"></span>' : ''}</span>` : ''}
