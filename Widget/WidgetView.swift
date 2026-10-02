@@ -98,6 +98,7 @@ struct WidgetView: View {
         let (title, body, short) = switch why {
         case "create": ("Create a design", "Make a \(sizeName) design in Permafrost › Custom Widgets, then pick it with right‑click › Edit Widget.", "Open Permafrost")
         case "gone": ("Design deleted", "This widget's design was deleted. Right‑click › Edit Widget to pick another.", "Right‑click › Edit Widget")
+        case "resized": ("Design resized", "This widget's design is now another size. Right‑click › Edit Widget to pick a \(sizeName) one.", "Right‑click › Edit Widget")
         default: ("Choose a design", "Right‑click this widget › Edit Widget and pick one of your designs from Permafrost.", "Right‑click › Edit Widget")
         }
         return VStack(spacing: small ? 6 : 8) {

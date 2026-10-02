@@ -47,8 +47,21 @@ enum Passwordless {
         return Dictionary(uniqueKeysWithValues: commands.map { ($0.0, covers($0.1)) })
     }
 
-    /// Signs in the way the wizard was told to and reads the server's passwordless rules.
-    static func check(_ d: Draft, done: @escaping ([String: Bool]?, String) -> Void) {
+    /// Signs in the way the wizard was told to and reads the server's passwordless rules. A server this
+    /// Mac doesn't know yet gets `trust` (its host key) instead, so ssh never sees an unknown host:
+    /// that would fail with a key, or have the password answer ssh's yes/no question.
+    static func check(_ d: Draft, done: @escaping ([String: Bool]?, String, HostKey.Scan?) -> Void) {
+        HostKey.known(d) { known in
+            guard known else {
+                return HostKey.scan(d) { scan in
+                    if let scan { done(nil, "", scan) } else { done(nil, "The server didn't send a host key", nil) }
+                }
+            }
+            signIn(d) { done($0, $1, nil) }
+        }
+    }
+
+    private static func signIn(_ d: Draft, done: @escaping ([String: Bool]?, String) -> Void) {
         var args = ["-T", "-o", "ConnectTimeout=5", "-p", d.port]
         var env: [String: String] = [:]
         if d.auth == "pw" {
@@ -63,6 +76,42 @@ enum Passwordless {
             }
             done(allowed(out), "")
         }
+    }
+}
+
+/// The server's host key in ~/.ssh/known_hosts: checked, scanned and added after the user trusts it.
+enum HostKey {
+    /// What `ssh-keyscan` found, and the fingerprint the user is asked about.
+    struct Scan {
+        var lines: String
+        var fingerprint: String
+    }
+
+    static func known(_ d: Draft, done: @escaping (Bool) -> Void) {
+        let spec = d.port == "22" ? d.host : "[\(d.host)]:\(d.port)"
+        Shell.run("/usr/bin/ssh-keygen", ["-F", spec]) { status, _ in done(status == 0) }
+    }
+
+    static func scan(_ d: Draft, done: @escaping (Scan?) -> Void) {
+        Shell.run("/usr/bin/ssh-keyscan", ["-T", "5", "-p", d.port, d.host]) { _, out in
+            let lines = out.split(separator: "\n").filter { !$0.hasPrefix("#") && !$0.isEmpty }.joined(separator: "\n")
+            guard !lines.isEmpty else { return done(nil) }
+            Shell.run("/usr/bin/ssh-keygen", ["-lf", "-"], input: lines) { _, fps in
+                // "256 SHA256:abc… host (ED25519)" → "ED25519 SHA256:abc…"
+                let all = fps.split(separator: "\n").map { $0.split(separator: " ") }.filter { $0.count >= 4 }
+                let pick = all.first { $0.last == "(ED25519)" } ?? all.first
+                let fp = pick.map { "\($0.last!.trimmingCharacters(in: CharacterSet(charactersIn: "()"))) \($0[1])" } ?? ""
+                done(Scan(lines: lines, fingerprint: fp))
+            }
+        }
+    }
+
+    static func trust(_ scan: Scan) {
+        let file = URL(fileURLWithPath: realHome + "/.ssh/known_hosts")
+        let text = (try? String(contentsOf: file, encoding: .utf8)) ?? ""
+        let joined = text.isEmpty || text.hasSuffix("\n") ? text : text + "\n"
+        try? FileManager.default.createDirectory(atPath: realHome + "/.ssh", withIntermediateDirectories: true)
+        try? (joined + scan.lines + "\n").write(to: file, atomically: true, encoding: .utf8)
     }
 }
 
@@ -83,7 +132,7 @@ final class Probe {
     private let d: Draft
     private let report: (_ index: Int, _ state: String, _ note: String, _ fingerprint: String?) -> Void
     private var cancelled = false
-    private var scanned = ""
+    private var scanned: HostKey.Scan?
     var stats: Stats?
 
     init(_ draft: Draft, report: @escaping (Int, String, String, String?) -> Void) {
@@ -123,30 +172,20 @@ final class Probe {
     // 2. Verifying host key: known already, or show the fingerprint and wait for Trust.
     private func hostKey() {
         step(1, "running")
-        let spec = d.port == "22" ? d.host : "[\(d.host)]:\(d.port)"
-        Shell.run("/usr/bin/ssh-keygen", ["-F", spec]) { [self] status, _ in
+        HostKey.known(d) { [self] known in
             guard !cancelled else { return }
-            if status == 0 { step(1, "done", "Trusted"); return signIn() }
-            Shell.run("/usr/bin/ssh-keyscan", ["-T", "5", "-p", d.port, d.host]) { [self] _, out in
-                scanned = out.split(separator: "\n").filter { !$0.hasPrefix("#") && !$0.isEmpty }.joined(separator: "\n")
-                guard !scanned.isEmpty else { return fail(1, "", "The server didn't send a host key") }
-                Shell.run("/usr/bin/ssh-keygen", ["-lf", "-"], input: scanned) { [self] _, fps in
-                    // "256 SHA256:abc… host (ED25519)" → "ED25519 SHA256:abc…"
-                    let lines = fps.split(separator: "\n").map { $0.split(separator: " ") }.filter { $0.count >= 4 }
-                    let pick = lines.first { $0.last == "(ED25519)" } ?? lines.first
-                    let fp = pick.map { "\($0.last!.trimmingCharacters(in: CharacterSet(charactersIn: "()"))) \($0[1])" } ?? ""
-                    step(1, "trust", "", fp)
-                }
+            if known { step(1, "done", "Trusted"); return signIn() }
+            HostKey.scan(d) { [self] scan in
+                guard let scan else { return fail(1, "", "The server didn't send a host key") }
+                scanned = scan
+                step(1, "trust", "", scan.fingerprint)
             }
         }
     }
 
     func trust() {
-        let file = URL(fileURLWithPath: realHome + "/.ssh/known_hosts")
-        let text = (try? String(contentsOf: file, encoding: .utf8)) ?? ""
-        let joined = text.isEmpty || text.hasSuffix("\n") ? text : text + "\n"
-        try? FileManager.default.createDirectory(atPath: realHome + "/.ssh", withIntermediateDirectories: true)
-        try? (joined + scanned + "\n").write(to: file, atomically: true, encoding: .utf8)
+        guard let scanned else { return }
+        HostKey.trust(scanned)
         step(1, "done", "Trusted")
         signIn()
     }
@@ -191,7 +230,7 @@ final class Probe {
         }
     }
 
-    // 4. sudo: check and save the password, or check passwordless sudo.
+    // 4. sudo: check the password (it's saved only when the server is added), or check passwordless sudo.
     private func sudo() {
         step(3, "running")
         switch (d.sudo, d.when) {
@@ -201,8 +240,7 @@ final class Probe {
                 guard status == 0, !out.contains("try again") else {
                     return step(3, "fail", "Incorrect password. sudo on \(d.name) rejected it. Nothing was saved.")
                 }
-                if d.sudo == "always" { LocalSecrets.set(d.id, d.sudoPassword) } else { Keychain.set(d.id, d.sudoPassword) }
-                step(3, "done", "Saved")
+                step(3, "done", "Accepted")
                 read()
             }
         case ("nopass", _):

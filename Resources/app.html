@@ -86,7 +86,7 @@ function render(state) {
 
   set($('list'), list.map(row).join(''));
   const failed = list.find((x) => x.failed);
-  set($('lock'), (lock && lock.op ? banner(lock) : '') + (failed ? failAlert(failed) : ''));
+  set($('lock'), (lock && lock.op ? banner(lock) : '') + (failed ? failAlert(failed, lock) : ''));
   $('head').style.display = s ? 'flex' : 'none';
   $('upd').style.display = s ? 'flex' : 'none';
   set($('head'), s ? header(s, lock) : '');
@@ -129,13 +129,14 @@ ${LOCK(18, ink).replace('<svg ', '<svg style="flex-shrink: 0" ')}
 }
 
 // design: Main › fail: the action ran out of time; the controls are unlocked again.
-function failAlert(f) {
+// Retry waits, like the other controls, while another server runs a sudo action.
+function failAlert(f, lock) {
   return `<div role="alert" style="display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 10px 8px 16px; box-sizing: border-box; border-radius: 16px; background: rgba(255,59,48,0.12); border: 1px solid rgba(255,59,48,0.35)">
 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4000F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0"><circle cx="12" cy="13" r="8"></circle><path d="M12 9v4l2.5 2M9 2h6"></path></svg>
 <span style="font-size: 13px; line-height: 1.4; color: #6E0008"><strong style="font-weight: 700">${esc(f.failed.label)} on ${esc(f.name)} timed out after ${mmss(f.failed.limit)}.</strong> No answer from the server. It may still be working. Controls are unlocked.</span>
 <div style="margin-left: auto; display: flex; gap: 8px; flex-shrink: 0">
 <button data-cmd="dismissTimeout" data-id="${f.id}" style="height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid rgba(196,0,15,0.3); background: #FFFFFF; font-size: 13px; font-weight: 600; color: #1D1D1F; cursor: pointer">Dismiss</button>
-<button data-cmd="retryTimeout" data-id="${f.id}" style="height: 36px; padding: 0 16px; border-radius: 18px; border: 0; background: #C4000F; font-size: 13px; font-weight: 600; color: #FFFFFF; cursor: pointer">Retry</button>
+<button data-cmd="retryTimeout" data-id="${f.id}"${lock ? ' disabled' : ''} style="height: 36px; padding: 0 16px; border-radius: 18px; border: 0; background: #C4000F; font-size: 13px; font-weight: 600; color: #FFFFFF; cursor: ${lock ? 'default' : 'pointer'}; opacity: ${lock ? 0.45 : 1}">Retry</button>
 </div>
 </div>`;
 }
@@ -381,7 +382,7 @@ document.addEventListener('input', (e) => {
 
 let A = null;
 const freshA = () => ({ step: 1, id: crypto.randomUUID(), name: '', host: '', port: '22', user: '', auth: 'key', key: S.key || '~/.ssh/id_ed25519', sshPassword: '',
-  sudo: 'remember', when: 'now', sudoPassword: '', show: false, touchID: true, checks: [0, 1, 2, 3, 4].map(() => ({ state: 'pending', note: '', fp: null })) });
+  sudo: 'remember', when: 'now', sudoPassword: '', show: false, touchID: S.touchID ?? true, checks: [0, 1, 2, 3, 4].map(() => ({ state: 'pending', note: '', fp: null })) });
 
 function showAdd() { A = freshA(); sheet('add'); }
 
@@ -461,7 +462,7 @@ ${A.when === 'now' ? `<div style="display: flex; gap: 8px">
 <button data-cmd="aShow" aria-label="${A.show ? 'Hide password' : 'Show password'}" style="width: 44px; height: 44px; flex-shrink: 0; border-radius: 12px; border: 1px solid rgba(var(--hair),0.2); background: var(--solid); display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
 </div>` : ''}
 ${A.sudo === 'remember' ? `<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
-<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 13px; font-weight: 600">Require Touch ID to use it</span><span style="font-size: 12px; color: var(--sub2)">Confirm with your fingerprint before each sudo action.</span></div>
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 13px; font-weight: 600">Require Touch ID to use it</span><span style="font-size: 12px; color: var(--sub2)">Confirm with your fingerprint before each sudo action. ${S.servers.length ? 'Applies to all your servers.' : ''}</span></div>
 ${toggle(A.touchID, 'aTouch', 'Require Touch ID')}
 </div>` : ''}
 </div>` : ''}
@@ -472,8 +473,8 @@ ${LOCK(18, '#0058B0').replace('<svg ', '<svg style="flex-shrink: 0; margin-top: 
 </div>`;
   }
   if (A.step === 4) {
-    const save = A.when === 'now' ? 'Saving sudo password to Keychain' : 'sudo password will be asked on first use';
-    const sudoLabel = { remember: save, always: A.when === 'now' ? 'Saving sudo password on this Mac' : save, every: 'sudo will ask each time', nopass: 'Checking passwordless sudo' }[A.sudo];
+    const save = A.when === 'now' ? 'Checking sudo password' : 'sudo password will be asked on first use';
+    const sudoLabel = { remember: save, always: save, every: 'sudo will ask each time', nopass: 'Checking passwordless sudo' }[A.sudo];
     const labels = [`Reaching ${esc(host)}:${esc(A.port)}`, 'Verifying host key', `Signing in as ${esc(user)}`, sudoLabel, 'Reading CPU, memory, disk and temperature'];
     body = `<div style="display: flex; flex-direction: column; gap: 10px">${A.checks.map((c, i) => {
       const active = c.state !== 'pending';
@@ -532,6 +533,14 @@ function nopassPanel(user) {
     if (!n) { A.nopass = { checking: true }; post({ cmd: 'checkNopass', draft: draft() }); }
     return `<div style="display: flex; align-items: center; gap: 10px; padding: 14px; border-radius: 16px; background: rgba(255,255,255,calc(0.75 * var(--wk))); border: 1px solid rgba(var(--hair),0.12); font-size: 13px; font-weight: 600">${SPIN(18, 2.6, 'var(--accent)')}Checking what ${esc(A.host.trim())} lets ${esc(user)} run without a password…</div>`;
   }
+  // A server this Mac hasn't seen: trust its host key first, as in the Test step.
+  if (n.fp) return `<div style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px; background: rgba(255,159,10,0.12)">
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0">
+<span style="font-size: 13px; font-weight: 600">First connection. Is this the right server?</span>
+<span style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: #3A3A3C; overflow-wrap: anywhere; -webkit-user-select: text; user-select: text">${esc(n.fp)}</span>
+</div>
+<button data-cmd="nopassTrust" style="height: 36px; flex-shrink: 0; padding: 0 16px; border: 0; border-radius: 18px; background: var(--accent); color: #FFFFFF; font-size: 13px; font-weight: 600; cursor: pointer">Trust</button>
+</div>`;
   const rows = n.error ? `<div style="font-size: 13px; font-weight: 600; color: #C4000F">${esc(n.error)}</div>`
     : [['reboot', 'Restart', 'systemctl reboot'], ['poweroff', 'Shut down', 'systemctl poweroff'], ['apt', 'Check and install updates', 'apt-get']].map(([k, label, cmd]) => {
       const ok = n.allowed[k];
@@ -548,7 +557,7 @@ ${all ? '' : `<div style="display: flex; align-items: flex-end; gap: 12px"><div 
 
 function nopassResult(o) {
   if (!A) return;
-  A.nopass = { allowed: o.allowed, error: o.allowed ? '' : o.error || 'Couldn’t check the server.' };
+  A.nopass = o.fp ? { fp: o.fp } : { allowed: o.allowed, error: o.allowed ? '' : o.error || 'Couldn’t check the server.' };
   sheet('add');
 }
 
@@ -638,6 +647,7 @@ function act(d) {
     case 'aTouch': A.touchID = !A.touchID; return sheet('add');
     case 'chooseKey': return post({ cmd: 'chooseKey' });
     case 'addTrust': return post({ cmd: 'addTrust' });
+    case 'nopassTrust': post({ cmd: 'nopassTrust' }); A.nopass = null; return sheet('add');
     case 'aBack':
       if (A.step === 4) { post({ cmd: 'addCancel' }); A.checks = freshA().checks; }
       A.step--;

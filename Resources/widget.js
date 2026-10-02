@@ -11,8 +11,11 @@ const W_LOOKS = {
 const C1 = 2 * Math.PI * 38, C2 = 2 * Math.PI * 36;
 const POWER_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v8"></path><path d="M6.4 6.6a8 8 0 1 0 11.2 0"></path></svg>';
 
+// The servers widgets may show: not the ones turned off with "Show in widgets".
+const widgetServers = (servers) => servers.filter((s) => s.widgets !== false);
+
 // The servers a design shows (Shared/Store.swift has the same rule).
-const designServers = (d, servers) => d.all ? servers.filter((s) => s.widgets !== false) : d.servers.map((id) => servers.find((s) => s.id === id)).filter(Boolean);
+const designServers = (d, servers) => d.all ? widgetServers(servers) : d.servers.map((id) => servers.find((s) => s.id === id)).filter(Boolean);
 
 function designCaps(d, multi) {
   const ctl = !!d.controls && (d.size === 'L' || d.size === 'XL');

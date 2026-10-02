@@ -54,7 +54,7 @@ struct Entry: TimelineEntry {
     var online = 0
     var prefs = Prefs()
     /// Instead of a design, the widget asks for one: "pick" (none picked yet), "gone" (its design
-    /// was deleted) or "create" (there are no designs of its size yet).
+    /// was deleted), "resized" (its design is now another size) or "create" (there are no designs of its size yet).
     var ask: String?
 }
 
@@ -82,7 +82,11 @@ struct Provider<I: DesignPicking>: AppIntentTimelineProvider {
     /// The picked design, or why there isn't one. There's no built-in default design.
     private func design(_ intent: I, _ config: Config, _ size: String) -> (Design?, ask: String?) {
         let all = config.designs ?? []
-        if let d = all.first(where: { $0.id == intent.design }) { return (d, nil) }
+        // A design changed to another size since it was picked isn't in this widget's Edit Widget list any more.
+        if let d = all.first(where: { $0.id == intent.design }) {
+            if d.size != size { return (nil, "resized") }
+            return (d, nil)
+        }
         let fits = all.contains { $0.size == size }
         return (nil, !fits ? "create" : intent.design == nil ? "pick" : "gone")
     }

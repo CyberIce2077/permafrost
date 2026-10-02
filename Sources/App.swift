@@ -113,7 +113,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.async {
             self.renderQueued = false
             let list = self.servers.map(\.json)
-            var state: [String: Any] = ["servers": list, "touchID": self.config.touchID == true, "prefs": self.prefs.json,
+            var state: [String: Any] = ["servers": list, "touchID": self.config.touchID.map { $0 as Any } ?? NSNull(), "prefs": self.prefs.json,
                                         "key": SSHKey.display(SSHKey.existing ?? SSHKey.defaultPath)]
             if let id = self.selectID {
                 state["select"] = id
@@ -189,12 +189,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Set while running a widget's action with the app in the background.
     private var quietConfirm = false
 
+    /// The host key the passwordless check is waiting for the user to trust.
+    private var nopassKey: HostKey.Scan?
+
     // MARK: messages from the pages
 
     func handle(_ m: [String: Any], from p: Panel) {
         let server = servers.first { $0.cfg.id == m["id"] as? String }
         let cmd = m["cmd"] as? String ?? ""
-        if ["power", "restart", "install", "check"].contains(cmd), let busy = lockedBy {
+        if ["power", "restart", "install", "check", "retryTimeout"].contains(cmd), let busy = lockedBy {
             return toast("Running sudo on \(busy.cfg.name). Try again when it finishes.")
         }
         switch cmd {
@@ -271,9 +274,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             probe = nil
         case "addSave": addServer(Draft(m["draft"] as? [String: Any] ?? [:]))
         case "checkNopass":
-            Passwordless.check(Draft(m["draft"] as? [String: Any] ?? [:])) { [weak p] allowed, error in
-                p?.call("nopassResult", ["allowed": allowed ?? NSNull(), "error": error])
+            nopassKey = nil
+            Passwordless.check(Draft(m["draft"] as? [String: Any] ?? [:])) { [weak p] allowed, error, scan in
+                self.nopassKey = scan
+                p?.call("nopassResult", ["allowed": allowed ?? NSNull(), "error": error, "fp": scan?.fingerprint ?? NSNull()])
             }
+        case "nopassTrust":
+            // Trusted here, the Test step finds the host key already known.
+            guard let scan = nopassKey else { return }
+            nopassKey = nil
+            HostKey.trust(scan)
         case "chooseKey": chooseKey(in: p)
         // Settings › Passwords
         case "savePassword": server?.savePassword()
@@ -325,6 +335,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func addServer(_ d: Draft) {
         guard !d.host.isEmpty, !d.user.isEmpty else { return }
         let s = Server(ServerConfig(id: d.id, name: d.name, ssh: d.sshString, sudo: d.sudo))
+        // The Test step checked it; it's kept only now, so Cancel or Back leaves nothing behind.
+        if d.when == "now", !d.sudoPassword.isEmpty {
+            if d.sudo == "always" { LocalSecrets.set(d.id, d.sudoPassword) }
+            else if d.sudo == "remember" { Keychain.set(d.id, d.sudoPassword) }
+        }
+        // One setting for every server: the wizard's switch starts at its current value and says so.
         if d.sudo == "remember" { config.touchID = d.touchID }
         servers.append(s)
         probe = nil
@@ -436,8 +452,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             var counts: [String: Int] = [:]
             for w in widgets {
+                // Only widgets of the design's size show it ("PermafrostM" is the Medium widget).
+                let size = String(w.kind.dropFirst("Permafrost".count))
                 guard let id = pickedDesign(w),
-                      self.config.designs?.contains(where: { $0.id == id }) == true else { continue }
+                      self.config.designs?.contains(where: { $0.id == id && $0.size == size }) == true else { continue }
                 counts[id, default: 0] += 1
             }
             DispatchQueue.main.async {

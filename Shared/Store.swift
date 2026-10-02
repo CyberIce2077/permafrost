@@ -142,19 +142,33 @@ enum Store {
 
 /// sudo passwords, one Keychain item per server.
 enum Keychain {
-    private static func query(_ account: String) -> [CFString: Any] {
-        [kSecClass: kSecClassGenericPassword, kSecAttrService: "Permafrost sudo", kSecAttrAccount: account]
+    private static let service = "Permafrost sudo"
+    /// Where passwords were saved while the app was called Ice Servers. Each moves over the first time it's read.
+    private static let oldService = "Ice Servers sudo"
+
+    private static func query(_ account: String, _ service: String = Keychain.service) -> [CFString: Any] {
+        [kSecClass: kSecClassGenericPassword, kSecAttrService: service, kSecAttrAccount: account]
     }
 
     static func get(_ account: String) -> String? { read(account).password }
 
     /// The status tells "not saved" apart from "the user clicked Deny in macOS's Keychain prompt".
     static func read(_ account: String) -> (password: String?, status: OSStatus) {
-        var q = query(account)
-        q[kSecReturnData] = true
-        var out: AnyObject?
-        let status = SecItemCopyMatching(q as CFDictionary, &out)
-        return ((out as? Data).flatMap { String(data: $0, encoding: .utf8) }, status)
+        func copy(_ service: String) -> (String?, OSStatus) {
+            var q = query(account, service)
+            q[kSecReturnData] = true
+            var out: AnyObject?
+            let status = SecItemCopyMatching(q as CFDictionary, &out)
+            return ((out as? Data).flatMap { String(data: $0, encoding: .utf8) }, status)
+        }
+        let (password, status) = copy(service)
+        guard status == errSecItemNotFound else { return (password, status) }
+        let (old, oldStatus) = copy(oldService)
+        if let old {
+            set(account, old)
+            SecItemDelete(query(account, oldService) as CFDictionary)
+        }
+        return (old, oldStatus)
     }
 
     static func denied(_ status: OSStatus) -> Bool { status == errSecAuthFailed || status == errSecUserCanceled }
@@ -170,13 +184,16 @@ enum Keychain {
 
     /// Checks for a saved password without reading it (reading can make macOS ask for permission).
     static func has(_ account: String) -> Bool {
-        var q = query(account)
-        q[kSecReturnAttributes] = true
-        return SecItemCopyMatching(q as CFDictionary, nil) == errSecSuccess
+        [service, oldService].contains { service in
+            var q = query(account, service)
+            q[kSecReturnAttributes] = true
+            return SecItemCopyMatching(q as CFDictionary, nil) == errSecSuccess
+        }
     }
 
     static func delete(_ account: String) {
         SecItemDelete(query(account) as CFDictionary)
+        SecItemDelete(query(account, oldService) as CFDictionary)
     }
 }
 

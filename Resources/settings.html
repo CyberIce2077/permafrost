@@ -34,9 +34,12 @@ const PANES = [
 const TINT_NAMES = { none: 'No tint', ice: 'Ice', graphite: 'Graphite', warm: 'Warm' };
 const ACCENT_NAMES = { blue: 'Blue', teal: 'Teal', purple: 'Purple', pink: 'Pink', orange: 'Orange', graphite: 'Graphite' };
 
+// In Settings the red button closes Settings, back to the servers (design: Settings), not the window.
+const SETTINGS_LIGHTS = LIGHTS.replace('data-cmd="close" aria-label="Close"', 'data-cmd="closeSettings" aria-label="Close settings"');
+
 const WS_TEMPLATES = [
   ['overview', 'Overview', () => ({ name: 'Overview', size: 'XL', all: true, servers: [], stats: ['cpu', 'mem', 'disk', 'temp'], style: 'bars', look: 'glass', controls: true })],
-  ['single', 'One server', () => { const f = S.servers[0]; return { name: f ? f.name : 'Server', size: 'L', all: false, servers: f ? [f.id] : [], stats: ['cpu', 'temp', 'mem', 'disk'], style: 'graph', look: 'glass', controls: true }; }],
+  ['single', 'One server', () => { const f = widgetServers(S.servers)[0]; return { name: f ? f.name : 'Server', size: 'L', all: false, servers: f ? [f.id] : [], stats: ['cpu', 'temp', 'mem', 'disk'], style: 'graph', look: 'glass', controls: true }; }],
   ['temps', 'Temperatures', () => ({ name: 'Temperatures', size: 'M', all: true, servers: [], stats: ['temp'], style: 'bars', look: 'tinted', controls: false })],
   ['blank', 'Blank', () => ({ name: '', size: 'M', all: true, servers: [], stats: ['cpu', 'temp'], style: 'bars', look: 'glass', controls: false })],
 ];
@@ -199,15 +202,18 @@ ${(S.designs || []).map((d) => `<article aria-label="${esc(d.name)}" style="box-
     const d = ws.draft, isNew = ws.id === 'new';
     const r = renderWidget(d, S.servers, 640, 560), multi = r.ids.length > 1, cap = designCaps(d, multi);
     const big = d.size === 'L' || d.size === 'XL', n = placed(d);
+    // A design on the desktop changed to another size: its widgets can't show it any more.
+    const saved = isNew ? null : S.designs.find((x) => x.id === ws.id), resized = n && saved && saved.size !== d.size ? saved.size : null;
     const ctlAvail = big || (d.size === 'M' && r.ids.length === 1), ctlOn = !!d.controls && ctlAvail;
     const chip = (label, on, cmd, val, lead, num) => `<button data-cmd="${cmd}" data-val="${val}" aria-pressed="${on}" style="display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 0 13px; border-radius: 18px; cursor: pointer; font-size: 13px; font-weight: 600; white-space: nowrap; color: ${on ? '#FFFFFF' : text}; background: ${on ? acc : softBg}; border: 1px solid ${on ? acc : hair}"><span style="${lead || 'display: none'}">${num || ''}</span>${esc(label)}</button>`;
     const hint = (t, warn) => t ? `<span style="font-size: 12px; line-height: 1.4; color: ${warn ? (dark ? '#FFD08A' : '#8A3B00') : sub}">${esc(t)}</span>` : '';
-    const selCount = d.all ? S.servers.length : d.servers.length;
+    // Servers turned off with "Show in widgets" aren't offered (designServers leaves them out of All servers too).
+    const offer = widgetServers(S.servers), selCount = d.all ? offer.length : d.servers.filter((id) => offer.some((x) => x.id === id)).length;
     const statHint = !d.stats.length ? hint('Pick at least one stat.', true)
       : d.stats.length > cap.stats ? hint(`${W_DIMS[d.size][3]} fits ${cap.stats} stat${cap.stats > 1 ? 's' : ''}${multi ? ' per server' : ''}. It shows them in the order you picked: 1, 2, 3…`, true) : hint('Numbers show the order on the widget. Tap again to remove.');
     const srvHint = !d.all && !d.servers.length ? hint('Pick at least one server.', true)
-      : r.hidRows ? hint(`${selCount} of ${S.servers.length} selected. ${W_DIMS[d.size][3]} lists ${cap.rows}, then “+${r.hidRows} more”.`, true)
-      : hint(`${selCount} of ${S.servers.length} selected${r.ids.length === 1 ? ' · one server gets a detailed layout' : ''}. Click a server to add or remove it.`);
+      : r.hidRows ? hint(`${selCount} of ${offer.length} selected. ${W_DIMS[d.size][3]} lists ${cap.rows}, then “+${r.hidRows} more”.`, true)
+      : hint(`${selCount} of ${offer.length} selected${r.ids.length === 1 ? ' · one server gets a detailed layout' : ''}. Click a server to add or remove it.`);
     const segs = (opts, cur, cmd) => `<div style="${ui.segTrack}">${opts.map(([v, t]) => seg(t, cur === v, cmd, v)).join('')}</div>`;
     const field = (label, inner) => `<div style="display: flex; flex-direction: column; gap: 8px"><span style="${ui.label}">${label}</span>${inner}</div>`;
     const swRow = (label, note, cmd, on, enabled) => `<button data-cmd="${cmd}" aria-label="${label}" aria-pressed="${on}" ${enabled ? '' : 'disabled'} style="position: relative; width: 52px; height: 30px; flex-shrink: 0; padding: 0; border: 0; border-radius: 15px; cursor: pointer; transition: background 0.2s; background: ${on ? acc : (dark ? 'rgba(255,255,255,0.2)' : 'rgba(120,120,128,0.36)')}${enabled ? '' : '; opacity: 0.4; cursor: default'}"><span style="position: absolute; top: 2px; left: ${on ? '24px' : '2px'}; width: 26px; height: 26px; border-radius: 13px; background: #FFFFFF; box-shadow: 0 2px 6px rgba(0,0,0,0.22); transition: left 0.2s"></span></button>`;
@@ -215,7 +221,7 @@ ${(S.designs || []).map((d) => `<article aria-label="${esc(d.name)}" style="box-
     const ok = wsValid();
     widgets = `<div style="flex-grow: 1; min-width: 0; box-sizing: border-box; padding: 4px 6px 6px; display: flex; flex-direction: column; gap: 12px">
 <header style="display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 0 6px">
-${LIGHTS.replace('class="lights"', 'class="lights" style="padding: 0 6px 0 0"')}
+${SETTINGS_LIGHTS.replace('class="lights"', 'class="lights" style="padding: 0 6px 0 0"')}
 <button data-cmd="wsBack" style="${btn(softBg, text, hair)}; padding: 0 14px 0 10px; height: 40px; border-radius: 20px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg>Widgets</button>
 <div style="display: flex; flex-direction: column; gap: 1px; min-width: 0">
 <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: ${sub}">${isNew ? 'New Widget' : 'Edit Widget'}</span>
@@ -233,9 +239,10 @@ ${isNew ? '' : `<button data-cmd="wsDel" data-id="${ws.id}" style="${btn(softBg,
 ${isNew ? field('Start from', `<div style="display: flex; flex-wrap: wrap; gap: 8px">${WS_TEMPLATES.map(([k, label]) => chip(label, false, 'wsTpl', k)).join('')}</div>`) : ''}
 <label style="display: flex; flex-direction: column; gap: 8px"><span style="${ui.label}">Name</span><input id="wsName" class="icefield solid" type="text" placeholder="e.g. Temperatures" value="${esc(d.name)}"></label>
 ${field('Size', segs([['S', 'Small'], ['M', 'Medium'], ['L', 'Large'], ['XL', 'X-Large']], d.size, 'wsSize'))}
+${resized ? hint(`${n} ${W_DIMS[resized][3]} widget${n > 1 ? 's' : ''} on your desktop use${n > 1 ? '' : 's'} this design. After saving at another size, ${n > 1 ? 'they' : 'it'}’ll ask for another ${W_DIMS[resized][3]} design.`, true) : ''}
 <div style="display: flex; flex-direction: column; gap: 8px">
 <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px"><span style="${ui.label}">Servers</span><div style="display: flex; gap: 2px">${link('wsSelectAll', 'Select all')}${link('wsSelectNone', 'Clear')}</div></div>
-<div style="display: flex; flex-wrap: wrap; gap: 8px">${S.servers.map((x) => {
+<div style="display: flex; flex-wrap: wrap; gap: 8px">${offer.map((x) => {
       const on = d.all || d.servers.includes(x.id);
       return chip(x.name, on, 'wsServer', x.id, on ? `width: 18px; height: 18px; border-radius: 9px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: ${acc}; background: #FFFFFF` : `width: 12px; height: 12px; border-radius: 6px; flex-shrink: 0; background: ${SERVER_COLORS[x.color] || SERVER_COLORS.blue}`, on ? '✓' : '');
     }).join('')}</div>
@@ -260,7 +267,7 @@ ${pane === 'servers' ? `${S.servers.length ? '' : `<div style="${ui.sub}">No ser
 
   return `<div id="winBox" class="shell">
 ${editing ? widgets : `<nav class="side" aria-label="Settings sections">
-${LIGHTS}
+${SETTINGS_LIGHTS}
 <button data-cmd="showServers" aria-label="Back to servers" style="position: absolute; top: 8px; right: 10px; height: 28px; padding: 0 10px 0 6px; display: flex; align-items: center; gap: 2px; border-radius: 14px; cursor: pointer; font-size: 12px; font-weight: 600; color: ${acc}; background: ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.7)'}; border: 1px solid ${hair}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg>Servers</button>
 ${PANES.map(([k, label, color, icon]) => {
     const on = pane === k;
@@ -389,18 +396,19 @@ function act(d) {
     case 'wsNew': ws = { mode: 'edit', id: 'new', draft: { ...WS_TEMPLATES[0][2](), name: 'My Widget' } }; return render();
     case 'wsEdit': ws = { mode: 'edit', id: d.id, draft: JSON.parse(JSON.stringify(S.designs.find((x) => x.id === d.id))) }; return render();
     case 'wsBack': ws = { mode: 'gallery', id: '', draft: null }; return render();
+    case 'closeSettings': ws = { mode: 'gallery', id: '', draft: null }; render(); return post({ cmd: 'showServers' });
     case 'wsTpl': ws.draft = WS_TEMPLATES.find((t) => t[0] === d.val)[2](); return render();
     case 'wsSize': ws.draft.size = d.val; return render();
     case 'wsStyle': ws.draft.style = d.val; return render();
     case 'wsLook': ws.draft.look = d.val; return render();
     case 'wsCtl': ws.draft.controls = !ws.draft.controls; return render();
-    case 'wsAll': Object.assign(ws.draft, ws.draft.all ? { all: false, servers: S.servers.map((x) => x.id) } : { all: true, servers: [] }); return render();
-    case 'wsSelectAll': Object.assign(ws.draft, { all: false, servers: S.servers.map((x) => x.id) }); return render();
+    case 'wsAll': Object.assign(ws.draft, ws.draft.all ? { all: false, servers: widgetServers(S.servers).map((x) => x.id) } : { all: true, servers: [] }); return render();
+    case 'wsSelectAll': Object.assign(ws.draft, { all: false, servers: widgetServers(S.servers).map((x) => x.id) }); return render();
     case 'wsSelectNone': Object.assign(ws.draft, { all: false, servers: [] }); return render();
     case 'wsServer': {
       // Unchecking under "include new servers" turns it off and keeps the rest checked; order follows the sidebar.
-      const x = ws.draft, cur = x.all ? S.servers.map((y) => y.id) : x.servers;
-      const list = cur.includes(d.val) ? cur.filter((y) => y !== d.val) : S.servers.map((y) => y.id).filter((y) => y === d.val || cur.includes(y));
+      const x = ws.draft, offer = widgetServers(S.servers).map((y) => y.id), cur = x.all ? offer : x.servers;
+      const list = offer.filter((y) => y === d.val ? !cur.includes(y) : cur.includes(y));
       Object.assign(x, { all: false, servers: list });
       return render();
     }
@@ -413,8 +421,9 @@ function act(d) {
       if (!wsValid()) return;
       const isNew = ws.id === 'new', rec = { ...ws.draft, name: ws.draft.name.trim() };
       if (isNew) rec.id = crypto.randomUUID();
-      const n = (S.placed || {})[rec.id] || 0;
       const i = S.designs.findIndex((x) => x.id === rec.id);
+      // Widgets of the old size stop showing a resized design, so none of them are "updated".
+      const n = i >= 0 && S.designs[i].size !== rec.size ? 0 : (S.placed || {})[rec.id] || 0;
       if (i >= 0) S.designs[i] = rec; else S.designs.push(rec);
       post({ cmd: 'saveDesign', design: rec });
       ws = { mode: 'gallery', id: '', draft: null };
