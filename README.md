@@ -40,7 +40,7 @@ the host key (you confirm its fingerprint the first time), signing in, sudo and 
 Signing in with a password uses it once to add this Mac's SSH key (`~/.ssh/id_ed25519`, created
 if needed) to the server; after that everything, including the widgets, uses the key.
 
-**Settings › Servers** (the gear in the sidebar, or ⌘,) edits a server's name, address, port and icon
+**Settings › Servers** (the gear in the sidebar, or ⌘,; Settings opens in the main window, ‹ Servers or Esc goes back) edits a server's name, address, port and icon
 color, chooses whether it appears in widgets and the menu bar, and removes it (with Undo).
 
 ## sudo

@@ -8,7 +8,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var config = Config()
     var servers: [Server] = []
     var main: Panel!
-    var settings: Panel?
+    /// Settings shows in the main window, in place of the servers.
+    var settings: Panel? { main?.page == "settings" ? main : nil }
     let alerts = Alerts()
     let menuBar = MenuBar()
     private var undo: (server: Server, index: Int, forget: Bool, timer: Timer)?
@@ -62,11 +63,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { !prefs.menubar }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
-        showMain()
+        main.window.makeKeyAndOrderFront(nil)
         return true
     }
 
-    @objc func showMain() {
+    /// The servers, in the main window (leaving Settings if it's showing). `then` runs once they're on screen.
+    @objc func showMain() { showServers() }
+
+    func showServers(then: (() -> Void)? = nil) {
+        main.show("app", then: then)
         main.window.makeKeyAndOrderFront(nil)
         NSApp.activate()
     }
@@ -102,7 +107,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             state["designs"] = (self.config.designs ?? []).map(\.json)
             state["placed"] = self.placed
-            self.main.render(state)
             Store.saveLive(self.servers.map { s in
                 var st = s.parser.stats
                 st.id = s.cfg.id
@@ -114,7 +118,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 state["pane"] = pane
                 self.settingsPane = nil
             }
-            self.settings?.render(state)
+            self.main.render(state)
             self.menuBar.update()
         }
     }
@@ -124,7 +128,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func toast(_ text: String) {
         guard !text.isEmpty else { return }
-        for p in [main, settings].compactMap({ $0 }) { p.call("toast", ["text": text]) }
+        main.call("toast", ["text": text])
     }
 
     /// Touch ID, or the Mac's password where there's no sensor.
@@ -172,7 +176,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         switch cmd {
         case "ready":
-            p.loaded = true
+            p.didLoad()
             changed()
             p.window.invalidateShadow()
             showPasswordSheet()
@@ -268,8 +272,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             showSettings()
             changed()
         case "showAdd":
-            showMain()
-            main.call("showAdd")
+            showServers { self.main.call("showAdd") }
+        case "showServers": showServers()
         // Settings
         case "pref":
             guard let key = m["key"] as? String, let value = m["value"] else { return }
@@ -335,7 +339,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         undo = (s, i, forget, Timer.scheduledTimer(withTimeInterval: 5, repeats: false) { _ in self.finishRemoval() })
         save()
         changed()
-        for p in [main, settings].compactMap({ $0 }) { p.call("toast", ["text": "\(s.cfg.name) removed", "undo": true]) }
+        main.call("toast", ["text": "\(s.cfg.name) removed", "undo": true])
     }
 
     private func finishRemoval() {
@@ -382,17 +386,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         if let old, old.refresh != p.refresh { servers.forEach { $0.reconnect() } }
         if p.nOffline || p.nCpu || p.nTemp || p.nDisk || p.nUpd { alerts.requestPermission() }
-        for panel in [main, settings].compactMap({ $0 }) { panel.look(p) }
+        main.look(p)
     }
 
     // MARK: windows
 
     @objc func showSettings() {
-        if settings == nil {
-            settings = Panel(page: "settings", size: NSSize(width: 1180, height: 760), radius: 28)
-            settings?.look(prefs)
-        }
-        settings?.window.makeKeyAndOrderFront(nil)
+        main.show("settings")
+        main.window.makeKeyAndOrderFront(nil)
         NSApp.activate()
         countPlaced()
     }
@@ -473,9 +474,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             sheetPanel = nil
             return
         }
-        // Saving from Settings asks in Settings; actions ask in the main window.
-        let panel = r.action == nil && settings?.window.isVisible == true ? settings! : main!
-        if sheetPanel !== panel { sheetPanel?.call("hidePassword") }
+        let panel = main!
         sheetPanel = panel
         panel.window.makeKeyAndOrderFront(nil)
         NSApp.activate()
@@ -509,7 +508,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             item("Quit Ice Servers", #selector(NSApplication.terminate(_:)), "q"),
         ])
         menu("File", [
-            MenuAction("Add Server…", key: "n") { [self] in showMain(); main.web.evaluateJavaScript("showAdd()") },
+            MenuAction("Add Server…", key: "n") { [self] in showServers { self.main.call("showAdd") } },
             .separator(),
             item("Close Window", #selector(NSWindow.performClose(_:)), "w"),
         ])
@@ -568,7 +567,10 @@ final class Web: WKWebView {
 final class Panel: NSObject, WKScriptMessageHandler, NSWindowDelegate {
     let window: NSWindow
     let web: Web
-    var loaded = false
+    /// The page showing: "app" or "settings" in the main window.
+    private(set) var page: String
+    private(set) var loaded = false
+    private var onReady: [() -> Void] = []
 
     init(page: String, size: NSSize, radius: CGFloat, resizable: Bool = false, glass: Bool = true) {
         var style: NSWindow.StyleMask = [.borderless, .closable, .miniaturizable]
@@ -577,6 +579,7 @@ final class Panel: NSObject, WKScriptMessageHandler, NSWindowDelegate {
         let conf = WKWebViewConfiguration()
         web = Web(frame: NSRect(origin: .zero, size: size), configuration: conf)
         self.radius = radius
+        self.page = page
         super.init()
         conf.userContentController.add(self, name: "ice")
 
@@ -598,6 +601,27 @@ final class Panel: NSObject, WKScriptMessageHandler, NSWindowDelegate {
     }
 
     private let radius: CGFloat
+
+    /// Switches to another page; `then` runs once it has loaded (right away if it's already showing).
+    func show(_ page: String, then: (() -> Void)? = nil) {
+        if let then { onReady.append(then) }
+        if page == self.page {
+            if loaded { didLoad() }
+            return
+        }
+        self.page = page
+        loaded = false
+        let res = Bundle.main.resourceURL!
+        web.loadFileURL(res.appendingPathComponent("\(page).html"), allowingReadAccessTo: res)
+    }
+
+    /// The page said it's ready.
+    func didLoad() {
+        loaded = true
+        let run = onReady
+        onReady = []
+        run.forEach { $0() }
+    }
 
     /// Native glass behind the page, or nothing (Settings › Appearance: no blur / reduce transparency).
     private func setGlass(_ on: Bool) {
@@ -672,6 +696,5 @@ final class Panel: NSObject, WKScriptMessageHandler, NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         guard self !== ice.main else { return }
         web.configuration.userContentController.removeScriptMessageHandler(forName: "ice")
-        if self === ice.settings { ice.settings = nil }
     }
 }

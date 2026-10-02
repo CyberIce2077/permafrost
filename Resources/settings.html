@@ -258,8 +258,9 @@ ${field('Appearance', segs([['glass', 'Glass'], ['tinted', 'Tinted'], ['clear', 
 ${pane === 'servers' ? `${S.servers.length ? '' : `<div style="${ui.sub}">No servers yet. Add one to start monitoring.</div>`}<div style="display: flex; justify-content: flex-end"><button data-cmd="showAdd" style="height: 40px; padding: 0 18px; border-radius: 20px; border: 0; cursor: pointer; font-size: 13px; font-weight: 600; color: #FFFFFF; background: ${acc}">+ Add Server…</button></div>` : ''}`;
 
   return `<div id="winBox" style="position: fixed; inset: 0; box-sizing: border-box; padding: 10px; display: flex; gap: 10px; border-radius: 28px; color: ${text}; background: ${L.bg}; border: 1px solid ${dark ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.7)'}; box-shadow: inset 0 1px 0 ${dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.9)'}; transition: background 0.2s">
-${editing ? widgets : `<nav aria-label="Settings sections" style="width: 230px; flex-shrink: 0; box-sizing: border-box; padding: 16px 10px; display: flex; flex-direction: column; gap: 4px; border-radius: 20px; background: ${dark ? 'rgba(255,255,255,0.05)' : `rgba(255,255,255,${P.reduce ? 0.6 : 0.35})`}; border: 1px solid ${cardBorder}">
+${editing ? widgets : `<nav aria-label="Settings sections" style="position: relative; width: 230px; flex-shrink: 0; box-sizing: border-box; padding: 16px 10px; display: flex; flex-direction: column; gap: 4px; border-radius: 20px; background: ${dark ? 'rgba(255,255,255,0.05)' : `rgba(255,255,255,${P.reduce ? 0.6 : 0.35})`}; border: 1px solid ${cardBorder}">
 <div style="display: flex; gap: 8px; padding: 0 6px 18px"><button data-cmd="close" aria-label="Close settings" style="display: block; width: 12px; height: 12px; padding: 0; border: 0; border-radius: 6px; background: #FF5F57; cursor: pointer"></button><button data-cmd="minimize" aria-label="Minimize" style="width: 12px; height: 12px; padding: 0; border: 0; border-radius: 6px; background: #FEBC2E"></button><span style="width: 12px; height: 12px; border-radius: 6px; background: #28C840"></span></div>
+<button data-cmd="showServers" aria-label="Back to servers" style="position: absolute; top: 8px; right: 10px; height: 28px; padding: 0 10px 0 6px; display: flex; align-items: center; gap: 2px; border-radius: 14px; cursor: pointer; font-size: 12px; font-weight: 600; color: ${acc}; background: ${dark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.7)'}; border: 1px solid ${hair}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg>Servers</button>
 ${PANES.map(([k, label, color, icon]) => {
     const on = pane === k;
     return `<button data-cmd="pane" data-val="${k}" aria-current="${on ? 'page' : 'false'}" style="display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 6px 10px; border-radius: 12px; border: 0; cursor: pointer; font-size: 14px; font-weight: 600; text-align: left; color: ${text}; text-shadow: ${shadow}; background: ${on ? (dark ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.85)') : 'transparent'}"><span style="width: 26px; height: 26px; flex-shrink: 0; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: ${color}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${icon}"></path></svg></span>${label}</button>`;
@@ -360,7 +361,12 @@ document.addEventListener('change', (e) => {
   const k = e.target.dataset.pref;
   if (k) { S.prefs[k] = +e.target.value; delete drag[k]; render(); post({ cmd: 'pref', key: k, value: S.prefs[k] }); }
 });
-addEventListener('keydown', (e) => { if (e.key === 'Escape' && !pw) { edit = null; confirmFor = null; render(); } });
+// Esc closes a sheet; with nothing open, it goes back to the servers.
+addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape' || pw) return;
+  if (edit || confirmFor) { edit = null; confirmFor = null; return render(); }
+  if (ws.mode !== 'edit' && e.target.tagName !== 'INPUT') post({ cmd: 'showServers' });
+});
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => render());
 
 function act(d) {
