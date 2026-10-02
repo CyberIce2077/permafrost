@@ -45,6 +45,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         apply(prefs, was: nil)
 
         servers.forEach { $0.connect() }
+        Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in self.servers.forEach { $0.tick() } }
         Timer.scheduledTimer(withTimeInterval: 1800, repeats: true) { _ in
             self.servers.filter { $0.phase == "online" }.forEach { $0.countUpdates() }
         }
@@ -188,6 +189,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case "restart":
             if let s = server, s.phase == "online", confirm("Restart \(s.cfg.name)?", "It will be unavailable for a minute or two.", "Restart") { s.restart() }
         case "install": server?.installUpdates()
+        case "dismissTimeout": server?.dismissTimeout()
+        case "retryTimeout": server?.retryTimeout()
         case "check": server?.checkUpdates()
         case "menu": if p === main { serverMenu(server, in: p) }
         // Settings › Widgets

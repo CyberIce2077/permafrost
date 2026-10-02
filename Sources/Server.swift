@@ -3,9 +3,36 @@ import Foundation
 /// One Linux box reached over SSH: a long-lived stats stream plus one-off commands.
 final class Server {
     var cfg: ServerConfig
-    var phase = "connecting" {  // connecting online off stopping starting restarting updating checking
-        didSet { if phase != oldValue, phase == "online" || phase == "off" { ice.reloadWidgets() } }
+    var phase = "connecting" {  // connecting online off stopping starting restarting updating checking timedout
+        didSet {
+            guard phase != oldValue else { return }
+            if phase == "online" || phase == "off" { ice.reloadWidgets() }
+            // A sudo action runs while the phase is busy; its clock starts and stops with it.
+            if let kind = Self.ops[phase] {
+                if op == nil { op = Op(action: kind.action, label: kind.label, limit: kind.limit(ice.prefs) * 60, prev: kind.prev) }
+            } else {
+                op = nil
+            }
+        }
     }
+
+    /// A running sudo action and how long it may take (design: Main › lock banner).
+    struct Op {
+        let action, label: String
+        let limit: TimeInterval
+        let prev: String
+        var start = Date()
+    }
+    private static let ops: [String: (action: String, label: String, limit: (Prefs) -> Double, prev: String)] = [
+        "restarting": ("restart", "Restart", { $0.limRestart }, "online"),
+        "stopping": ("stop", "Shut down", { $0.limPower }, "online"),
+        "starting": ("start", "Start", { $0.limPower }, "off"),
+        "updating": ("update", "Software update", { $0.limUpdate }, "online"),
+        "checking": ("check", "Update check", { $0.limCheck }, "online"),
+    ]
+    private(set) var op: Op?
+    /// The action that ran out of time, until Dismiss or Retry.
+    private(set) var failed: Op?
     var parser: StatsParser
     var checkedAt: Date?
     var progress = 0
@@ -14,7 +41,6 @@ final class Server {
     private var quietDrop = false
     private var stream: Process?
     private var holdUntil = Date.distantPast
-    private var deadline = Date.distantPast
 
     init(_ cfg: ServerConfig) {
         self.cfg = cfg
@@ -35,6 +61,8 @@ final class Server {
             "host": address.host, "port": address.port, "color": cfg.color ?? "blue",
             "widgets": cfg.widgets ?? true, "menu": cfg.menu ?? true,
             "checkedAgo": checkedAt.map { -$0.timeIntervalSinceNow } ?? NSNull(),
+            "op": op.map { ["label": $0.label, "limit": $0.limit, "elapsed": -$0.start.timeIntervalSinceNow] } ?? NSNull(),
+            "failed": failed.map { ["label": $0.label, "limit": $0.limit] } ?? NSNull(),
         ]
     }
 
@@ -98,7 +126,8 @@ final class Server {
             quietDrop = false
             return connect()
         }
-        let waiting = (phase == "starting" || phase == "restarting") && Date() < deadline
+        // Booting, or given up on and waiting for the server to answer again.
+        let waiting = ["starting", "restarting", "timedout"].contains(phase)
         if !waiting {
             if ["online", "updating", "checking"].contains(phase) { ice.alerts.offline(self) }
             phase = "off"
@@ -113,7 +142,7 @@ final class Server {
             cfg.mac = mac
             ice.save()
         }
-        if ["connecting", "off", "starting", "restarting"].contains(phase) {
+        if ["connecting", "off", "starting", "restarting", "timedout"].contains(phase) {
             phase = "online"
             countUpdates()
         }
@@ -130,8 +159,36 @@ final class Server {
             return ice.alert("Can't wake \(cfg.name)", "Wake-on-LAN needs the server's MAC address. It is learned the first time the server is online.")
         }
         phase = "starting"
-        deadline = Date() + 180
         ice.changed()
+    }
+
+    /// Called every second: past its limit, the app stops waiting for the action and unlocks the controls.
+    /// Nothing is stopped on the server (an interrupted upgrade could leave packages half installed).
+    func tick() {
+        guard let op, -op.start.timeIntervalSinceNow >= op.limit else { return }
+        failed = op
+        phase = "timedout"
+        progress = 0
+        ice.changed()
+    }
+
+    func dismissTimeout() {
+        guard let f = failed else { return }
+        failed = nil
+        if phase == "timedout" { phase = f.prev }
+        ice.changed()
+    }
+
+    func retryTimeout() {
+        guard let f = failed else { return }
+        dismissTimeout()
+        switch f.action {
+        case "restart": restart()
+        case "stop": powerOff()
+        case "start": powerOn()
+        case "update": installUpdates()
+        default: checkUpdates()
+        }
     }
 
     func powerOff() { systemctl("poweroff", action: "Shutting down", busy: "stopping") }
@@ -149,7 +206,6 @@ final class Server {
             // 255 = ssh lost the connection, which is what a shutdown looks like.
             if status == 0 || status == 255 {
                 holdUntil = Date() + 15
-                deadline = Date() + 300
             } else {
                 if status != nil { ice.alert("Couldn't \(verb) \(cfg.name)", tail(out)) }
                 if phase == busy { phase = "online" }
@@ -191,7 +247,7 @@ final class Server {
             else { return }
             ice.changed()
         }) { [self] status, out in
-            if let status, status != 0 { ice.alert("Updating \(cfg.name) failed", tail(out)) }
+            if let status, status != 0, phase == "updating" { ice.alert("Updating \(cfg.name) failed", tail(out)) }
             progress = 0
             countUpdates { if self.phase == "updating" { self.phase = "online" } }
         }

@@ -63,6 +63,8 @@ struct Prefs: Codable {
     var login = false, menubar = true, refresh = 2.0, unit = "C", net = "MBs", confirmOff = true
     var nOffline = true, nCpu = true, cpuAt = 90.0, nTemp = true, tempAt = 80.0, nDisk = true, diskAt = 85.0, nUpd = false
     var glass = 60.0, blur = 40.0, theme = "light", tint = "ice", accent = "blue", reduce = false
+    /// Sudo command time limits, in minutes (Settings › Sudo & Passwords).
+    var limRestart = 3.0, limPower = 5.0, limUpdate = 30.0, limCheck = 1.0
 
     init() {}
 
@@ -76,6 +78,8 @@ struct Prefs: Codable {
         diskAt = v(.diskAt, diskAt); nUpd = v(.nUpd, nUpd)
         glass = v(.glass, glass); blur = v(.blur, blur); theme = v(.theme, theme)
         tint = v(.tint, tint); accent = v(.accent, accent); reduce = v(.reduce, reduce)
+        limRestart = v(.limRestart, limRestart); limPower = v(.limPower, limPower)
+        limUpdate = v(.limUpdate, limUpdate); limCheck = v(.limCheck, limCheck)
     }
 }
 

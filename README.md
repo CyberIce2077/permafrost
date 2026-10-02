@@ -56,7 +56,14 @@ Shutting down, restarting and updating need sudo. For each server you choose:
 - **Passwordless sudo**: for servers that allow these commands without a password. Add Server
   checks the server's rules for each command and shows which ones still ask for a password.
 
-**Settings › Passwords** (⌘,) shows what's saved, and can save, forget or require Touch ID.
+**Settings › Sudo & Passwords** (⌘,) shows what's saved, and can save, forget or require Touch ID.
+
+While a sudo command runs, the other power, restart and update controls are locked and a banner
+shows how long it has been running. Shutdown and restart are scheduled 3 seconds out, so SSH closes
+cleanly before the server goes down. Each kind of command has a time limit (Settings › Sudo &
+Passwords, Command time limits): past it, the app stops waiting, marks the server Not responding,
+unlocks the controls and offers Retry. Nothing is stopped on the server, and it goes back to Online
+as soon as it answers.
 For passwordless sudo, allow just these commands (run `sudo visudo -f /etc/sudoers.d/ice-servers` on the server):
 
 ```

@@ -39,7 +39,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
         menu.removeAllItems()
         let locked = ice.lockedBy != nil
         for s in servers {
-            let status = s.phase == "online" ? "Online" : s.phase == "off" ? "Offline" : s.phase.capitalized + "…"
+            let status = s.phase == "online" ? "Online" : s.phase == "off" ? "Offline" : s.phase == "timedout" ? "Not responding" : s.phase.capitalized + "…"
             let head = NSMutableAttributedString(string: "● ", attributes: [.foregroundColor: Self.color(s.phase)])
             head.append(NSAttributedString(string: s.cfg.name, attributes: [.font: NSFont.boldSystemFont(ofSize: 13)]))
             head.append(NSAttributedString(string: "  \(status)", attributes: [.foregroundColor: NSColor.secondaryLabelColor]))

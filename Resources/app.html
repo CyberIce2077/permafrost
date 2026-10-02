@@ -74,8 +74,15 @@ const SPIN = (px, w, stroke = 'currentColor', extra = '') => `<svg class="icespi
 const span = () => { const sec = 24 * ((S.prefs && S.prefs.refresh) || 2); return sec < 120 ? sec + ' seconds' : sec / 60 + ' minutes'; };
 const lockedBy = () => S.servers.find((x) => BUSY.includes(x.phase) && x.phase !== 'connecting');
 
+// A running sudo action's clock: seconds since it started, counted here between updates from Swift.
+const opElapsed = (s) => Math.min(s.op.limit, (Date.now() - s.op.startMs) / 1000);
+setInterval(() => { if (S && S.servers.some((x) => x.op)) render(); }, 500);
+
 function render(state) {
-  if (state) S = state;
+  if (state) {
+    S = state;
+    S.servers.forEach((x) => { if (x.op) x.op.startMs = Date.now() - x.op.elapsed * 1000; });
+  }
   if (state && state.prefs) { Object.assign(UNITS, { unit: S.prefs.unit, net: S.prefs.net }); applyLook(S.prefs); }
   if (state && state.select) sel = state.select;
   const list = S.servers;
@@ -84,7 +91,8 @@ function render(state) {
   const lock = lockedBy();
 
   set($('list'), list.map(row).join(''));
-  set($('lock'), lock ? banner(lock) : '');
+  const failed = list.find((x) => x.failed);
+  set($('lock'), (lock && lock.op ? banner(lock) : '') + (failed ? failAlert(failed) : ''));
   $('head').style.display = s ? 'flex' : 'none';
   $('upd').style.display = s ? 'flex' : 'none';
   set($('head'), s ? header(s, lock) : '');
@@ -106,11 +114,35 @@ function row(r) {
 </button>`;
 }
 
+// design: Main › lock: the running sudo action, its clock and how long until it times out.
 function banner(b) {
-  return `<div role="status" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 8px 16px; border-radius: 16px; background: rgba(255,159,10,0.16); border: 1px solid rgba(255,159,10,0.35)">
-${LOCK(18, '#B33000').replace('<svg ', '<svg style="flex-shrink: 0" ')}
-<span style="font-size: 13px; color: #5C2A00"><strong style="font-weight: 700">Running sudo on ${esc(b.name)}:</strong> ${LABELS[b.phase]} Power, restart and update controls are locked until it finishes.</span>
-${SPIN(16, 3, '#B33000', 'margin-left: auto; flex-shrink: 0')}
+  const el = opElapsed(b), frac = el / b.op.limit, late = frac >= 0.8, ink = late ? '#A10010' : '#B33000';
+  const textStyle = `font-size: 13px; color: ${late ? '#6E0008' : '#5C2A00'}`;
+  return `<div role="status" style="display: flex; flex-direction: column; gap: 8px; padding: 10px 16px; border-radius: 16px; background: ${late ? 'rgba(255,59,48,0.12)' : 'rgba(255,159,10,0.16)'}; border: 1px solid ${late ? 'rgba(255,59,48,0.35)' : 'rgba(255,159,10,0.35)'}">
+<div style="display: flex; align-items: center; gap: 12px">
+${LOCK(18, ink).replace('<svg ', '<svg style="flex-shrink: 0" ')}
+<span style="${textStyle}"><strong style="font-weight: 700">Running sudo on ${esc(b.name)}:</strong> ${LABELS[b.phase] || b.op.label} Controls are locked until it finishes or times out.</span>
+<span style="margin-left: auto; display: flex; align-items: baseline; gap: 6px; flex-shrink: 0; font-variant-numeric: tabular-nums">
+<span style="font-size: 17px; font-weight: 700; color: ${ink}">${mmss(el)}</span>
+<span style="${textStyle}">/ ${mmss(b.op.limit)}</span>
+</span>
+</div>
+<div style="display: flex; align-items: center; gap: 12px; padding-left: 30px">
+<div role="progressbar" aria-label="Time used before the command times out" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(frac * 100)}" style="flex-grow: 1; height: 6px; border-radius: 3px; background: rgba(120,60,0,0.14); overflow: hidden"><div style="height: 100%; border-radius: 3px; transition: width 0.25s linear; width: ${(frac * 100).toFixed(1)}%; background: ${late ? '#FF3B30' : '#FF9F0A'}"></div></div>
+<span style="flex-shrink: 0; min-width: 120px; text-align: right; font-size: 12px; font-weight: 600; color: ${ink}">${late ? 'Times out in ' + mmss(b.op.limit - el) : mmss(b.op.limit - el) + ' left'}</span>
+</div>
+</div>`;
+}
+
+// design: Main › fail: the action ran out of time; the controls are unlocked again.
+function failAlert(f) {
+  return `<div role="alert" style="display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 10px 8px 16px; box-sizing: border-box; border-radius: 16px; background: rgba(255,59,48,0.12); border: 1px solid rgba(255,59,48,0.35)">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4000F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0"><circle cx="12" cy="13" r="8"></circle><path d="M12 9v4l2.5 2M9 2h6"></path></svg>
+<span style="font-size: 13px; line-height: 1.4; color: #6E0008"><strong style="font-weight: 700">${esc(f.failed.label)} on ${esc(f.name)} timed out after ${mmss(f.failed.limit)}.</strong> No answer from the server. It may still be working. Controls are unlocked.</span>
+<div style="margin-left: auto; display: flex; gap: 8px; flex-shrink: 0">
+<button data-cmd="dismissTimeout" data-id="${f.id}" style="height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid rgba(196,0,15,0.3); background: #FFFFFF; font-size: 13px; font-weight: 600; color: #1D1D1F; cursor: pointer">Dismiss</button>
+<button data-cmd="retryTimeout" data-id="${f.id}" style="height: 36px; padding: 0 16px; border-radius: 18px; border: 0; background: #C4000F; font-size: 13px; font-weight: 600; color: #FFFFFF; cursor: pointer">Retry</button>
+</div>
 </div>`;
 }
 
@@ -125,7 +157,7 @@ function header(s, lock) {
 <button data-cmd="qeToggle" aria-label="Settings for ${esc(s.name)}" aria-expanded="${!!qe}" title="Server settings" style="width: 36px; height: 36px; flex-shrink: 0; border-radius: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: ${qe ? '#FFFFFF' : 'var(--text)'}; background: ${qe ? 'var(--accent)' : 'rgba(255,255,255,calc(0.7 * var(--wk)))'}; border: 1px solid rgba(255,255,255,calc(0.9 * var(--wk))); box-shadow: 0 2px 8px rgba(20,40,80,0.08)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"></path><circle cx="16" cy="6" r="2"></circle><circle cx="10" cy="12" r="2"></circle><circle cx="18" cy="18" r="2"></circle></svg></button>
 </div>
 <div style="display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--sub)">
-<span style="display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 12px; font-size: 12px; font-weight: 600; color: ${c[0]}; background: ${c[1]}">${busy ? ICON.spin : `<span style="width: 7px; height: 7px; border-radius: 4px; background: ${c[2]}"></span>`}${LABELS[s.phase]}</span>
+<span style="display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 12px; font-size: 12px; font-weight: 600; color: ${c[0]}; background: ${c[1]}">${busy ? ICON.spin : `<span style="width: 7px; height: 7px; border-radius: 4px; background: ${c[2]}"></span>`}${LABELS[s.phase]}${s.op ? ' ' + mmss(opElapsed(s)) : ''}</span>
 <span>${s.phase === 'online' ? 'Up ' + uptime(s.uptime) : ''}</span>
 </div>
 </div>
@@ -585,6 +617,7 @@ function act(d) {
   if (sheetAct(d)) return;
   switch (d.cmd) {
     case 'select': sel = d.id; return render();
+    case 'dismissTimeout': case 'retryTimeout': return post({ cmd: d.cmd, id: d.id });
     case 'qeToggle': return qe ? closeQe() : openQe();
     case 'qeClose': return closeQe();
     case 'qeColor': qe.d.color = d.val; return qeRender();

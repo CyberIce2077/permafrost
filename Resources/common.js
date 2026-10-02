@@ -5,7 +5,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(
 // Only touch the DOM when a section's markup actually changed (keeps spinners and hovers alive).
 const set = (el, html) => { if (el._html !== html) { el.innerHTML = html; el._html = html; } };
 
-const LABELS = { connecting: 'Connecting…', online: 'Online', restarting: 'Restarting…', stopping: 'Shutting down…', starting: 'Starting…', off: 'Offline', updating: 'Updating…', checking: 'Checking…' };
+const LABELS = { connecting: 'Connecting…', online: 'Online', restarting: 'Restarting…', stopping: 'Shutting down…', starting: 'Starting…', off: 'Offline', updating: 'Updating…', checking: 'Checking…', timedout: 'Not responding' };
 const BUSY = ['connecting', 'restarting', 'stopping', 'starting', 'updating', 'checking'];
 const LIVE = ['online', 'updating', 'checking'];
 const COLORS = { online: ['#1E7A34', 'rgba(52,199,89,0.16)', '#30D158'], off: ['var(--sub2)', 'rgba(120,120,128,0.16)', '#8E8E93'] };
@@ -13,6 +13,8 @@ const colorsFor = (phase) => COLORS[phase] || ['#B33000', 'rgba(255,159,10,0.18)
 const RING = 2 * Math.PI * 38;
 
 const last = (a) => a[a.length - 1];
+// 0:42, 12:05 or 1:02:05.
+const mmss = (sec) => { sec = Math.max(0, Math.round(sec)); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), x = sec % 60; return (h ? h + ':' + (m < 10 ? '0' : '') : '') + m + ':' + (x < 10 ? '0' : '') + x; };
 const pts = (arr, max) => arr.map((v, i) => (i * 240 / (arr.length - 1)).toFixed(1) + ',' + (54 - Math.min(Math.max(v, 0), max) / max * 50).toFixed(1)).join(' ');
 const netMax = (s) => Math.max(1, ...s.down, ...s.up);
 const size = (gb) => gb >= 1000 ? +(gb / 1000).toFixed(1) + ' TB' : Math.round(gb) + ' GB';
