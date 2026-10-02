@@ -16,7 +16,7 @@ Everything goes over plain SSH. Nothing is installed on the servers.
 ## Requirements
 
 - macOS 14 or later
-- Xcode Command Line Tools (`xcode-select --install`), full Xcode isn't needed
+- Xcode, installed from the App Store (it never needs to be opened): the widget's Edit Widget options need its App Intents tool
 - Servers running Linux with systemd; update features need `apt` (Debian, Ubuntu)
 - SSH key login to each server (`ssh user@host` works without a password prompt)
 
@@ -75,6 +75,8 @@ Add them like any other widget: right-click the desktop, choose **Edit Widgets�
 **Ice Servers**. They work on the desktop and in Notification Center, with or without the app running.
 
 - **Settings › Widgets** chooses the servers (up to 4) and stats the widgets show.
+- **Right-click › Edit Widget** sets up one widget on its own: name, servers (up to 4), stats,
+  style and appearance. Anything left empty follows Settings › Widgets.
 - **Ice Servers › Widget Settings…** fine-tunes each size: one server or all, bars/rings/graphs,
   and glass/tinted/clear.
 - Widgets fetch fresh numbers over SSH on their own. macOS decides how often (usually every few

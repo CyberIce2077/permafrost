@@ -13,11 +13,11 @@ struct IceWidgets: WidgetBundle {
 
 struct ServersWidget: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "IceServers", provider: Provider()) { entry in
+        AppIntentConfiguration(kind: "IceServers", intent: ConfigureWidget.self, provider: Provider()) { entry in
             WidgetView(entry: entry)
         }
         .configurationDisplayName("Servers")
-        .description("Live stats and controls for your servers. Choose them in Ice Servers › Settings › Widgets.")
+        .description("Live stats and controls for your servers. Right-click › Edit Widget to choose them.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge])
         .contentMarginsDisabled()
     }
@@ -31,21 +31,20 @@ struct Entry: TimelineEntry {
     /// "All servers" (a compact row each) rather than one server.
     var all = false
     var prefs = Prefs()
+    /// The name set in Edit Widget, shown instead of "All servers".
+    var title: String?
 }
 
-struct Provider: TimelineProvider {
-    func placeholder(in context: Context) -> Entry { sample(context) }
+struct Provider: AppIntentTimelineProvider {
+    func placeholder(in context: Context) -> Entry { sample(ConfigureWidget(), context) }
 
-    func getSnapshot(in context: Context, completion: @escaping (Entry) -> Void) {
-        if context.isPreview { return completion(sample(context)) }
-        DispatchQueue.global().async { completion(fetch(context)) }
+    func snapshot(for intent: ConfigureWidget, in context: Context) async -> Entry {
+        context.isPreview ? sample(intent, context) : fetch(intent, context)
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> Void) {
-        DispatchQueue.global().async {
-            // WidgetKit decides the real refresh rate; the app also asks for a refresh whenever something changes.
-            completion(Timeline(entries: [fetch(context)], policy: .after(Date() + 300)))
-        }
+    func timeline(for intent: ConfigureWidget, in context: Context) async -> Timeline<Entry> {
+        // WidgetKit decides the real refresh rate; the app also asks for a refresh whenever something changes.
+        Timeline(entries: [fetch(intent, context)], policy: .after(Date() + 300))
     }
 
     private func size(_ context: Context) -> String {
@@ -58,17 +57,30 @@ struct Provider: TimelineProvider {
     }
 
     /// What this widget shows: its style, its servers (at most `maxServersPerWidget`), and whether
-    /// it's the multi-server table.
-    private func pick(_ config: Config, _ size: String) -> (WidgetStyle, [ServerConfig], Bool) {
-        let style = config.widgets[size] ?? WidgetStyle()
+    /// it's the multi-server table. Edit Widget choices win; empty ones follow Settings › Widgets.
+    private func pick(_ intent: ConfigureWidget, _ config: Config, _ size: String) -> (WidgetStyle, [ServerConfig], Bool) {
+        var style = config.widgets[size] ?? WidgetStyle()
+        if let stats = intent.stats, !stats.isEmpty {
+            style.metrics = Dictionary(uniqueKeysWithValues: StatOption.allCases.map { ($0.rawValue, stats.contains($0)) })
+        }
+        if let s = intent.style { style.style = s.rawValue }
+        if let l = intent.look { style.look = l.rawValue }
+        if let chosen = intent.servers, !chosen.isEmpty {
+            let servers = chosen.compactMap { c in config.servers.first { $0.id == c.id } }.prefix(maxServersPerWidget)
+            return (style, Array(servers), servers.count > 1)
+        }
         let one = config.servers.filter { $0.id == style.server }
         if !one.isEmpty { return (style, one, false) }
         return (style, Array(config.servers.filter { $0.widgets ?? true }.prefix(maxServersPerWidget)), true)
     }
 
-    private func fetch(_ context: Context) -> Entry {
+    private func title(_ intent: ConfigureWidget) -> String? {
+        intent.name.flatMap { $0.trimmingCharacters(in: .whitespaces).isEmpty ? nil : $0 }
+    }
+
+    private func fetch(_ intent: ConfigureWidget, _ context: Context) -> Entry {
         let config = Store.load() ?? Config()
-        let (style, servers, all) = pick(config, size(context))
+        let (style, servers, all) = pick(intent, config, size(context))
         let live = Store.loadLive()
         var results = [Stats](repeating: Stats(), count: servers.count)
         let lock = NSLock()
@@ -77,7 +89,7 @@ struct Provider: TimelineProvider {
             let s = live?.first { $0.id == servers[i].id } ?? Self.stats(servers[i])
             lock.withLock { results[i] = s }
         }
-        return Entry(size: size(context), style: style, servers: results, all: all, prefs: config.prefs ?? Prefs())
+        return Entry(size: size(context), style: style, servers: results, all: all, prefs: config.prefs ?? Prefs(), title: title(intent))
     }
 
     /// One short SSH session: ~3 s of samples plus the update count.
@@ -97,9 +109,9 @@ struct Provider: TimelineProvider {
         return parser.stats
     }
 
-    private func sample(_ context: Context) -> Entry {
+    private func sample(_ intent: ConfigureWidget, _ context: Context) -> Entry {
         let config = Store.load() ?? Config()
-        let (style, servers, all) = pick(config, size(context))
+        let (style, servers, all) = pick(intent, config, size(context))
         let names = servers.isEmpty ? ["server"] : servers.map(\.name)
         let demo = names.enumerated().map { i, name in
             let wave = (0..<12).map { 30 + 12 * sin(Double($0) * 0.9 + Double(i)) }
@@ -107,7 +119,7 @@ struct Provider: TimelineProvider {
                          down: wave.map { $0 / 2 }, up: wave.map { $0 / 5 }, temp: wave.map { $0 + 18 }, memUsed: 19.5, memTotal: 32,
                          diskUsed: 580, diskTotal: 1000, diskFree: 420, uptime: 1_036_800, updates: 0)
         }
-        return Entry(size: size(context), style: style, servers: demo, all: all, prefs: config.prefs ?? Prefs())
+        return Entry(size: size(context), style: style, servers: demo, all: all, prefs: config.prefs ?? Prefs(), title: title(intent))
     }
 }
 
