@@ -39,7 +39,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         servers = config.servers.map(Server.init)
         buildMenu()
 
-        main = Panel(page: "app", size: NSSize(width: 1160, height: 790), radius: 28, resizable: true)
+        main = Panel(pages: ["app", "settings"], size: NSSize(width: 1160, height: 790), radius: 28, resizable: true)
         main.window.minSize = NSSize(width: 960, height: 640)
         main.window.makeKeyAndOrderFront(nil)
         apply(prefs, was: nil)
@@ -71,6 +71,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func showServers(then: (() -> Void)? = nil) {
         main.show("app", then: then)
+        showPasswordSheet()
         main.window.makeKeyAndOrderFront(nil)
         NSApp.activate()
     }
@@ -175,7 +176,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         switch cmd {
         case "ready":
-            p.didLoad()
             changed()
             p.window.invalidateShadow()
             showPasswordSheet()
@@ -392,6 +392,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func showSettings() {
         main.show("settings")
+        showPasswordSheet()
         main.window.makeKeyAndOrderFront(nil)
         NSApp.activate()
         countPlaced()
@@ -559,26 +560,32 @@ final class Web: WKWebView {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
-/// A borderless window with one transparent web page on top of native glass:
-/// Liquid Glass on macOS 26 and later, a behind-window blur before that.
+/// A borderless window on top of native glass (Liquid Glass on macOS 26 and later, a behind-window
+/// blur before that) holding transparent web pages: the servers ("app") and Settings. Both stay loaded
+/// and up to date; switching crossfades between them instead of loading a page, so nothing flickers.
 final class Panel: NSObject, WKScriptMessageHandler, NSWindowDelegate {
     let window: NSWindow
-    let web: Web
-    /// The page showing: "app" or "settings" in the main window.
+    private let container: NSView
+    private var webs: [String: Web] = [:]
+    /// The page showing.
     private(set) var page: String
-    private(set) var loaded = false
-    private var onReady: [() -> Void] = []
+    private var ready: Set<String> = []
+    private var onReady: [String: [() -> Void]] = [:]
 
-    init(page: String, size: NSSize, radius: CGFloat, resizable: Bool = false, glass: Bool = true) {
+    /// The page showing, for drags, menus and focus.
+    var web: Web { webs[page]! }
+    var loaded: Bool { ready.contains(page) }
+
+    init(pages: [String], size: NSSize, radius: CGFloat, resizable: Bool = false) {
         var style: NSWindow.StyleMask = [.borderless, .closable, .miniaturizable]
         if resizable { style.insert(.resizable) }
         window = KeyWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: style, backing: .buffered, defer: false)
-        let conf = WKWebViewConfiguration()
-        web = Web(frame: NSRect(origin: .zero, size: size), configuration: conf)
+        container = NSView(frame: NSRect(origin: .zero, size: size))
+        container.wantsLayer = true
+        container.autoresizingMask = [.width, .height]
+        page = pages[0]
         self.radius = radius
-        self.page = page
         super.init()
-        conf.userContentController.add(self, name: "ice")
 
         window.isOpaque = false
         window.backgroundColor = .clear
@@ -589,50 +596,58 @@ final class Panel: NSObject, WKScriptMessageHandler, NSWindowDelegate {
         window.setContentSize(size)
         window.center()
 
-        web.setValue(false, forKey: "drawsBackground")
-        web.autoresizingMask = [.width, .height]
-        setGlass(glass)
-
         let res = Bundle.main.resourceURL!
-        web.loadFileURL(res.appendingPathComponent("\(page).html"), allowingReadAccessTo: res)
+        for name in pages {
+            let conf = WKWebViewConfiguration()
+            conf.userContentController.add(self, name: "ice")
+            let web = Web(frame: container.bounds, configuration: conf)
+            web.setValue(false, forKey: "drawsBackground")
+            web.autoresizingMask = [.width, .height]
+            web.isHidden = name != page
+            container.addSubview(web)
+            webs[name] = web
+            web.loadFileURL(res.appendingPathComponent("\(name).html"), allowingReadAccessTo: res)
+        }
+        setGlass(true)
     }
 
     private let radius: CGFloat
 
-    /// Switches to another page; `then` runs once it has loaded (right away if it's already showing).
-    func show(_ page: String, then: (() -> Void)? = nil) {
-        if let then { onReady.append(then) }
-        if page == self.page {
-            if loaded { didLoad() }
-            return
+    /// Switches to another page with a short crossfade (none with Reduce Motion); `then` runs once
+    /// it's ready, right away if it already is.
+    func show(_ name: String, then: (() -> Void)? = nil) {
+        guard let next = webs[name] else { return }
+        if name != page {
+            webs[page]?.evaluateJavaScript("window.hidePassword && hidePassword()")
+            if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+                let fade = CATransition()
+                fade.type = .fade
+                fade.duration = 0.18
+                fade.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                container.layer?.add(fade, forKey: "page")
+            }
+            webs[page]?.isHidden = true
+            next.isHidden = false
+            page = name
+            window.makeFirstResponder(next)
         }
-        self.page = page
-        loaded = false
-        let res = Bundle.main.resourceURL!
-        web.loadFileURL(res.appendingPathComponent("\(page).html"), allowingReadAccessTo: res)
+        guard let then else { return }
+        if ready.contains(name) { then() } else { onReady[name, default: []].append(then) }
     }
 
-    /// The page said it's ready.
-    func didLoad() {
-        loaded = true
-        let run = onReady
-        onReady = []
-        run.forEach { $0() }
-    }
-
-    /// Native glass behind the page, or nothing (Settings › Appearance: no blur / reduce transparency).
+    /// Native glass behind the pages, or nothing (Settings › Appearance: no blur / reduce transparency).
     private func setGlass(_ on: Bool) {
-        web.removeFromSuperview()
-        web.frame = NSRect(origin: .zero, size: window.frame.size)
+        container.removeFromSuperview()
+        container.frame = NSRect(origin: .zero, size: window.frame.size)
         if !on {
-            let plain = NSView(frame: web.frame)
-            plain.addSubview(web)
+            let plain = NSView(frame: container.frame)
+            plain.addSubview(container)
             window.contentView = plain
         } else if #available(macOS 26, *) {
             let g = NSGlassEffectView()
             g.style = .clear
             g.cornerRadius = radius
-            g.contentView = web
+            g.contentView = container
             window.contentView = g
         } else {
             let blur = NSVisualEffectView()
@@ -640,14 +655,14 @@ final class Panel: NSObject, WKScriptMessageHandler, NSWindowDelegate {
             blur.material = .fullScreenUI
             blur.state = .active
             blur.maskImage = Self.mask(radius)
-            blur.frame = web.frame
-            blur.addSubview(web)
+            blur.frame = container.frame
+            blur.addSubview(container)
             window.contentView = blur
         }
         window.invalidateShadow()
     }
 
-    /// Settings › Appearance: theme for the native parts, glass on or off. The page styles itself.
+    /// Settings › Appearance: theme for the native parts, glass on or off. The pages style themselves.
     func look(_ p: Prefs) {
         window.appearance = p.theme == "dark" ? NSAppearance(named: .darkAqua) : p.theme == "light" ? NSAppearance(named: .aqua) : nil
         let glass = p.blur > 0 && !p.reduce
@@ -666,11 +681,14 @@ final class Panel: NSObject, WKScriptMessageHandler, NSWindowDelegate {
         return mask
     }
 
+    /// The state goes to every page, so a hidden one is current when it's shown.
     func render(_ state: [String: Any]) {
         guard let data = try? JSONSerialization.data(withJSONObject: state) else { return }
-        web.evaluateJavaScript("window.render && render(\(String(decoding: data, as: UTF8.self)))")
+        let js = "window.render && render(\(String(decoding: data, as: UTF8.self)))"
+        webs.values.forEach { $0.evaluateJavaScript(js) }
     }
 
+    /// Calls a function on the page showing.
     func call(_ function: String, _ arg: [String: Any] = [:]) {
         guard let data = try? JSONSerialization.data(withJSONObject: arg) else { return }
         web.evaluateJavaScript("window.\(function) && \(function)(\(String(decoding: data, as: UTF8.self)))")
@@ -687,11 +705,15 @@ final class Panel: NSObject, WKScriptMessageHandler, NSWindowDelegate {
     }
 
     func userContentController(_ c: WKUserContentController, didReceive message: WKScriptMessage) {
-        ice.handle(message.body as? [String: Any] ?? [:], from: self)
+        let body = message.body as? [String: Any] ?? [:]
+        if body["cmd"] as? String == "ready", let name = webs.first(where: { $0.value === message.webView })?.key {
+            ready.insert(name)
+            onReady.removeValue(forKey: name)?.forEach { $0() }
+        }
+        // Only the page showing can be clicked; a hidden one only reports that it's ready.
+        guard message.webView === web || body["cmd"] as? String == "ready" else { return }
+        ice.handle(body, from: self)
     }
 
-    func windowWillClose(_ notification: Notification) {
-        guard self !== ice.main else { return }
-        web.configuration.userContentController.removeScriptMessageHandler(forName: "ice")
-    }
+    func windowWillClose(_ notification: Notification) {}
 }
