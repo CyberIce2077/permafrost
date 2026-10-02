@@ -53,7 +53,10 @@ function render(state) {
   const P = { ...S.prefs, ...drag };
   Object.assign(UNITS, { unit: P.unit, net: P.net });
   applyLook(P);
+  // Re-rendering replaces the scrolling boxes; keep where they were scrolled to.
+  const scrolled = ['main', 'wsGrid', 'wsInspector'].map((id) => [id, $(id) ? $(id).scrollTop : 0]);
   set($('win'), page(P));
+  scrolled.forEach(([id, y]) => { if ($(id)) $(id).scrollTop = y; });
   set($('sheet'), edit ? editSheet() : confirmFor ? confirmSheet() : '');
 }
 
@@ -165,7 +168,7 @@ ${!P.reduce && P.glass < 25 ? `<div role="note" style="font-size: 12px; font-wei
   if (ws.mode !== 'edit') {
     widgets = `<div style="display: flex; flex-direction: column; gap: 14px; height: 640px">
 <p style="margin: 0; font-size: 13px; line-height: 1.45; color: ${sub}; text-shadow: ${shadow}">Design widgets here. On the desktop, add <strong>Ice Servers</strong> from the widget gallery, then right-click it › Edit Widget and choose a design. Saving a design updates every widget that uses it.</p>
-<div style="flex-grow: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-content: start; gap: 14px; padding-bottom: 4px">
+<div id="wsGrid" style="flex-grow: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-content: start; gap: 14px; padding-bottom: 4px">
 ${(S.designs || []).map((d) => `<article aria-label="${esc(d.name)}" style="box-sizing: border-box; padding: 8px; display: flex; flex-direction: column; gap: 10px; border-radius: 22px; background: ${cardBg}; border: 1px solid ${cardBorder}">
 <div style="height: 148px; border-radius: 16px; display: flex; align-items: center; justify-content: center; overflow: hidden; ${wallpaper}">${renderWidget(d, S.servers, 236, 128).html}</div>
 <div style="display: flex; flex-direction: column; gap: 3px; padding: 0 4px">
@@ -189,7 +192,8 @@ ${(S.designs || []).map((d) => `<article aria-label="${esc(d.name)}" style="box-
     const d = ws.draft, isNew = ws.id === 'new';
     const r = renderWidget(d, S.servers, 460, 500), multi = r.ids.length > 1, cap = designCaps(d, multi);
     const big = d.size === 'L' || d.size === 'XL', ctlOn = !!d.controls && big, n = placed(d);
-    const chip = (label, on, cmd, val, lead, num, disabled) => `<button data-cmd="${cmd}" data-val="${val}" aria-pressed="${on}" ${disabled ? 'disabled' : ''} style="display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 14px; border-radius: 18px; cursor: ${disabled ? 'default' : 'pointer'}; font-size: 13px; font-weight: 600; white-space: nowrap; color: ${on ? '#FFFFFF' : text}; background: ${on ? acc : softBg}; border: 1px solid ${on ? acc : hair}${disabled ? '; opacity: 0.45' : ''}"><span style="${lead || 'display: none'}">${num || ''}</span>${esc(label)}</button>`;
+    // `dim`: the design greys servers out while All servers is on; clicking one still picks just it.
+    const chip = (label, on, cmd, val, lead, num, dim) => `<button data-cmd="${cmd}" data-val="${val}" aria-pressed="${on}" style="display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 14px; border-radius: 18px; cursor: pointer; font-size: 13px; font-weight: 600; white-space: nowrap; color: ${on ? '#FFFFFF' : text}; background: ${on ? acc : softBg}; border: 1px solid ${on ? acc : hair}${dim ? '; opacity: 0.45' : ''}"><span style="${lead || 'display: none'}">${num || ''}</span>${esc(label)}</button>`;
     const hint = (t, warn) => t ? `<span style="font-size: 12px; line-height: 1.4; color: ${warn ? (dark ? '#FFD08A' : '#8A3B00') : sub}">${esc(t)}</span>` : '';
     const statHint = !d.stats.length ? hint('Pick at least one stat.', true)
       : d.stats.length > cap.stats ? hint(`${W_DIMS[d.size][3]} fits ${cap.stats} stat${cap.stats > 1 ? 's' : ''}${multi ? ' per server' : ''}. It shows them in the order you picked: 1, 2, 3…`, true) : hint('Numbers show the order on the widget. Tap again to remove.');
@@ -209,7 +213,7 @@ ${(S.designs || []).map((d) => `<article aria-label="${esc(d.name)}" style="box-
 <button id="wsSave" data-cmd="wsSave" ${ok ? '' : 'disabled'} style="height: 40px; padding: 0 20px; border: 0; border-radius: 20px; cursor: pointer; font-size: 13px; font-weight: 600; color: #FFFFFF; background: ${acc}${ok ? '' : '; opacity: 0.4; cursor: default'}">${isNew ? 'Create Widget' : 'Save'}</button>
 </div>
 <div style="display: grid; grid-template-columns: 350px minmax(0, 1fr); gap: 16px; height: 578px">
-<div style="box-sizing: border-box; height: 100%; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 18px; border-radius: 22px; background: ${cardBg}; border: 1px solid ${cardBorder}">
+<div id="wsInspector" style="box-sizing: border-box; height: 100%; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 18px; border-radius: 22px; background: ${cardBg}; border: 1px solid ${cardBorder}">
 ${isNew ? field('Start from', `<div style="display: flex; flex-wrap: wrap; gap: 8px">${WS_TEMPLATES.map(([k, label]) => chip(label, false, 'wsTpl', k)).join('')}</div>`) : ''}
 <label style="display: flex; flex-direction: column; gap: 8px"><span style="${ui.label}">Name</span><input id="wsName" class="icefield solid" type="text" placeholder="e.g. Temperatures" value="${esc(d.name)}"></label>
 ${field('Size', segs([['S', 'Small'], ['M', 'Medium'], ['L', 'Large'], ['XL', 'X-Large']], d.size, 'wsSize'))}
@@ -241,7 +245,7 @@ ${PANES.map(([k, label, color, icon]) => {
     return `<button data-cmd="pane" data-val="${k}" aria-current="${on ? 'page' : 'false'}" style="display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 6px 10px; border-radius: 12px; border: 0; cursor: pointer; font-size: 14px; font-weight: 600; text-align: left; color: ${text}; text-shadow: ${shadow}; background: ${on ? (dark ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.85)') : 'transparent'}"><span style="width: 26px; height: 26px; flex-shrink: 0; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: ${color}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${icon}"></path></svg></span>${label}</button>`;
   }).join('')}
 </nav>
-<main style="flex-grow: 1; min-width: 0; box-sizing: border-box; padding: 22px 26px; display: flex; flex-direction: column; gap: 16px; overflow-x: hidden; overflow-y: auto">
+<main id="main" style="flex-grow: 1; min-width: 0; box-sizing: border-box; padding: 22px 26px; display: flex; flex-direction: column; gap: 16px; overflow-x: hidden; overflow-y: auto">
 <h1 style="margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; text-shadow: ${shadow}">${PANES.find((p) => p[0] === pane)[1]}</h1>
 ${pane === 'appearance' ? appearance : pane === 'widgets' ? widgets : list}
 </main>
@@ -365,7 +369,7 @@ function act(d) {
     case 'wsAll': ws.draft.all = !ws.draft.all; if (ws.draft.all) ws.draft.servers = []; return render();
     case 'wsServer': {
       const x = ws.draft;
-      if (!x.all) x.servers = x.servers.includes(d.val) ? x.servers.filter((y) => y !== d.val) : [...x.servers, d.val];
+      if (x.all) { x.all = false; x.servers = [d.val]; } else x.servers = x.servers.includes(d.val) ? x.servers.filter((y) => y !== d.val) : [...x.servers, d.val];
       return render();
     }
     case 'wsStat': {
