@@ -36,7 +36,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             config.servers = Store.shellAliases()
         }
-        if config.designs == nil { config.designs = [.overview] }
         servers = config.servers.map(Server.init)
         buildMenu()
 
@@ -404,20 +403,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         changed()
     }
 
-    /// Counts the desktop widgets using each design; a widget with no pick shows the default (first) one.
+    /// Counts the desktop widgets using each design. Widgets with no design (or a deleted one) ask for one instead.
     func countPlaced() {
         WidgetCenter.shared.getCurrentConfigurations { result in
             guard case .success(let widgets) = result else {
                 if case .failure(let e) = result { NSLog("Ice Servers: can't read desktop widgets: %@", e.localizedDescription) }
                 return
             }
-            let fallback = self.config.designs?.first?.id ?? Design.overview.id
             var counts: [String: Int] = [:]
             for w in widgets where w.kind == "IceServers" {
-                // Widgets that haven't picked a design show "Choose a design", not a design.
-                guard let id = w.widgetConfigurationIntent(of: ConfigureWidget.self)?.design?.id else { continue }
-                let known = self.config.designs?.contains { $0.id == id } == true
-                counts[known ? id : fallback, default: 0] += 1
+                guard let id = w.widgetConfigurationIntent(of: ConfigureWidget.self)?.design?.id,
+                      self.config.designs?.contains(where: { $0.id == id }) == true else { continue }
+                counts[id, default: 0] += 1
             }
             DispatchQueue.main.async {
                 guard counts != self.placed else { return }

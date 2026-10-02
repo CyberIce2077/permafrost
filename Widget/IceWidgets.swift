@@ -34,8 +34,9 @@ struct Entry: TimelineEntry {
     var total = 0
     var online = 0
     var prefs = Prefs()
-    /// No design picked yet: the widget asks for one instead.
-    var choose = false
+    /// Instead of a design, the widget asks for one: "pick" (none picked yet), "gone" (its design
+    /// was deleted) or "create" (there are no designs yet).
+    var ask: String?
 }
 
 struct Provider: AppIntentTimelineProvider {
@@ -59,10 +60,15 @@ struct Provider: AppIntentTimelineProvider {
         }
     }
 
-    /// The picked design, or the first one when it was deleted (or for the gallery preview, before one is picked).
-    private func design(_ intent: ConfigureWidget, _ config: Config) -> Design {
-        let all = config.designs ?? [.overview]
-        return all.first { $0.id == intent.design?.id } ?? all.first ?? .overview
+    /// The picked design, or why there isn't one. There's no built-in default design.
+    private func design(_ intent: ConfigureWidget, _ config: Config) -> (Design?, ask: String?) {
+        let all = config.designs ?? []
+        if let d = all.first(where: { $0.id == intent.design?.id }) { return (d, nil) }
+        return (nil, all.isEmpty ? "create" : intent.design == nil ? "pick" : "gone")
+    }
+
+    private func asking(_ why: String, _ config: Config, _ context: Context) -> Entry {
+        Entry(size: size(context), design: Design(name: ""), servers: [], prefs: config.prefs ?? Prefs(), ask: why)
     }
 
     /// The design's servers, and the ones that fit at this size.
@@ -74,8 +80,7 @@ struct Provider: AppIntentTimelineProvider {
 
     private func fetch(_ intent: ConfigureWidget, _ context: Context) -> Entry {
         let config = Store.load() ?? Config()
-        if intent.design == nil { return Entry(size: size(context), design: .overview, servers: [], prefs: config.prefs ?? Prefs(), choose: true) }
-        let d = design(intent, config)
+        guard let d = design(intent, config).0 else { return asking(design(intent, config).ask ?? "pick", config, context) }
         let (all, servers) = pick(d, config, size(context))
         let live = Store.loadLive()
         var results = [Stats](repeating: Stats(), count: servers.count)
@@ -108,9 +113,10 @@ struct Provider: AppIntentTimelineProvider {
         return parser.stats
     }
 
+    /// The gallery preview and placeholder: the picked design, else the first one, else "create one".
     private func sample(_ intent: ConfigureWidget, _ context: Context) -> Entry {
         let config = Store.load() ?? Config()
-        let d = design(intent, config)
+        guard let d = design(intent, config).0 ?? config.designs?.first else { return asking("create", config, context) }
         let (all, servers) = pick(d, config, size(context))
         let demo = (servers.isEmpty ? [ServerConfig(name: "server", ssh: "")] : servers).enumerated().map { i, c in
             let wave = (0..<12).map { 30 + 12 * sin(Double($0) * 0.9 + Double(i)) }

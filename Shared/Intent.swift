@@ -36,7 +36,7 @@ struct DesignEntity: AppEntity {
 struct DesignQuery: EntityQuery {
     private var all: [DesignEntity] {
         let config = Store.load() ?? Config()
-        return (config.designs ?? [.overview]).map { DesignEntity($0, config) }
+        return (config.designs ?? []).map { DesignEntity($0, config) }
     }
 
     func entities(for identifiers: [String]) async throws -> [DesignEntity] { all.filter { identifiers.contains($0.id) } }

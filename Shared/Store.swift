@@ -33,8 +33,6 @@ struct Design: Codable, Equatable {
     /// Power, Restart and Updates buttons (Large and Extra Large only).
     var controls = false
 
-    static let overview = Design(id: "overview", name: "Overview", size: "XL", stats: ["cpu", "mem", "disk", "temp"], controls: true)
-
     /// The servers it shows, in order.
     func servers(in config: Config) -> [ServerConfig] {
         all ? config.servers.filter { $0.widgets ?? true } : servers.compactMap { id in config.servers.first { $0.id == id } }

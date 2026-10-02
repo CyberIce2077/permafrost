@@ -70,12 +70,12 @@ struct WidgetView: View {
                     ContainerRelativeShape().strokeBorder(L.border, lineWidth: 1)
                 }
             }
-            .widgetURL(URL(string: entry.choose ? "iceservers://widgets" : "iceservers://open?id=\(entry.servers.first?.id ?? "")"))
+            .widgetURL(URL(string: entry.ask != nil ? "iceservers://widgets" : "iceservers://open?id=\(entry.servers.first?.id ?? "")"))
     }
 
     @ViewBuilder private var content: some View {
-        if entry.choose {
-            choose
+        if let why = entry.ask {
+            ask(why)
         } else if entry.servers.isEmpty || stats.isEmpty {
             Text(entry.servers.isEmpty ? "Add a server in Ice Servers" : "Pick at least one stat")
                 .font(.system(size: 13, weight: .semibold))
@@ -89,23 +89,28 @@ struct WidgetView: View {
         }
     }
 
-    /// A new widget, before a design is picked in Edit Widget. Clicking it opens Custom Widgets.
-    private var choose: some View {
+    /// No design to show: none picked yet, its design was deleted, or there are none. Clicking opens Custom Widgets.
+    private func ask(_ why: String) -> some View {
         let box: CGFloat = small ? 36 : 44
+        let (title, body, short) = switch why {
+        case "create": ("Create a design", "Design a widget in Ice Servers › Custom Widgets, then pick it with right‑click › Edit Widget.", "Open Ice Servers")
+        case "gone": ("Design deleted", "This widget's design was deleted. Right‑click › Edit Widget to pick another.", "Right‑click › Edit Widget")
+        default: ("Choose a design", "Right‑click this widget › Edit Widget and pick one of your designs from Ice Servers.", "Right‑click › Edit Widget")
+        }
         return VStack(spacing: small ? 6 : 8) {
             RoundedRectangle(cornerRadius: box * 11 / 36)
                 .fill(LinearGradient(colors: [hex(0xFFC46B), hex(0xFF9500)], startPoint: .topLeading, endPoint: .bottomTrailing))
                 .overlay(DesignsGlyph().stroke(.white, style: StrokeStyle(lineWidth: 2 * box / 36, lineJoin: .round)).frame(width: box / 2, height: box / 2))
                 .frame(width: box, height: box)
                 .padding(.bottom, 2)
-            Text("Choose a design")
+            Text(title)
                 .font(.system(size: small ? 14 : 16, weight: .bold))
                 .foregroundStyle(L.text)
-            Text(small ? "Right-click › Edit Widget" : "Right-click this widget › Edit Widget and pick one of your designs from Ice Servers.")
+            Text(small ? short : body)
                 .font(.system(size: small ? 11 : 12, weight: .medium))
                 .foregroundStyle(L.sub)
                 .multilineTextAlignment(.center)
-                .frame(maxWidth: 260)
+                .frame(maxWidth: 300)
         }
         .textShadow(L)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

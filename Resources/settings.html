@@ -430,7 +430,7 @@ function act(d) {
       post({ cmd: 'deleteDesign', id: d.id });
       ws = { mode: 'gallery', id: '', draft: null };
       render();
-      return toast({ text: n ? `Deleted “${x.name}” · ${n} desktop widget${n > 1 ? 's' : ''} reset to the default design` : `Deleted “${x.name}”`, undo: 'undoDesign' });
+      return toast({ text: n ? `Deleted “${x.name}” · ${n} desktop widget${n > 1 ? 's' : ''} will ask for another design` : `Deleted “${x.name}”`, undo: 'undoDesign' });
     }
     case 'edit': {
       const s = S.servers.find((x) => x.id === d.id);
