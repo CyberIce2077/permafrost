@@ -91,8 +91,9 @@ Add them like any other widget: right-click the desktop, choose **Edit Widgetsâ€
   asks for another. There's no built-in design: until you make one of a size, its widget says so.
 - While the app runs, widgets use its live stats. Otherwise they fetch fresh numbers over SSH on their own. macOS decides how often (usually every few
   minutes); while the app is open it also refreshes them whenever something changes.
-- Clicking a widget opens the app. Its power, restart and update buttons open the app, which asks
-  before doing anything to the server.
+- Clicking a widget opens the app. Its restart, update and power buttons work in the background:
+  the app does the work (launching hidden if it isn't running) and only shows the same
+  confirmation it would in its window for restart and power off.
 
 The widget runs in the macOS sandbox. It can read `~/.ssh` and the app's settings, nothing else.
 The app passes it each server's resolved SSH settings, so `Include`s in `~/.ssh/config` don't need to be readable.

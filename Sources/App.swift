@@ -39,9 +39,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         servers = config.servers.map(Server.init)
         buildMenu()
 
+        // Launched by a widget button (Widget/Actions.swift): run its action, don't show the window.
+        let args = CommandLine.arguments
+        let launchAction = args.firstIndex(of: "--action").flatMap { i in i + 2 < args.count ? (args[i + 1], args[i + 2]) : nil }
+
         main = Panel(pages: ["app", "settings"], size: NSSize(width: 1160, height: 790), radius: 28, resizable: true)
         main.window.minSize = NSSize(width: 960, height: 640)
-        main.window.makeKeyAndOrderFront(nil)
+        if launchAction == nil { main.window.makeKeyAndOrderFront(nil) }
         apply(prefs, was: nil)
 
         servers.forEach { $0.connect() }
@@ -51,7 +55,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         save()
         countPlaced()
-        NSApp.activate()
+        // Widget buttons while the app runs (Widget/Actions.swift): "action serverID".
+        DistributedNotificationCenter.default().addObserver(forName: Notification.Name("app.iceservers.action"), object: nil, queue: .main) { n in
+            guard let parts = (n.object as? String)?.split(separator: " "), parts.count == 2 else { return }
+            self.run(String(parts[0]), on: String(parts[1]), quiet: true)
+        }
+        if let (action, id) = launchAction {
+            run(action, on: id, quiet: true)
+        } else {
+            NSApp.activate()
+        }
         application(NSApp, open: pendingURLs)
     }
 
@@ -157,14 +170,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// Runs a widget's action once the app knows whether the server is up (it may have just launched).
-    private func run(_ action: String, on id: String, tries: Int = 40) {
-        guard let s = servers.first(where: { $0.cfg.id == id }) else { return }
+    /// An action from a widget button or an iceservers:// link. Only these four: anything on this Mac
+    /// can open a link or post the widget's notification. `quiet`: from a widget, so the main window
+    /// stays put; a confirmation is all that shows.
+    private func run(_ action: String, on id: String, quiet: Bool = false, tries: Int = 40) {
+        guard ["power", "restart", "install", "check"].contains(action),
+              let s = servers.first(where: { $0.cfg.id == id }) else { return }
         if s.phase == "connecting", tries > 0 {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { self.run(action, on: id, tries: tries - 1) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { self.run(action, on: id, quiet: quiet, tries: tries - 1) }
             return
         }
+        quietConfirm = quiet && !NSApp.isActive
         handle(["cmd": action, "id": id], from: main)
+        quietConfirm = false
     }
+
+    /// Set while running a widget's action with the app in the background.
+    private var quietConfirm = false
 
     // MARK: messages from the pages
 
@@ -433,8 +455,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         a.informativeText = info
         a.addButton(withTitle: button)
         a.addButton(withTitle: "Cancel")
+        let hide = quietConfirm
         NSApp.activate()
-        return a.runModal() == .alertFirstButtonReturn
+        let ok = a.runModal() == .alertFirstButtonReturn
+        // From a widget: back to the background, as if only the dialog had appeared.
+        if hide { NSApp.hide(nil) }
+        return ok
     }
 
     func alert(_ title: String, _ info: String) {

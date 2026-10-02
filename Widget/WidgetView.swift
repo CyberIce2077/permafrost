@@ -156,7 +156,7 @@ struct WidgetView: View {
             .frame(maxHeight: .infinity)
             if ctl {
                 HStack(spacing: 10) {
-                    Link(destination: link("restart", s)) {
+                    act("restart", s) {
                         Text("Restart")
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(L.text)
@@ -164,7 +164,7 @@ struct WidgetView: View {
                             .background(Capsule().fill(L.btnBg))
                             .overlay(Capsule().strokeBorder(L.border, lineWidth: 1))
                     }
-                    Link(destination: link((s.updates ?? 0) > 0 ? "install" : "check", s)) {
+                    act((s.updates ?? 0) > 0 ? "install" : "check", s) {
                         Text((s.updates ?? 0) > 0 ? "\(s.updates!) Update\(s.updates == 1 ? "" : "s")" : "Check Updates")
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(.white)
@@ -248,14 +248,14 @@ struct WidgetView: View {
                 Spacer(minLength: 0)
                 if d.controls {
                     HStack(spacing: 6) {
-                        Link(destination: link("restart", s)) {
+                        act("restart", s) {
                             Icon.restart.view(16, L.text, 2.3)
                                 .frame(width: 36, height: 36)
                                 .background(Circle().fill(L.btnBg))
                                 .overlay(Circle().strokeBorder(L.border, lineWidth: 1))
                         }
                         .accessibilityLabel("Restart \(s.name)")
-                        Link(destination: link(updates > 0 ? "install" : "check", s)) {
+                        act(updates > 0 ? "install" : "check", s) {
                             Icon.download.view(16, .white, 2.3)
                                 .frame(width: 36, height: 36)
                                 .background(Circle().fill(hex(0x0066CC)).shadow(color: rgba(0, 102, 204, 0.3), radius: 5, y: 3))
@@ -268,7 +268,7 @@ struct WidgetView: View {
                                 }
                         }
                         .accessibilityLabel(updates > 0 ? "Install \(updates) updates on \(s.name)" : "Check \(s.name) for updates")
-                        Link(destination: link("power", s)) {
+                        act("power", s) {
                             Icon.power.view(16, .white, 2.3)
                                 .frame(width: 36, height: 36)
                                 .background(Circle().fill(s.online ? hex(0x248A3D) : rgba(120, 120, 128, 0.45))
@@ -396,7 +396,7 @@ struct WidgetView: View {
     // MARK: Pieces
 
     private func power(_ s: Stats, _ px: CGFloat) -> some View {
-        Link(destination: link("power", s)) {
+        act("power", s) {
             Icon.power.view(16, .white, 2.2)
                 .frame(width: px, height: px)
                 .background(Circle().fill(s.online ? hex(0x248A3D) : rgba(120, 120, 128, 0.45)))
@@ -429,8 +429,9 @@ struct WidgetView: View {
         entry.prefs.unit == "F" ? "\(Int((c * 9 / 5 + 32).rounded()))°F" : "\(Int(c.rounded()))°C"
     }
 
-    private func link(_ action: String, _ s: Stats) -> URL {
-        URL(string: "iceservers://\(action)?id=\(s.id)")!
+    /// A button that runs `action` on `s` in the background (Actions.swift), without opening the app.
+    private func act<Label: View>(_ action: String, _ s: Stats, @ViewBuilder _ label: () -> Label) -> some View {
+        Button(intent: ServerAction(action, s.id), label: label).buttonStyle(.plain)
     }
 
     private func uptime(_ sec: Double) -> String {
