@@ -42,7 +42,7 @@ struct Design: Codable, Equatable {
     static func caps(size: String, style: String, controls: Bool, multi: Bool) -> (rows: Int, stats: Int) {
         let ctl = controls && (size == "L" || size == "XL")
         if multi { return (["S": 4, "M": 4, "L": 5, "XL": 5][size] ?? 4, ["S": 1, "M": 2, "L": ctl ? 2 : 3, "XL": 5][size] ?? 2) }
-        return (1, ["S": style == "bars" ? 3 : 2, "M": 4, "L": 6, "XL": 6][size] ?? 4)
+        return (1, ["S": 2, "M": 4, "L": 6, "XL": 6][size] ?? 4)
     }
 }
 

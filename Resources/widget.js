@@ -17,7 +17,7 @@ const designServers = (d, servers) => d.all ? servers.filter((s) => s.widgets !=
 function designCaps(d, multi) {
   const ctl = !!d.controls && (d.size === 'L' || d.size === 'XL');
   if (multi) return { rows: { S: 4, M: 4, L: 5, XL: 5 }[d.size], stats: { S: 1, M: 2, L: ctl ? 2 : 3, XL: 5 }[d.size] };
-  return { rows: 1, stats: { S: d.style === 'bars' ? 3 : 2, M: 4, L: 6, XL: 6 }[d.size] };
+  return { rows: 1, stats: { S: 2, M: 4, L: 6, XL: 6 }[d.size] };
 }
 
 // One stat of one server: [0–100 value, text, history].
