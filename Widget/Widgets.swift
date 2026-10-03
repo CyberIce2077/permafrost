@@ -56,6 +56,8 @@ struct Entry: TimelineEntry {
     var restarts = 0
     /// Some server is running a sudo action, so update buttons are unavailable (as in the app).
     var locked = false
+    /// A Restart or Power off clicked once, waiting for the second click (Actions.swift).
+    var pending: Pending?
     var prefs = Prefs()
     /// Instead of a design, the widget asks for one: "pick" (none picked yet), "gone" (its design
     /// was deleted), "resized" (its design is now another size) or "create" (there are no designs of its size yet).
@@ -71,7 +73,13 @@ struct Provider<I: DesignPicking>: AppIntentTimelineProvider {
 
     func timeline(for intent: I, in context: Context) async -> Timeline<Entry> {
         // WidgetKit decides the real refresh rate; the app also asks for a refresh whenever something changes.
-        Timeline(entries: [fetch(intent, context)], policy: .after(Date() + 300))
+        var now = fetch(intent, context)
+        guard let pending = Pending.current() else { return Timeline(entries: [now], policy: .after(Date() + 300)) }
+        // "Click again…" until the second click's window closes, then back to normal.
+        var later = now
+        now.pending = pending
+        later.date = pending.until
+        return Timeline(entries: [now, later], policy: .after(Date() + 300))
     }
 
     private func size(_ context: Context) -> String {

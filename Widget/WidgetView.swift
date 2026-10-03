@@ -136,7 +136,7 @@ struct WidgetView: View {
                     Text(s.name).font(titleFont).foregroundStyle(L.text).lineLimit(1)
                     HStack(spacing: 5) {
                         Circle().fill(dot(s)).frame(width: 6, height: 6)
-                        Text(!s.online ? "Offline" : reboot(s) ? "Restart required" : small ? "Online" : "Online · up " + uptime(s.uptime))
+                        Text(pendingText(s) ?? (!s.online ? "Offline" : reboot(s) ? "Restart required" : small ? "Online" : "Online · up " + uptime(s.uptime)))
                     }
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(statusColor(s))
@@ -218,7 +218,7 @@ struct WidgetView: View {
                     Text(s.name).font(.system(size: 14, weight: .bold)).foregroundStyle(L.text).lineLimit(1)
                     HStack(spacing: 5) {
                         Circle().fill(dot(s)).frame(width: 6, height: 6)
-                        Text(!s.online ? "Offline" : reboot(s) ? "Restart required" : "Online · up " + uptime(s.uptime))
+                        Text(pendingText(s) ?? (!s.online ? "Offline" : reboot(s) ? "Restart required" : "Online · up " + uptime(s.uptime)))
                     }
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(statusColor(s))
@@ -247,11 +247,12 @@ struct WidgetView: View {
         let updates = s.updates ?? 0
         let glow = { (c: Color, on: Bool) in Circle().fill(c).shadow(color: on ? c.opacity(0.35) : .clear, radius: 5, y: 3) }
         return HStack(spacing: 6) {
-            act("restart", s) {
-                Icon.restart.view(15, reboot(s) ? .white : L.text, 2.3)
+            act("restart", s, confirm: true) {
+                let hot = reboot(s) || pending("restart", s)
+                Icon.restart.view(15, hot ? .white : L.text, 2.3)
                     .frame(width: px, height: px)
-                    .background(glow(reboot(s) ? restartOrange : L.btnBg, reboot(s)))
-                    .overlay(Circle().strokeBorder(reboot(s) ? .clear : L.border, lineWidth: 1))
+                    .background(glow(hot ? restartOrange : L.btnBg, hot))
+                    .overlay(Circle().strokeBorder(pending("restart", s) ? .white : hot ? .clear : L.border, lineWidth: pending("restart", s) ? 2 : 1))
             }
             .accessibilityLabel(reboot(s) ? "Restart \(s.name), restart required" : "Restart \(s.name)")
             .opacity(s.online ? 1 : 0.45)
@@ -351,10 +352,12 @@ struct WidgetView: View {
                 Text(d.name.isEmpty ? "Servers" : d.name).font(titleFont).foregroundStyle(L.text).lineLimit(1)
                 Spacer(minLength: 0)
                 let n = entry.restarts
-                Text(small ? (n > 0 ? "\(n) to restart" : "\(entry.online)/\(entry.total) online")
-                     : "\(entry.online) of \(entry.total) online" + (n > 0 ? " · \(n) need\(n == 1 ? "s" : "") restart" : ""))
+                let asking = entry.servers.first { pendingText($0) != nil }
+                Text(asking.map { "Click again to turn off \($0.name)" }
+                     ?? (small ? (n > 0 ? "\(n) to restart" : "\(entry.online)/\(entry.total) online")
+                         : "\(entry.online) of \(entry.total) online" + (n > 0 ? " · \(n) need\(n == 1 ? "s" : "") restart" : "")))
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(small && n > 0 ? (d.look == "glass" ? hex(0xA34700) : hex(0xFFC46B)) : L.sub).lineLimit(1)
+                    .foregroundStyle(asking != nil || (small && n > 0) ? (d.look == "glass" ? hex(0xA34700) : hex(0xFFC46B)) : L.sub).lineLimit(1)
             }
             .textShadow(L)
             // Large and Extra Large rows share the height, up to 66 pt each.
@@ -421,10 +424,11 @@ struct WidgetView: View {
     // MARK: Pieces
 
     private func power(_ s: Stats, _ px: CGFloat) -> some View {
-        act("power", s) {
+        act("power", s, confirm: s.online) {
             Icon.power.view(16, .white, 2.2)
                 .frame(width: px, height: px)
-                .background(Circle().fill(s.online ? hex(0x248A3D) : rgba(120, 120, 128, 0.45)))
+                .background(Circle().fill(pending("power", s) ? hex(0xFF3B30) : s.online ? hex(0x248A3D) : rgba(120, 120, 128, 0.45)))
+                .overlay(Circle().strokeBorder(pending("power", s) ? .white : .clear, lineWidth: 2))
         }
         .accessibilityLabel("Turn \(s.name) \(s.online ? "off" : "on")")
     }
@@ -432,9 +436,9 @@ struct WidgetView: View {
     /// Waiting for a restart to finish installing updates (/var/run/reboot-required on the server).
     private func reboot(_ s: Stats) -> Bool { s.online && s.rebootSince != nil }
     private var restartOrange: Color { hex(0xE07800) }
-    private func dot(_ s: Stats) -> Color { !s.online ? hex(0x8E8E93) : reboot(s) ? hex(0xFF9500) : hex(0x30D158) }
+    private func dot(_ s: Stats) -> Color { pendingText(s) != nil || reboot(s) ? hex(0xFF9500) : !s.online ? hex(0x8E8E93) : hex(0x30D158) }
     private func statusColor(_ s: Stats) -> Color {
-        !s.online ? L.sub : reboot(s) ? (d.look == "glass" ? hex(0xA34700) : hex(0xFFC46B)) : L.ok
+        pendingText(s) != nil || (s.online && reboot(s)) ? (d.look == "glass" ? hex(0xA34700) : hex(0xFFC46B)) : !s.online ? L.sub : L.ok
     }
 
     private func warn(_ m: Metric, _ value: Double) -> Bool {
@@ -463,8 +467,15 @@ struct WidgetView: View {
     }
 
     /// A button that runs `action` on `s` in the background (Actions.swift), without opening the app.
-    private func act<Label: View>(_ action: String, _ s: Stats, @ViewBuilder _ label: () -> Label) -> some View {
-        Button(intent: ServerAction(action, s.id), label: label).buttonStyle(.plain)
+    private func act<Label: View>(_ action: String, _ s: Stats, confirm: Bool = false, @ViewBuilder _ label: () -> Label) -> some View {
+        Button(intent: ServerAction(action, s.id, confirm: confirm), label: label).buttonStyle(.plain)
+    }
+
+    /// Restart and power off wait for a second click (Actions.swift).
+    private func pending(_ action: String, _ s: Stats) -> Bool { entry.pending?.matches(action, s.id) == true }
+
+    private func pendingText(_ s: Stats) -> String? {
+        pending("restart", s) ? "Click again to restart" : pending("power", s) ? "Click again to turn off" : nil
     }
 
     private func uptime(_ sec: Double) -> String {

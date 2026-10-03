@@ -43,10 +43,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Launched by a widget button (Widget/Actions.swift): run its action, don't show the window.
         let args = CommandLine.arguments
         let launchAction = args.firstIndex(of: "--action").flatMap { i in i + 2 < args.count ? (args[i + 1], args[i + 2]) : nil }
+        let launchConfirmed = args.contains("--confirmed")
 
         main = Panel(pages: ["app", "settings"], size: NSSize(width: 1160, height: 790), radius: 28, resizable: true)
         main.window.minSize = NSSize(width: 960, height: 640)
-        if launchAction == nil { main.window.makeKeyAndOrderFront(nil) }
+        // From a widget button the app works in the background: no window and no Dock icon until you open it.
+        if launchAction == nil { main.window.makeKeyAndOrderFront(nil) } else { NSApp.setActivationPolicy(.accessory) }
         apply(prefs, was: nil)
 
         servers.forEach { $0.connect() }
@@ -58,11 +60,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         countPlaced()
         // Widget buttons while the app runs (Widget/Actions.swift): "action serverID".
         DistributedNotificationCenter.default().addObserver(forName: Notification.Name("app.permafrost.action"), object: nil, queue: .main) { n in
-            guard let parts = (n.object as? String)?.split(separator: " "), parts.count == 2 else { return }
-            self.run(String(parts[0]), on: String(parts[1]), quiet: true)
+            guard let parts = (n.object as? String)?.split(separator: " "), parts.count >= 2 else { return }
+            self.run(String(parts[0]), on: String(parts[1]), quiet: true, confirmed: parts.count == 3 && parts[2] == "confirmed")
         }
         if let (action, id) = launchAction {
-            run(action, on: id, quiet: true)
+            run(action, on: id, quiet: true, confirmed: launchConfirmed)
         } else {
             NSApp.activate()
         }
@@ -76,8 +78,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { !prefs.menubar }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
-        main.window.makeKeyAndOrderFront(nil)
+        bringForward()
         return true
+    }
+
+    /// Shows the window (and the Dock icon, if a widget started the app in the background).
+    func bringForward() {
+        if NSApp.activationPolicy() != .regular { NSApp.setActivationPolicy(.regular) }
+        main.window.makeKeyAndOrderFront(nil)
+        NSApp.activate()
     }
 
     /// The servers, in the main window (leaving Settings if it's showing). `then` runs once they're on screen.
@@ -86,8 +95,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func showServers(then: (() -> Void)? = nil) {
         main.show("app", then: then)
         showPasswordSheet()
-        main.window.makeKeyAndOrderFront(nil)
-        NSApp.activate()
+        bringForward()
     }
 
     func save() {
@@ -176,20 +184,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// An action from a widget button or an permafrost:// link. Only these four: anything on this Mac
     /// can open a link or post the widget's notification. `quiet`: from a widget, so the main window
     /// stays put; a confirmation is all that shows.
-    private func run(_ action: String, on id: String, quiet: Bool = false, tries: Int = 40) {
+    /// `confirmed`: the widget already asked (a second click), so the app doesn't.
+    private func run(_ action: String, on id: String, quiet: Bool = false, confirmed: Bool = false, tries: Int = 40) {
         guard ["power", "restart", "install", "check"].contains(action),
               let s = servers.first(where: { $0.cfg.id == id }) else { return }
         if s.phase == "connecting", tries > 0 {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { self.run(action, on: id, quiet: quiet, tries: tries - 1) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { self.run(action, on: id, quiet: quiet, confirmed: confirmed, tries: tries - 1) }
             return
         }
         quietConfirm = quiet && !NSApp.isActive
+        skipConfirm = confirmed
         handle(["cmd": action, "id": id], from: main)
         quietConfirm = false
+        skipConfirm = false
     }
 
     /// Set while running a widget's action with the app in the background.
     private var quietConfirm = false
+    /// Set while running an action the widget already confirmed.
+    private var skipConfirm = false
 
     /// The host key the passwordless check is waiting for the user to trust.
     private var nopassKey: HostKey.Scan?
@@ -434,8 +447,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func showSettings() {
         main.show("settings")
         showPasswordSheet()
-        main.window.makeKeyAndOrderFront(nil)
-        NSApp.activate()
+        bringForward()
         countPlaced()
     }
 
@@ -471,6 +483,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: dialogs
 
     func confirm(_ title: String, _ info: String, _ button: String) -> Bool {
+        if skipConfirm { return true }
         let a = NSAlert()
         a.messageText = title
         a.informativeText = info
@@ -521,8 +534,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         let panel = main!
         sheetPanel = panel
-        panel.window.makeKeyAndOrderFront(nil)
-        NSApp.activate()
+        bringForward()
         panel.call("askPassword", ["id": r.server.cfg.id, "name": r.server.cfg.name, "user": r.server.sshUser,
                                    "action": r.action ?? NSNull(), "remember": r.remember, "error": r.error ?? NSNull()])
     }
