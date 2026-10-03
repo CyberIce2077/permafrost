@@ -158,7 +158,10 @@ struct WidgetView: View {
             if ctl {
                 HStack(spacing: 10) {
                     act("restart", s) {
-                        Text("Restart")
+                        HStack(spacing: 6) {
+                            if reboot(s) { Icon.restart.view(14, .white, 2.4) }
+                            Text(reboot(s) ? "Restart Now" : "Restart")
+                        }
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(reboot(s) ? .white : L.text)
                             .frame(maxWidth: .infinity, minHeight: 40, maxHeight: 40)
@@ -252,7 +255,8 @@ struct WidgetView: View {
                         act("restart", s) {
                             Icon.restart.view(16, reboot(s) ? .white : L.text, 2.3)
                                 .frame(width: 36, height: 36)
-                                .background(Circle().fill(reboot(s) ? restartOrange : L.btnBg))
+                                .background(Circle().fill(reboot(s) ? restartOrange : L.btnBg)
+                                    .shadow(color: reboot(s) ? rgba(224, 120, 0, 0.35) : .clear, radius: 5, y: 3))
                                 .overlay(Circle().strokeBorder(reboot(s) ? .clear : L.border, lineWidth: 1))
                         }
                         .accessibilityLabel("Restart \(s.name)")
@@ -333,8 +337,11 @@ struct WidgetView: View {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(d.name.isEmpty ? "Servers" : d.name).font(titleFont).foregroundStyle(L.text).lineLimit(1)
                 Spacer(minLength: 0)
-                Text(small ? "\(entry.online)/\(entry.total) online" : "\(entry.online) of \(entry.total) online")
-                    .font(.system(size: 11, weight: .semibold)).foregroundStyle(L.sub).lineLimit(1)
+                let n = entry.restarts
+                Text(small ? (n > 0 ? "\(n) to restart" : "\(entry.online)/\(entry.total) online")
+                     : "\(entry.online) of \(entry.total) online" + (n > 0 ? " · \(n) need\(n == 1 ? "s" : "") restart" : ""))
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(small && n > 0 ? (d.look == "glass" ? hex(0xA34700) : hex(0xFFC46B)) : L.sub).lineLimit(1)
             }
             .textShadow(L)
             // Large and Extra Large rows share the height, up to 66 pt each.
@@ -358,7 +365,7 @@ struct WidgetView: View {
                 HStack(spacing: 7) {
                     Circle().fill(dot(s)).frame(width: 7, height: 7)
                     Text(s.name).font(.system(size: big ? 13 : 12, weight: .bold)).foregroundStyle(L.text).lineLimit(1).textShadow(L)
-                    if reboot(s) {
+                    if reboot(s) && !small {
                         Icon.restart.view(12, d.look == "glass" ? hex(0xC25A00) : hex(0xFFC46B), 2.8)
                             .accessibilityLabel("Restart required")
                     }

@@ -94,7 +94,7 @@ ${ctl ? `<span style="width: ${d.size === 'M' ? 34 : 40}px; height: ${d.size ===
 </div>
 <div style="flex-grow: 1; min-height: 0; display: grid; grid-template-columns: repeat(${Math.max(1, cols)}, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 8px">${tiles}</div>
 ${ctl && big ? `<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
-<span style="${btn}; box-sizing: content-box; ${reboot ? 'color: #FFFFFF; background: #E07800' : `color: ${Lk.text}; background: ${Lk.btnBg}; border: 1px solid ${Lk.border}`}">Restart</span>
+<span style="${btn}; box-sizing: content-box; ${reboot ? 'color: #FFFFFF; background: #E07800' : `color: ${Lk.text}; background: ${Lk.btnBg}; border: 1px solid ${Lk.border}`}">${reboot ? 'Restart Now' : 'Restart'}</span>
 <span style="${btn}; color: #FFFFFF; background: #0066CC">${s.updates ? s.updates + ' Updates' : 'Check Updates'}</span>
 </div>` : ''}`;
   }
@@ -102,6 +102,7 @@ ${ctl && big ? `<div style="display: grid; grid-template-columns: repeat(2, minm
   if (multi) {
     const rowsIds = ids.slice(0, cap.rows), sh = stats.slice(0, cap.stats);
     const online = ids.filter((s) => LIVE.includes(s.phase)).length;
+    const restarts = ids.filter((s) => LIVE.includes(s.phase) && s.rebootSince != null).length;
     hidRows = Math.max(0, ids.length - cap.rows);
     const cols2 = `minmax(0, 1.3fr) repeat(${sh.length}, minmax(0, 1fr))${ctl ? ' 40px' : ''}`;
     const rows = rowsIds.map((s) => {
@@ -117,14 +118,14 @@ ${d.style === 'graph' && !small && live && !off ? `<svg viewBox="0 0 240 56" pre
 </span>`;
       }).join('');
       return `<div style="display: grid; grid-template-columns: ${cols2}; column-gap: 10px; align-items: center; box-sizing: border-box; min-height: ${d.size === 'XL' ? '52px' : big ? '50px' : '22px'}; padding: ${big ? '5px 12px' : '0'}; border-radius: 14px; background: ${big ? Lk.tile + '; flex: 1 1 0; max-height: 66px' : 'transparent'}">
-<span style="display: flex; align-items: center; gap: 7px; min-width: 0"><span style="width: 7px; height: 7px; border-radius: 4px; flex-shrink: 0; background: ${off ? '#8E8E93' : reboot ? '#FF9500' : '#30D158'}"></span><span style="font-size: ${big ? '13px' : '12px'}; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: ${Lk.text}; text-shadow: ${Lk.shadow}">${esc(s.name)}</span>${reboot ? `<span style="display: flex; flex-shrink: 0; color: ${d.look === 'glass' ? '#C25A00' : '#FFC46B'}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-label="Restart required" role="img"><path d="M20 11a8 8 0 1 0-2.3 5.7"></path><path d="M20 4v7h-7"></path></svg></span>` : ''}</span>
+<span style="display: flex; align-items: center; gap: 7px; min-width: 0"><span style="width: 7px; height: 7px; border-radius: 4px; flex-shrink: 0; background: ${off ? '#8E8E93' : reboot ? '#FF9500' : '#30D158'}"></span><span style="font-size: ${big ? '13px' : '12px'}; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: ${Lk.text}; text-shadow: ${Lk.shadow}">${esc(s.name)}</span>${reboot && !small ? `<span style="display: flex; flex-shrink: 0; color: ${d.look === 'glass' ? '#C25A00' : '#FFC46B'}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-label="Restart required" role="img"><path d="M20 11a8 8 0 1 0-2.3 5.7"></path><path d="M20 4v7h-7"></path></svg></span>` : ''}</span>
 ${cells}
 ${ctl ? `<span style="width: 36px; height: 36px; border-radius: 18px; display: flex; align-items: center; justify-content: center; background: ${off ? 'rgba(120,120,128,0.45)' : '#248A3D'}">${POWER_SVG}</span>` : ''}
 </div>`;
     }).join('');
     body = `<div style="display: flex; justify-content: space-between; align-items: baseline; gap: 8px">
 <span style="${titleStyle}">${esc(d.name || 'Servers')}</span>
-<span style="${subPlain}">${small ? online + '/' + ids.length + ' online' : online + ' of ' + ids.length + ' online'}</span>
+<span style="${subPlain}">${small ? (restarts ? restarts + ' to restart' : online + '/' + ids.length + ' online') : online + ' of ' + ids.length + ' online' + (restarts ? ` · ${restarts} need${restarts === 1 ? 's' : ''} restart` : '')}</span>
 </div>
 <div style="display: flex; flex-direction: column; gap: ${big ? '6px' : '4px'}; min-height: 0${big ? '; flex-grow: 1' : ''}">${rows}</div>
 ${hidRows ? `<span style="${subPlain}">+${hidRows} more</span>` : ''}`;
