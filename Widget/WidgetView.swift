@@ -255,7 +255,6 @@ struct WidgetView: View {
                     .overlay(Circle().strokeBorder(pending("restart", s) ? .white : hot ? .clear : L.border, lineWidth: pending("restart", s) ? 2 : 1))
             }
             .accessibilityLabel(reboot(s) ? "Restart \(s.name), restart required" : "Restart \(s.name)")
-            .opacity(s.online ? 1 : 0.45)
 
             switch s.phase {
             case "updating":
@@ -276,7 +275,7 @@ struct WidgetView: View {
                     .overlay(Circle().strokeBorder(rgba(0, 102, 204, 0.25), lineWidth: 1))
                     .accessibilityLabel("Checking for updates")
             default:
-                if !s.online || entry.locked {
+                if !s.online || locked {
                     Icon.download.view(15, .white, 2.3)
                         .frame(width: px, height: px)
                         .background(Circle().fill(rgba(120, 120, 128, 0.45)))
@@ -485,10 +484,22 @@ struct WidgetView: View {
     }
 
     /// A button that runs `action` on `s` in the background (Actions.swift), without opening the app.
-    /// Every button waits for a second click (Actions.swift).
-    private func act<Label: View>(_ action: String, _ s: Stats, @ViewBuilder _ label: () -> Label) -> some View {
-        Button(intent: ServerAction(action, s.id, confirm: true), label: label).buttonStyle(.plain)
+    /// Every button waits for a second click (Actions.swift). Like the app, buttons lock while any
+    /// server runs a sudo action, and a server that's off can only be turned on.
+    @ViewBuilder private func act<Label: View>(_ action: String, _ s: Stats, @ViewBuilder _ label: () -> Label) -> some View {
+        if locked || (!s.online && action != "power") {
+            label().opacity(0.45)
+        } else {
+            Button(intent: ServerAction(action, s.id, confirm: true), label: label).buttonStyle(.plain)
+        }
     }
+
+    /// Locked as in the app (Entry.locked), and for a moment after a button, before the app catches up.
+    private var locked: Bool {
+        entry.locked || entry.servers.contains { lockPhases.contains($0.phase ?? "") }
+            || (entry.acting.map { -$0.at.timeIntervalSinceNow < 20 } ?? false)
+    }
+    private let lockPhases = ["restarting", "stopping", "starting", "updating", "checking"]
 
     private func pending(_ action: String, _ s: Stats) -> Bool { entry.pending?.matches(action, s.id) == true }
 
