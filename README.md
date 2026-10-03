@@ -93,8 +93,9 @@ Add them like any other widget: right-click the desktop, choose **Edit Widgetsâ€
   minutes); while the app is open it also refreshes them whenever something changes.
 - Clicking a widget opens the app. Its restart, update and power buttons work in the background,
   without opening it: the app does the work, launching with no window or Dock icon if it isn't
-  running. Restart and power off ask for a second click on the widget ("Click again to restart")
-  within 5 seconds. Only servers set to ask for the sudo password every time bring up the app.
+  running. Every button asks for a second click on the widget ("Click again to restart")
+  within 5 seconds, and so do update, check and power on. Only servers set to ask for the sudo
+  password every time bring up the app.
 
 The widget runs in the macOS sandbox. It can read `~/.ssh` and the app's settings, nothing else.
 The app passes it each server's resolved SSH settings, so `Include`s in `~/.ssh/config` don't need to be readable.

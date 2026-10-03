@@ -5,8 +5,8 @@ import AppKit
 /// to Permafrost, launching it in the background if it isn't running. The app does the SSH and sudo
 /// work, with its usual locks and password handling.
 ///
-/// Restart and power off need a second click within `Pending.window` seconds: the first only marks
-/// the button (the widget redraws to say "Click again…"), so a stray click can't take a server down.
+/// Every button needs a second click within `Pending.window` seconds: the first only marks it (the
+/// widget redraws to say "Click again…"), so a stray click does nothing.
 struct ServerAction: AppIntent {
     static let title: LocalizedStringResource = "Server action"
     static let isDiscoverable = false
@@ -31,8 +31,10 @@ struct ServerAction: AppIntent {
         }
         Pending.clear()
 
+        // The sandbox hides other apps from NSRunningApplication, and "launching" a running app brings it
+        // to the front. The app's live stats (written every few seconds) say whether it's running.
         let app = "app.permafrost.Permafrost"
-        if NSRunningApplication.runningApplications(withBundleIdentifier: app).isEmpty,
+        if Store.loadLive() == nil, NSRunningApplication.runningApplications(withBundleIdentifier: app).isEmpty,
            let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: app) {
             let launch = NSWorkspace.OpenConfiguration()
             launch.activates = false

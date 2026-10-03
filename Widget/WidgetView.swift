@@ -247,7 +247,7 @@ struct WidgetView: View {
         let updates = s.updates ?? 0
         let glow = { (c: Color, on: Bool) in Circle().fill(c).shadow(color: on ? c.opacity(0.35) : .clear, radius: 5, y: 3) }
         return HStack(spacing: 6) {
-            act("restart", s, confirm: true) {
+            act("restart", s) {
                 let hot = reboot(s) || pending("restart", s)
                 Icon.restart.view(15, hot ? .white : L.text, 2.3)
                     .frame(width: px, height: px)
@@ -287,6 +287,7 @@ struct WidgetView: View {
                         Icon.download.view(15, .white, 2.3)
                             .frame(width: px, height: px)
                             .background(glow(hex(0x0066CC), true))
+                            .overlay(ring(pending("install", s)))
                             .overlay(alignment: .topTrailing) {
                                 Text("\(updates)").font(.system(size: 10, weight: .bold)).foregroundStyle(.white)
                                     .padding(.horizontal, 4).frame(minWidth: 16, minHeight: 16)
@@ -301,8 +302,8 @@ struct WidgetView: View {
                         CheckMark().stroke(hex(0x248A3D), style: StrokeStyle(lineWidth: 2.8 * 15 / 24, lineCap: .round, lineJoin: .round))
                             .frame(width: 15, height: 15)
                             .frame(width: px, height: px)
-                            .background(Circle().fill(L.btnBg))
-                            .overlay(Circle().strokeBorder(L.border, lineWidth: 1))
+                            .background(Circle().fill(pending("check", s) ? hex(0x0066CC).opacity(0.18) : L.btnBg))
+                            .overlay(Circle().strokeBorder(pending("check", s) ? hex(0x0066CC) : L.border, lineWidth: pending("check", s) ? 2 : 1))
                     }
                     .accessibilityLabel("Up to date, check again")
                 }
@@ -353,7 +354,7 @@ struct WidgetView: View {
                 Spacer(minLength: 0)
                 let n = entry.restarts
                 let asking = entry.servers.first { pendingText($0) != nil }
-                Text(asking.map { "Click again to turn off \($0.name)" }
+                Text(asking.map { "\(pendingText($0)!) \($0.name)" }
                      ?? (small ? (n > 0 ? "\(n) to restart" : "\(entry.online)/\(entry.total) online")
                          : "\(entry.online) of \(entry.total) online" + (n > 0 ? " · \(n) need\(n == 1 ? "s" : "") restart" : "")))
                     .font(.system(size: 11, weight: .semibold))
@@ -424,10 +425,10 @@ struct WidgetView: View {
     // MARK: Pieces
 
     private func power(_ s: Stats, _ px: CGFloat) -> some View {
-        act("power", s, confirm: s.online) {
+        act("power", s) {
             Icon.power.view(16, .white, 2.2)
                 .frame(width: px, height: px)
-                .background(Circle().fill(pending("power", s) ? hex(0xFF3B30) : s.online ? hex(0x248A3D) : rgba(120, 120, 128, 0.45)))
+                .background(Circle().fill(pending("power", s) ? (s.online ? hex(0xFF3B30) : hex(0x248A3D)) : s.online ? hex(0x248A3D) : rgba(120, 120, 128, 0.45)))
                 .overlay(Circle().strokeBorder(pending("power", s) ? .white : .clear, lineWidth: 2))
         }
         .accessibilityLabel("Turn \(s.name) \(s.online ? "off" : "on")")
@@ -467,16 +468,25 @@ struct WidgetView: View {
     }
 
     /// A button that runs `action` on `s` in the background (Actions.swift), without opening the app.
-    private func act<Label: View>(_ action: String, _ s: Stats, confirm: Bool = false, @ViewBuilder _ label: () -> Label) -> some View {
-        Button(intent: ServerAction(action, s.id, confirm: confirm), label: label).buttonStyle(.plain)
+    /// Every button waits for a second click (Actions.swift).
+    private func act<Label: View>(_ action: String, _ s: Stats, @ViewBuilder _ label: () -> Label) -> some View {
+        Button(intent: ServerAction(action, s.id, confirm: true), label: label).buttonStyle(.plain)
     }
 
-    /// Restart and power off wait for a second click (Actions.swift).
     private func pending(_ action: String, _ s: Stats) -> Bool { entry.pending?.matches(action, s.id) == true }
 
     private func pendingText(_ s: Stats) -> String? {
-        pending("restart", s) ? "Click again to restart" : pending("power", s) ? "Click again to turn off" : nil
+        guard let p = entry.pending, p.server == s.id else { return nil }
+        switch p.action {
+        case "restart": return "Click again to restart"
+        case "power": return s.online ? "Click again to turn off" : "Click again to turn on"
+        case "install": return "Click again to update"
+        default: return "Click again to check"
+        }
     }
+
+    /// The white ring on a button waiting for its second click.
+    private func ring(_ on: Bool) -> some View { Circle().strokeBorder(on ? .white : .clear, lineWidth: 2) }
 
     private func uptime(_ sec: Double) -> String {
         sec < 60 ? "<1m" : sec < 3600 ? "\(Int(sec / 60))m" : sec < 86400 ? "\(Int(sec / 3600))h" : "\(Int(sec / 86400))d"

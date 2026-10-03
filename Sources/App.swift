@@ -61,6 +61,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Widget buttons while the app runs (Widget/Actions.swift): "action serverID".
         DistributedNotificationCenter.default().addObserver(forName: Notification.Name("app.permafrost.action"), object: nil, queue: .main) { n in
             guard let parts = (n.object as? String)?.split(separator: " "), parts.count >= 2 else { return }
+            self.lastWidgetAction = Date()
             self.run(String(parts[0]), on: String(parts[1]), quiet: true, confirmed: parts.count == 3 && parts[2] == "confirmed")
         }
         if let (action, id) = launchAction {
@@ -78,9 +79,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { !prefs.menubar }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        // A widget button may relaunch the running app; that mustn't bring it forward.
+        if -lastWidgetAction.timeIntervalSinceNow < 5 { return false }
         bringForward()
         return true
     }
+
+    /// When a widget button last handed the app an action.
+    private var lastWidgetAction = Date.distantPast
 
     /// Shows the window (and the Dock icon, if a widget started the app in the background).
     func bringForward() {
