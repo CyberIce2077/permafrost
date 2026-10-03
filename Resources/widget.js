@@ -56,7 +56,7 @@ function renderWidget(d, servers, maxW, maxH) {
   if (empty) body = `<div style="margin: auto; max-width: 80%; font-size: 13px; font-weight: 600; text-align: center; color: ${Lk.sub}">Pick at least one server and one stat</div>`;
 
   if (single) {
-    const s = ids[0], off = !LIVE.includes(s.phase);
+    const s = ids[0], off = !LIVE.includes(s.phase), reboot = !off && s.rebootSince != null;
     const shown = stats.slice(0, cap.stats), n = shown.length;
     const cols = small ? (d.style === 'bars' ? 1 : Math.min(2, n)) : d.size === 'M' ? (d.style === 'rings' || d.style === 'numbers' ? Math.min(4, n) : Math.min(2, n)) : d.size === 'L' ? Math.min(2, n) : Math.min(3, n);
     const tiles = shown.map((k, mi) => {
@@ -84,17 +84,17 @@ ${label}<span style="font-size: ${small ? '22px' : '28px'}; font-weight: 700; le
 <div style="display: flex; align-items: center; gap: 10px; min-width: 0">${icon}
 <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
 <span style="${titleStyle}">${esc(s.name)}</span>
-<span style="display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; white-space: nowrap; color: ${off ? Lk.sub : Lk.ok}; text-shadow: ${Lk.shadow}"><span style="width: 6px; height: 6px; border-radius: 3px; flex-shrink: 0; background: ${off ? '#8E8E93' : '#30D158'}"></span>${off ? 'Offline' : small ? 'Online' : 'Online · up ' + uptime(s.uptime, true)}</span>
+<span style="display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; white-space: nowrap; color: ${off ? Lk.sub : reboot ? (d.look === 'glass' ? '#A34700' : '#FFC46B') : Lk.ok}; text-shadow: ${Lk.shadow}"><span style="width: 6px; height: 6px; border-radius: 3px; flex-shrink: 0; background: ${off ? '#8E8E93' : reboot ? '#FF9500' : '#30D158'}"></span>${off ? 'Offline' : reboot ? 'Restart required' : small ? 'Online' : 'Online · up ' + uptime(s.uptime, true)}</span>
 </div>
 </div>
 <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0">
-${ctl && d.size === 'M' ? `<span style="box-sizing: content-box; width: 34px; height: 34px; border-radius: 17px; display: flex; align-items: center; justify-content: center; color: ${Lk.text}; background: ${Lk.btnBg}; border: 1px solid ${Lk.border}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"></path><path d="M20 4v7h-7"></path></svg></span><span style="position: relative; width: 34px; height: 34px; border-radius: 17px; display: flex; align-items: center; justify-content: center; background: #0066CC"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"></path></svg>${!off && s.updates > 0 ? '<span style="position: absolute; top: 0; right: 0; box-sizing: content-box; width: 9px; height: 9px; border-radius: 5px; background: #FF3B30; border: 1.5px solid #FFFFFF"></span>' : ''}</span>` : ''}
+${ctl && d.size === 'M' ? `<span style="box-sizing: content-box; width: 34px; height: 34px; border-radius: 17px; display: flex; align-items: center; justify-content: center; ${reboot ? 'color: #FFFFFF; background: #E07800; border: 0' : `color: ${Lk.text}; background: ${Lk.btnBg}; border: 1px solid ${Lk.border}`}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"></path><path d="M20 4v7h-7"></path></svg></span><span style="position: relative; width: 34px; height: 34px; border-radius: 17px; display: flex; align-items: center; justify-content: center; background: #0066CC"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"></path></svg>${!off && s.updates > 0 ? '<span style="position: absolute; top: 0; right: 0; box-sizing: content-box; width: 9px; height: 9px; border-radius: 5px; background: #FF3B30; border: 1.5px solid #FFFFFF"></span>' : ''}</span>` : ''}
 ${ctl ? `<span style="width: ${d.size === 'M' ? 34 : 40}px; height: ${d.size === 'M' ? 34 : 40}px; flex-shrink: 0; border-radius: 20px; display: flex; align-items: center; justify-content: center; background: ${off ? 'rgba(120,120,128,0.45)' : '#248A3D'}">${POWER_SVG}</span>` : ''}
 </div>
 </div>
 <div style="flex-grow: 1; min-height: 0; display: grid; grid-template-columns: repeat(${Math.max(1, cols)}, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 8px">${tiles}</div>
 ${ctl && big ? `<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
-<span style="${btn}; box-sizing: content-box; color: ${Lk.text}; background: ${Lk.btnBg}; border: 1px solid ${Lk.border}">Restart</span>
+<span style="${btn}; box-sizing: content-box; ${reboot ? 'color: #FFFFFF; background: #E07800' : `color: ${Lk.text}; background: ${Lk.btnBg}; border: 1px solid ${Lk.border}`}">Restart</span>
 <span style="${btn}; color: #FFFFFF; background: #0066CC">${s.updates ? s.updates + ' Updates' : 'Check Updates'}</span>
 </div>` : ''}`;
   }
@@ -105,7 +105,7 @@ ${ctl && big ? `<div style="display: grid; grid-template-columns: repeat(2, minm
     hidRows = Math.max(0, ids.length - cap.rows);
     const cols2 = `minmax(0, 1.3fr) repeat(${sh.length}, minmax(0, 1fr))${ctl ? ' 40px' : ''}`;
     const rows = rowsIds.map((s) => {
-      const off = !LIVE.includes(s.phase);
+      const off = !LIVE.includes(s.phase), reboot = !off && s.rebootSince != null;
       const cells = sh.map((k) => {
         const df = W_DEFS[k], [v, txt, hist] = wReading(k, s), live = !off || k === 'disk';
         const ring = d.style === 'rings' && !small && live;
@@ -117,7 +117,7 @@ ${d.style === 'graph' && !small && live && !off ? `<svg viewBox="0 0 240 56" pre
 </span>`;
       }).join('');
       return `<div style="display: grid; grid-template-columns: ${cols2}; column-gap: 10px; align-items: center; box-sizing: border-box; min-height: ${d.size === 'XL' ? '52px' : big ? '50px' : '22px'}; padding: ${big ? '5px 12px' : '0'}; border-radius: 14px; background: ${big ? Lk.tile + '; flex: 1 1 0; max-height: 66px' : 'transparent'}">
-<span style="display: flex; align-items: center; gap: 7px; min-width: 0"><span style="width: 7px; height: 7px; border-radius: 4px; flex-shrink: 0; background: ${off ? '#8E8E93' : '#30D158'}"></span><span style="font-size: ${big ? '13px' : '12px'}; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: ${Lk.text}; text-shadow: ${Lk.shadow}">${esc(s.name)}</span></span>
+<span style="display: flex; align-items: center; gap: 7px; min-width: 0"><span style="width: 7px; height: 7px; border-radius: 4px; flex-shrink: 0; background: ${off ? '#8E8E93' : reboot ? '#FF9500' : '#30D158'}"></span><span style="font-size: ${big ? '13px' : '12px'}; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: ${Lk.text}; text-shadow: ${Lk.shadow}">${esc(s.name)}</span>${reboot ? `<span style="display: flex; flex-shrink: 0; color: ${d.look === 'glass' ? '#C25A00' : '#FFC46B'}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-label="Restart required" role="img"><path d="M20 11a8 8 0 1 0-2.3 5.7"></path><path d="M20 4v7h-7"></path></svg></span>` : ''}</span>
 ${cells}
 ${ctl ? `<span style="width: 36px; height: 36px; border-radius: 18px; display: flex; align-items: center; justify-content: center; background: ${off ? 'rgba(120,120,128,0.45)' : '#248A3D'}">${POWER_SVG}</span>` : ''}
 </div>`;

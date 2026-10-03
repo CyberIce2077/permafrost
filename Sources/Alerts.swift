@@ -40,6 +40,15 @@ final class Alerts {
         if prefs.nOffline { post("\(s.cfg.name) went offline", "It stopped responding.") }
     }
 
+    /// Once each time a server starts needing a restart (a new /var/run/reboot-required).
+    func reboot(_ s: Server) {
+        let st = s.parser.stats
+        guard prefs.nReboot, let since = st.rebootSince, !fired.contains("reboot" + s.cfg.id + "\(since)") else { return }
+        fired.insert("reboot" + s.cfg.id + "\(since)")
+        let pkgs = st.rebootPkgs ?? []
+        post("\(s.cfg.name) needs a restart", pkgs.isEmpty ? "Updates finish after a restart." : "Updates to \(pkgs.prefix(2).joined(separator: " and "))\(pkgs.count > 2 ? " and \(pkgs.count - 2) more" : "") finish after a restart.")
+    }
+
     /// At most once a day per server.
     func updates(_ s: Server) {
         guard prefs.nUpd, let n = s.parser.stats.updates, n > 0,

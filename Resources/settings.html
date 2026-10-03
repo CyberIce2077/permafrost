@@ -45,7 +45,7 @@ const WS_TEMPLATES = [
 ];
 const wsValid = () => { const d = ws.draft; return d.name.trim() && d.stats.length && (d.all || d.servers.length); };
 function wsPreview(d) {
-  const r = renderWidget(d, S.servers, 640, 560);
+  const r = renderWidget(d, S.servers, 620, 520);
   return `<span style="font-size: 12px; font-weight: 600; color: #FFFFFF; letter-spacing: 0.02em; text-shadow: 0 1px 3px rgba(0,0,0,0.35)">${W_DIMS[d.size][3]}${r.scale < 0.999 ? ' · shown at ' + Math.round(r.scale * 100) + '%' : ' · actual size'}</span>${r.html}
 <span style="font-size: 11px; font-weight: 500; color: rgba(255,255,255,0.85); text-shadow: 0 1px 3px rgba(0,0,0,0.35)">Live values from your servers</span>`;
 }
@@ -107,6 +107,7 @@ function page(P) {
     if (P.nTemp) rows.push(stepRow('Temperature limit', 'CPU package temperature.', 'tempAt', '°C'));
     rows.push(toggleRow('Disk almost full', 'When used space passes the limit.', 'nDisk'));
     if (P.nDisk) rows.push(stepRow('Disk limit', 'Used space threshold.', 'diskAt', '%'));
+    rows.push(toggleRow('Restart required', 'When a server needs a restart to finish installing updates.', 'nReboot'));
     rows.push(toggleRow('Updates available', 'Once a day, if a server has updates.', 'nUpd'));
   }
   if (pane === 'servers') rows = S.servers.map((s) => (i) => {
@@ -200,7 +201,7 @@ ${(S.designs || []).map((d) => `<article aria-label="${esc(d.name)}" style="box-
   } else {
     // The editor fills the window (design: WidgetEdit): preview on the left, options on the right.
     const d = ws.draft, isNew = ws.id === 'new';
-    const r = renderWidget(d, S.servers, 640, 560), multi = r.ids.length > 1, cap = designCaps(d, multi);
+    const r = renderWidget(d, S.servers, 620, 520), multi = r.ids.length > 1, cap = designCaps(d, multi);
     const big = d.size === 'L' || d.size === 'XL', n = placed(d);
     // A design on the desktop changed to another size: its widgets can't show it any more.
     const saved = isNew ? null : S.designs.find((x) => x.id === ws.id), resized = n && saved && saved.size !== d.size ? saved.size : null;

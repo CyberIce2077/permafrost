@@ -56,6 +56,7 @@ final class Server {
             "memUsed": s.memUsed, "memTotal": s.memTotal, "disk": s.disk,
             "diskUsed": s.diskUsed, "diskTotal": s.diskTotal, "diskFree": s.diskFree,
             "uptime": s.uptime, "updates": s.updates ?? NSNull(), "progress": progress,
+            "rebootSince": s.rebootSince ?? NSNull(), "rebootPkgs": s.rebootPkgs ?? [],
             "temp": s.temp, "tempDrive": s.tempDrive ?? NSNull(), "tempBoard": s.tempBoard ?? NSNull(),
             "user": sshUser, "saved": hasSavedPassword, "sudo": sudoMode,
             "host": address.host, "port": address.port, "color": cfg.color ?? "blue",
@@ -219,6 +220,7 @@ final class Server {
             if out.hasPrefix("upd") {
                 checkedAt = Date()
                 ice.alerts.updates(self)
+                ice.alerts.reboot(self)
             }
             then?()
             ice.changed()

@@ -135,11 +135,11 @@ struct WidgetView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(s.name).font(titleFont).foregroundStyle(L.text).lineLimit(1)
                     HStack(spacing: 5) {
-                        Circle().fill(s.online ? hex(0x30D158) : hex(0x8E8E93)).frame(width: 6, height: 6)
-                        Text(!s.online ? "Offline" : small ? "Online" : "Online · up " + uptime(s.uptime))
+                        Circle().fill(dot(s)).frame(width: 6, height: 6)
+                        Text(!s.online ? "Offline" : reboot(s) ? "Restart required" : small ? "Online" : "Online · up " + uptime(s.uptime))
                     }
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(s.online ? L.ok : L.sub)
+                    .foregroundStyle(statusColor(s))
                     .lineLimit(1)
                 }
                 .textShadow(L)
@@ -160,10 +160,10 @@ struct WidgetView: View {
                     act("restart", s) {
                         Text("Restart")
                             .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(L.text)
+                            .foregroundStyle(reboot(s) ? .white : L.text)
                             .frame(maxWidth: .infinity, minHeight: 40, maxHeight: 40)
-                            .background(Capsule().fill(L.btnBg))
-                            .overlay(Capsule().strokeBorder(L.border, lineWidth: 1))
+                            .background(Capsule().fill(reboot(s) ? restartOrange : L.btnBg))
+                            .overlay(Capsule().strokeBorder(reboot(s) ? .clear : L.border, lineWidth: 1))
                     }
                     act((s.updates ?? 0) > 0 ? "install" : "check", s) {
                         Text((s.updates ?? 0) > 0 ? "\(s.updates!) Update\(s.updates == 1 ? "" : "s")" : "Check Updates")
@@ -238,11 +238,11 @@ struct WidgetView: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(s.name).font(.system(size: 14, weight: .bold)).foregroundStyle(L.text).lineLimit(1)
                     HStack(spacing: 5) {
-                        Circle().fill(s.online ? hex(0x30D158) : hex(0x8E8E93)).frame(width: 6, height: 6)
-                        Text(s.online ? "Online · up " + uptime(s.uptime) : "Offline")
+                        Circle().fill(dot(s)).frame(width: 6, height: 6)
+                        Text(!s.online ? "Offline" : reboot(s) ? "Restart required" : "Online · up " + uptime(s.uptime))
                     }
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(s.online ? L.ok : L.sub)
+                    .foregroundStyle(statusColor(s))
                     .lineLimit(1)
                 }
                 .textShadow(L)
@@ -250,10 +250,10 @@ struct WidgetView: View {
                 if d.controls {
                     HStack(spacing: 6) {
                         act("restart", s) {
-                            Icon.restart.view(16, L.text, 2.3)
+                            Icon.restart.view(16, reboot(s) ? .white : L.text, 2.3)
                                 .frame(width: 36, height: 36)
-                                .background(Circle().fill(L.btnBg))
-                                .overlay(Circle().strokeBorder(L.border, lineWidth: 1))
+                                .background(Circle().fill(reboot(s) ? restartOrange : L.btnBg))
+                                .overlay(Circle().strokeBorder(reboot(s) ? .clear : L.border, lineWidth: 1))
                         }
                         .accessibilityLabel("Restart \(s.name)")
                         act(updates > 0 ? "install" : "check", s) {
@@ -356,8 +356,12 @@ struct WidgetView: View {
             let unit = (g.size.width - 2 * pad - gaps - (ctl ? 40 : 0)) / (1.3 + CGFloat(stats.count))
             HStack(spacing: 10) {
                 HStack(spacing: 7) {
-                    Circle().fill(s.online ? hex(0x30D158) : hex(0x8E8E93)).frame(width: 7, height: 7)
+                    Circle().fill(dot(s)).frame(width: 7, height: 7)
                     Text(s.name).font(.system(size: big ? 13 : 12, weight: .bold)).foregroundStyle(L.text).lineLimit(1).textShadow(L)
+                    if reboot(s) {
+                        Icon.restart.view(12, d.look == "glass" ? hex(0xC25A00) : hex(0xFFC46B), 2.8)
+                            .accessibilityLabel("Restart required")
+                    }
                 }
                 .frame(width: unit * 1.3, alignment: .leading)
                 ForEach(stats, id: \.key) { cell(s, $0).frame(width: unit, alignment: .leading) }
@@ -403,6 +407,14 @@ struct WidgetView: View {
                 .background(Circle().fill(s.online ? hex(0x248A3D) : rgba(120, 120, 128, 0.45)))
         }
         .accessibilityLabel("Turn \(s.name) \(s.online ? "off" : "on")")
+    }
+
+    /// Waiting for a restart to finish installing updates (/var/run/reboot-required on the server).
+    private func reboot(_ s: Stats) -> Bool { s.online && s.rebootSince != nil }
+    private var restartOrange: Color { hex(0xE07800) }
+    private func dot(_ s: Stats) -> Color { !s.online ? hex(0x8E8E93) : reboot(s) ? hex(0xFF9500) : hex(0x30D158) }
+    private func statusColor(_ s: Stats) -> Color {
+        !s.online ? L.sub : reboot(s) ? (d.look == "glass" ? hex(0xA34700) : hex(0xFFC46B)) : L.ok
     }
 
     private func warn(_ m: Metric, _ value: Double) -> Bool {

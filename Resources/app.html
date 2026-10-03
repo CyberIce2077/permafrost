@@ -66,6 +66,14 @@ const SPIN = (px, w, stroke = 'currentColor', extra = '') => `<svg class="icespi
 
 // The graphs hold 24 samples, one per refresh (Settings › General).
 const span = () => { const sec = 24 * ((S.prefs && S.prefs.refresh) || 2); return sec < 120 ? sec + ' seconds' : sec / 60 + ' minutes'; };
+// A server waiting for a restart to finish installing updates (/var/run/reboot-required).
+const needsRestart = (s) => s.phase === 'online' && s.rebootSince != null;
+function rebootWhy(s) {
+  const p = s.rebootPkgs || [];
+  return p.length <= 2 ? p.join(' and ') : `${p.slice(0, 2).join(', ')} and ${p.length - 2} more`;
+}
+const RESTART_SVG = (px, w) => `<svg width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"></path><path d="M20 4v7h-7"></path></svg>`;
+
 const lockedBy = () => S.servers.find((x) => BUSY.includes(x.phase) && x.phase !== 'connecting');
 
 // A running sudo action's clock: seconds since it started, counted here between updates from Swift.
@@ -98,12 +106,12 @@ function render(state) {
 
 function row(r) {
   const on = r.id === sel;
-  const sub = r.phase === 'online' ? 'Online · up ' + uptime(r.uptime) : LABELS[r.phase];
+  const sub = r.phase === 'online' ? (needsRestart(r) ? 'Restart required' : 'Online · up ' + uptime(r.uptime)) : LABELS[r.phase];
   return `<button aria-label="Show ${esc(r.name)}" data-cmd="select" data-id="${r.id}" data-menu="${r.id}" style="display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 8px 10px; border-radius: 14px; text-align: left; cursor: pointer; border: 1px solid ${on ? 'rgba(255,255,255,calc(0.95 * var(--wk)))' : 'transparent'}; background: ${on ? 'rgba(255,255,255,calc(0.88 * var(--wk)))' : 'transparent'}; box-shadow: ${on ? '0 4px 14px rgba(20,40,80,0.10)' : 'none'};">
 <span style="width: 36px; height: 36px; flex-shrink: 0; border-radius: 11px; display: flex; align-items: center; justify-content: center; background: ${SERVER_COLORS[r.color] || SERVER_COLORS.blue}; box-shadow: inset 0 1px 0 rgba(255,255,255,0.5)">${ICON.server}</span>
 <span style="display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0">
 <span style="font-size: 14px; font-weight: 600; color: var(--text); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">${esc(r.name)}</span>
-<span style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--sub)"><span style="width: 8px; height: 8px; border-radius: 4px; flex-shrink: 0; background: ${colorsFor(r.phase)[2]}"></span>${sub}</span>
+<span style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--sub)"><span style="width: 8px; height: 8px; border-radius: 4px; flex-shrink: 0; background: ${needsRestart(r) ? '#FF9500' : colorsFor(r.phase)[2]}"></span>${sub}</span>
 </span>
 </button>`;
 }
@@ -153,11 +161,12 @@ function header(s, lock) {
 </div>
 <div style="display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--sub)">
 <span style="display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 12px; font-size: 12px; font-weight: 600; color: ${c[0]}; background: ${c[1]}">${busy ? ICON.spin : `<span style="width: 7px; height: 7px; border-radius: 4px; background: ${c[2]}"></span>`}${LABELS[s.phase]}${s.op ? ' ' + mmss(opElapsed(s)) : ''}</span>
+${needsRestart(s) ? `<span style="display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 10px; border-radius: 12px; font-size: 12px; font-weight: 600; color: #A34700; background: rgba(255,149,0,0.18)">${RESTART_SVG(12, 2.6)}Restart required</span>` : ''}
 <span>${s.phase === 'online' ? 'Up ' + uptime(s.uptime) : ''}</span>
 </div>
 </div>
 <div style="display: flex; align-items: center; gap: 12px">
-<button data-cmd="restart" ${cant ? 'disabled' : ''} aria-label="Restart server" style="${CAPSULE}${cant ? ' opacity: 0.45; cursor: default;' : ''}">${ICON.restart(16, 2)}Restart</button>
+<button data-cmd="restart" ${cant ? 'disabled' : ''} aria-label="${needsRestart(s) ? 'Restart server, restart required' : 'Restart server'}" style="${CAPSULE}${needsRestart(s) ? ' color: #A34700; border-color: rgba(255,149,0,0.55); background: rgba(255,244,230,0.92);' : ''}${cant ? ' opacity: 0.45; cursor: default;' : ''}">${ICON.restart(16, 2)}Restart</button>
 <div style="display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 8px 0 16px; border-radius: 22px; background: rgba(255,255,255,calc(0.7 * var(--wk))); border: 1px solid rgba(255,255,255,calc(0.9 * var(--wk))); box-shadow: 0 4px 14px rgba(20,40,80,0.08), inset 0 1px 0 rgba(255,255,255,calc(1 * var(--wk)))">
 ${ICON.power(16, 'var(--text)', 2)}
 <span style="font-size: 13px; font-weight: 600">Power</span>
@@ -291,18 +300,24 @@ function updates(s, lock) {
   let title, sub;
   if (s.phase === 'updating') { title = `Installing ${s.updates} updates…`; sub = s.progress + '% complete'; }
   else if (s.phase === 'checking') { title = 'Checking for updates…'; sub = 'Contacting package sources'; }
+  else if (needsRestart(s)) {
+    const why = rebootWhy(s), waited = Date.now() / 1000 - s.rebootSince;
+    title = 'Restart required';
+    sub = `Updates${why ? ' to ' + why : ''} finish after a restart${waited < 60 ? '.' : ' · waiting ' + ago(waited).replace(' ago', '') + '.'}${s.updates > 0 ? ` ${s.updates} more update${s.updates === 1 ? '' : 's'} available.` : ''}`;
+  }
   else if (s.updates == null) { title = 'Software updates'; sub = 'Not checked yet'; }
   else if (s.updates > 0) { title = `${s.updates} update${s.updates === 1 ? '' : 's'} available`; sub = 'Last checked ' + ago(s.checkedAgo); }
   else { title = 'Software is up to date'; sub = 'Last checked ' + ago(s.checkedAgo); }
-  const idle = s.phase !== 'updating' && s.phase !== 'checking';
-  return `<div style="width: 44px; height: 44px; flex-shrink: 0; border-radius: 13px; display: flex; align-items: center; justify-content: center; background: linear-gradient(160deg, #8E8CF5, #5E5CE6); box-shadow: inset 0 1px 0 rgba(255,255,255,calc(0.45 * var(--wk)))">${ICON.download(22, 2, '#FFFFFF')}</div>
+  const idle = s.phase !== 'updating' && s.phase !== 'checking', reboot = needsRestart(s);
+  return `<div style="width: 44px; height: 44px; flex-shrink: 0; border-radius: 13px; display: flex; align-items: center; justify-content: center; background: ${reboot ? 'linear-gradient(160deg, #FFC46B, #FF8A00)' : 'linear-gradient(160deg, #8E8CF5, #5E5CE6)'}; box-shadow: inset 0 1px 0 rgba(255,255,255,calc(0.45 * var(--wk)))">${reboot ? `<span style="display: flex; color: #FFFFFF">${RESTART_SVG(22, 2.2)}</span>` : ICON.download(22, 2, '#FFFFFF')}</div>
 <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0">
 <div style="font-size: 15px; font-weight: 600">${title}</div>
 ${s.phase === 'updating' ? `<div style="height: 8px; border-radius: 4px; background: rgba(120,120,128,0.18); overflow: hidden"><div style="height: 100%; border-radius: 4px; background: #5E5CE6; transition: width 0.3s; width: ${s.progress}%"></div></div>` : ''}
 <div style="font-size: 13px; color: var(--sub)">${sub}</div>
 </div>
-${idle && s.updates > 0 ? `<button data-cmd="install" ${cant ? 'disabled' : ''} style="${BLUE}${cant ? '; opacity: 0.4; cursor: default; box-shadow: none' : ''}">Update Now</button>` : ''}
-${idle && !(s.updates > 0) ? `<button data-cmd="check" ${cant ? 'disabled' : ''} style="${CAPSULE}${cant ? ' opacity: 0.45; cursor: default;' : ''}">${s.updates == null ? 'Check Now' : 'Check Again'}</button>` : ''}`;
+${idle && s.updates > 0 ? (reboot ? `<button data-cmd="install" ${cant ? 'disabled' : ''} style="${CAPSULE} white-space: nowrap; flex-shrink: 0;${cant ? ' opacity: 0.45; cursor: default;' : ''}">Update Now</button>` : `<button data-cmd="install" ${cant ? 'disabled' : ''} style="${BLUE}${cant ? '; opacity: 0.4; cursor: default; box-shadow: none' : ''}">Update Now</button>`) : ''}
+${reboot ? `<button data-cmd="restart" ${cant ? 'disabled' : ''} style="height: 44px; padding: 0 20px; white-space: nowrap; flex-shrink: 0; border: 0; border-radius: 22px; background: #E07800; color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 6px 16px rgba(224,120,0,0.3), inset 0 1px 0 rgba(255,255,255,0.35)${cant ? '; opacity: 0.4; cursor: default; box-shadow: none' : ''}">Restart Now</button>` : ''}
+${idle && !reboot && !(s.updates > 0) ? `<button data-cmd="check" ${cant ? 'disabled' : ''} style="${CAPSULE}${cant ? ' opacity: 0.45; cursor: default;' : ''}">${s.updates == null ? 'Check Now' : 'Check Again'}</button>` : ''}`;
 }
 
 // ---- Quick server settings (design: Main › qe popover) ----

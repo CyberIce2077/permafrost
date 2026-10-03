@@ -10,6 +10,9 @@ struct Stats: Codable {
     var tempDrive: Double?, tempBoard: Double?
     var memUsed = 0.0, memTotal = 0.0, diskUsed = 0.0, diskTotal = 0.0, diskFree = 0.0, uptime = 0.0
     var updates: Int?
+    /// Debian/Ubuntu's /var/run/reboot-required: when it appeared (epoch seconds), and the packages that need it.
+    var rebootSince: Double?
+    var rebootPkgs: [String]?
     var mac: String?
     /// The server's icon color, for widgets that show its icon.
     var color: String?
@@ -33,6 +36,8 @@ enum Remote {
     static let updates = """
         if [ -x /usr/lib/update-notifier/apt-check ]; then echo upd $(/usr/lib/update-notifier/apt-check 2>&1 | cut -d';' -f1)
         else echo upd $(apt list --upgradable 2>/dev/null | grep -c upgradable); fi
+        if [ -f /var/run/reboot-required ]; then echo reboot $(stat -c %Y /var/run/reboot-required) $(sort -u /var/run/reboot-required.pkgs 2>/dev/null | tr '\n' ' ')
+        else echo reboot 0; fi
         """
 
     /// Endless: a sample every `seconds`, for the app.
@@ -81,6 +86,10 @@ struct StatsParser {
             (stats.diskTotal, stats.diskUsed, stats.diskFree) = (n[0] / 1e9, n[1] / 1e9, n[2] / 1e9)
         case "up": stats.uptime = n.first ?? 0
         case "upd": stats.updates = n.first.map { Int($0) }
+        case "reboot":
+            let since = n.first ?? 0
+            stats.rebootSince = since > 0 ? since : nil
+            stats.rebootPkgs = since > 0 ? Array(f.dropFirst(2)) : nil
         case "temp" where f.count == 3: if let milli = Double(f[2]) { temps.append((f[1], milli / 1000)) }
         case "end":
             stats.online = true
