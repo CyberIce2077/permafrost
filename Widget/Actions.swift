@@ -30,6 +30,7 @@ struct ServerAction: AppIntent {
             return .result()
         }
         Pending.clear()
+        Acting.set(action, server)
 
         // The sandbox hides other apps from NSRunningApplication, and "launching" a running app brings it
         // to the front. The app's live stats (written every few seconds) say whether it's running.
@@ -47,6 +48,24 @@ struct ServerAction: AppIntent {
                 userInfo: nil, deliverImmediately: true)
         }
         return .result()
+    }
+}
+
+/// The last action a widget button sent: for a few minutes the widget says what's happening and
+/// refreshes often, so it sees the server go down and come back (even with the app closed).
+struct Acting {
+    static let watch: TimeInterval = 300
+    let action, server: String
+    let at: Date
+
+    static func current() -> Acting? {
+        let f = (UserDefaults.standard.string(forKey: "acting") ?? "").split(separator: " ").map(String.init)
+        guard f.count == 3, let t = Double(f[2]), -Date(timeIntervalSince1970: t).timeIntervalSinceNow < watch else { return nil }
+        return Acting(action: f[0], server: f[1], at: Date(timeIntervalSince1970: t))
+    }
+
+    static func set(_ action: String, _ server: String) {
+        UserDefaults.standard.set("\(action) \(server) \(Date().timeIntervalSince1970)", forKey: "acting")
     }
 }
 

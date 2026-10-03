@@ -136,7 +136,7 @@ struct WidgetView: View {
                     Text(s.name).font(titleFont).foregroundStyle(L.text).lineLimit(1)
                     HStack(spacing: 5) {
                         Circle().fill(dot(s)).frame(width: 6, height: 6)
-                        Text(pendingText(s) ?? (!s.online ? "Offline" : reboot(s) ? "Restart required" : small ? "Online" : "Online · up " + uptime(s.uptime)))
+                        Text(pendingText(s) ?? busyText(s) ?? (!s.online ? "Offline" : reboot(s) ? "Restart required" : small ? "Online" : "Online · up " + uptime(s.uptime)))
                     }
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(statusColor(s))
@@ -218,7 +218,7 @@ struct WidgetView: View {
                     Text(s.name).font(.system(size: 14, weight: .bold)).foregroundStyle(L.text).lineLimit(1)
                     HStack(spacing: 5) {
                         Circle().fill(dot(s)).frame(width: 6, height: 6)
-                        Text(pendingText(s) ?? (!s.online ? "Offline" : reboot(s) ? "Restart required" : "Online · up " + uptime(s.uptime)))
+                        Text(pendingText(s) ?? busyText(s) ?? (!s.online ? "Offline" : reboot(s) ? "Restart required" : "Online · up " + uptime(s.uptime)))
                     }
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(statusColor(s))
@@ -437,9 +437,26 @@ struct WidgetView: View {
     /// Waiting for a restart to finish installing updates (/var/run/reboot-required on the server).
     private func reboot(_ s: Stats) -> Bool { s.online && s.rebootSince != nil }
     private var restartOrange: Color { hex(0xE07800) }
-    private func dot(_ s: Stats) -> Color { pendingText(s) != nil || reboot(s) ? hex(0xFF9500) : !s.online ? hex(0x8E8E93) : hex(0x30D158) }
+    private func dot(_ s: Stats) -> Color {
+        pendingText(s) != nil || busyText(s) != nil || reboot(s) ? hex(0xFF9500) : !s.online ? hex(0x8E8E93) : hex(0x30D158)
+    }
+
+    /// What the server is doing, as the app says it: from its live stats, or, for a moment after a
+    /// widget button (before the app has caught up), from the button.
+    private func busyText(_ s: Stats) -> String? {
+        let labels = ["connecting": "Connecting…", "restarting": "Restarting…", "stopping": "Shutting down…", "starting": "Starting…",
+                      "updating": "Updating\(s.progress.map { " \($0)%" } ?? "…")", "checking": "Checking…", "timedout": "Not responding"]
+        if let text = labels[s.phase ?? ""] { return text }
+        guard let a = entry.acting, a.server == s.id, -a.at.timeIntervalSinceNow < 20, s.phase == nil || s.phase == "online" else { return nil }
+        switch a.action {
+        case "restart": return "Restarting…"
+        case "power": return s.online ? "Shutting down…" : "Starting…"
+        case "install": return "Updating…"
+        default: return "Checking…"
+        }
+    }
     private func statusColor(_ s: Stats) -> Color {
-        pendingText(s) != nil || (s.online && reboot(s)) ? (d.look == "glass" ? hex(0xA34700) : hex(0xFFC46B)) : !s.online ? L.sub : L.ok
+        pendingText(s) != nil || busyText(s) != nil || (s.online && reboot(s)) ? (d.look == "glass" ? hex(0xA34700) : hex(0xFFC46B)) : !s.online ? L.sub : L.ok
     }
 
     private func warn(_ m: Metric, _ value: Double) -> Bool {

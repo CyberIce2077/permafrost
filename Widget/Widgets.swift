@@ -42,6 +42,9 @@ private func configuration<I: DesignPicking>(_ kind: String, _ intent: I.Type, _
         .contentMarginsDisabled()
 }
 
+/// Phases where a server is mid-action (the app's Server.phase).
+private let busyPhases = ["connecting", "restarting", "stopping", "starting", "updating", "checking"]
+
 struct Entry: TimelineEntry {
     var date = Date()
     /// The widget's real size on the desktop ("S", "M", "L", "XL"); the design is laid out at it.
@@ -56,8 +59,10 @@ struct Entry: TimelineEntry {
     var restarts = 0
     /// Some server is running a sudo action, so update buttons are unavailable (as in the app).
     var locked = false
-    /// A Restart or Power off clicked once, waiting for the second click (Actions.swift).
+    /// A button clicked once, waiting for the second click (Actions.swift).
     var pending: Pending?
+    /// The last action a button sent, for a few minutes (Actions.swift).
+    var acting: Acting?
     var prefs = Prefs()
     /// Instead of a design, the widget asks for one: "pick" (none picked yet), "gone" (its design
     /// was deleted), "resized" (its design is now another size) or "create" (there are no designs of its size yet).
@@ -73,13 +78,17 @@ struct Provider<I: DesignPicking>: AppIntentTimelineProvider {
 
     func timeline(for intent: I, in context: Context) async -> Timeline<Entry> {
         // WidgetKit decides the real refresh rate; the app also asks for a refresh whenever something changes.
+        // Right after a button, or while a server is mid-action, check every 30 s so the widget follows it.
         var now = fetch(intent, context)
-        guard let pending = Pending.current() else { return Timeline(entries: [now], policy: .after(Date() + 300)) }
+        now.acting = Acting.current()
+        let busy = now.acting != nil || now.servers.contains { busyPhases.contains($0.phase ?? "") }
+        let next = Date() + (busy ? 30 : 300)
+        guard let pending = Pending.current() else { return Timeline(entries: [now], policy: .after(next)) }
         // "Click again…" until the second click's window closes, then back to normal.
         var later = now
         now.pending = pending
         later.date = pending.until
-        return Timeline(entries: [now, later], policy: .after(Date() + 300))
+        return Timeline(entries: [now, later], policy: .after(next))
     }
 
     private func size(_ context: Context) -> String {
