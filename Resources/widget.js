@@ -77,7 +77,6 @@ ${label}<span style="font-size: ${small ? '22px' : '28px'}; font-weight: 700; le
 <div style="height: 6px; border-radius: 3px; background: ${Lk.track}"><div style="height: 100%; border-radius: 3px; width: ${Math.min(v, 100)}%; background: ${wWarn(k, v) ? '#FF9F0A' : df[2]}"></div></div></div>`;
       return `<div style="box-sizing: border-box; min-width: 0; min-height: 0; padding: ${small ? '5px 8px' : '8px 10px'}; border-radius: 14px; background: ${Lk.tile}">${inner}</div>`;
     }).join('');
-    const btn = `height: 40px; border-radius: 20px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600`;
     // Medium shows the server's icon from the app, as on the desktop.
     const icon = d.size === 'M' ? `<span style="width: 32px; height: 32px; flex-shrink: 0; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: ${SERVER_COLORS[s.color] || SERVER_COLORS.blue}; box-shadow: inset 0 1px 0 rgba(255,255,255,0.5)">${ICON.server.replace('width="20" height="20"', 'width="18" height="18"')}</span>` : '';
     body = `<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px">
@@ -88,15 +87,18 @@ ${label}<span style="font-size: ${small ? '22px' : '28px'}; font-weight: 700; le
 </div>
 </div>
 <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0">
-${ctl && d.size === 'M' ? `<span style="box-sizing: content-box; width: 34px; height: 34px; border-radius: 17px; display: flex; align-items: center; justify-content: center; ${reboot ? 'color: #FFFFFF; background: #E07800; border: 0' : `color: ${Lk.text}; background: ${Lk.btnBg}; border: 1px solid ${Lk.border}`}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"></path><path d="M20 4v7h-7"></path></svg></span><span style="position: relative; width: 34px; height: 34px; border-radius: 17px; display: flex; align-items: center; justify-content: center; background: #0066CC"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"></path></svg>${!off && s.updates > 0 ? '<span style="position: absolute; top: 0; right: 0; box-sizing: content-box; width: 9px; height: 9px; border-radius: 5px; background: #FF3B30; border: 1.5px solid #FFFFFF"></span>' : ''}</span>` : ''}
-${ctl ? `<span style="width: ${d.size === 'M' ? 34 : 40}px; height: ${d.size === 'M' ? 34 : 40}px; flex-shrink: 0; border-radius: 20px; display: flex; align-items: center; justify-content: center; background: ${off ? 'rgba(120,120,128,0.45)' : '#248A3D'}">${POWER_SVG}</span>` : ''}
+${ctl ? (() => {
+  // Restart, Update and Power as icons next to the name (M: 34 px, L/XL: 40 px).
+  const ib = d.size === 'M' ? 34 : 40, upd = !off && s.updates > 0;
+  const restart = `<span style="width: ${ib}px; height: ${ib}px; border-radius: ${ib / 2}px; display: flex; align-items: center; justify-content: center; ${reboot ? 'color: #FFFFFF; background: #E07800; border: 0' : `color: ${Lk.text}; background: ${Lk.btnBg}; border: 1px solid ${Lk.border}`}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"></path><path d="M20 4v7h-7"></path></svg></span>`;
+  const update = upd
+    ? `<span style="position: relative; width: ${ib}px; height: ${ib}px; border-radius: ${ib / 2}px; display: flex; align-items: center; justify-content: center; background: #0066CC"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"></path></svg><span style="position: absolute; top: -4px; right: -5px; min-width: 16px; height: 16px; box-sizing: border-box; padding: 0 4px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #FFFFFF; background: #FF3B30; border: 1.5px solid #FFFFFF">${s.updates}</span></span>`
+    : `<span style="width: ${ib}px; height: ${ib}px; border-radius: ${ib / 2}px; display: flex; align-items: center; justify-content: center; background: ${Lk.btnBg}; border: 1px solid ${Lk.border}${off ? '; opacity: 0.45' : ''}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#248A3D" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span>`;
+  return restart + update + `<span style="width: ${ib}px; height: ${ib}px; flex-shrink: 0; border-radius: 20px; display: flex; align-items: center; justify-content: center; background: ${off ? 'rgba(120,120,128,0.45)' : '#248A3D'}">${POWER_SVG}</span>`;
+})() : ''}
 </div>
 </div>
-<div style="flex-grow: 1; min-height: 0; display: grid; grid-template-columns: repeat(${Math.max(1, cols)}, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 8px">${tiles}</div>
-${ctl && big ? `<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
-<span style="${btn}; box-sizing: content-box; ${reboot ? 'color: #FFFFFF; background: #E07800' : `color: ${Lk.text}; background: ${Lk.btnBg}; border: 1px solid ${Lk.border}`}">${reboot ? 'Restart Now' : 'Restart'}</span>
-<span style="${btn}; color: #FFFFFF; background: #0066CC">${s.updates ? s.updates + ' Updates' : 'Check Updates'}</span>
-</div>` : ''}`;
+<div style="flex-grow: 1; min-height: 0; display: grid; grid-template-columns: repeat(${Math.max(1, cols)}, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 8px">${tiles}</div>`;
   }
 
   if (multi) {

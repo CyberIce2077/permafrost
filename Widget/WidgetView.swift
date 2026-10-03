@@ -144,7 +144,7 @@ struct WidgetView: View {
                 }
                 .textShadow(L)
                 Spacer(minLength: 0)
-                if ctl { power(s, 40) }
+                if ctl { controls(s, 40) }
             }
             VStack(spacing: 8) {
                 ForEach(rows.indices, id: \.self) { r in
@@ -155,29 +155,6 @@ struct WidgetView: View {
                 }
             }
             .frame(maxHeight: .infinity)
-            if ctl {
-                HStack(spacing: 10) {
-                    act("restart", s) {
-                        HStack(spacing: 6) {
-                            if reboot(s) { Icon.restart.view(14, .white, 2.4) }
-                            Text(reboot(s) ? "Restart Now" : "Restart")
-                        }
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(reboot(s) ? .white : L.text)
-                            .frame(maxWidth: .infinity, minHeight: 40, maxHeight: 40)
-                            .background(Capsule().fill(reboot(s) ? restartOrange : L.btnBg))
-                            .overlay(Capsule().strokeBorder(reboot(s) ? .clear : L.border, lineWidth: 1))
-                    }
-                    act((s.updates ?? 0) > 0 ? "install" : "check", s) {
-                        Text((s.updates ?? 0) > 0 ? "\(s.updates!) Update\(s.updates == 1 ? "" : "s")" : "Check Updates")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity, minHeight: 40, maxHeight: 40)
-                            .background(Capsule().fill(hex(0x0066CC)))
-                    }
-                }
-                .opacity(s.online ? 1 : 0.45)
-            }
         }
     }
 
@@ -229,7 +206,6 @@ struct WidgetView: View {
         let n = stats.count
         let cols = d.style == "rings" || d.style == "numbers" ? min(4, n) : min(2, n)
         let rows = stride(from: 0, to: n, by: max(1, cols)).map { Array(stats[$0..<min($0 + max(1, cols), n)]) }
-        let updates = s.online ? s.updates ?? 0 : 0
         return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
                 // The app's server icon (sidebar), at 32 pt.
@@ -250,39 +226,7 @@ struct WidgetView: View {
                 }
                 .textShadow(L)
                 Spacer(minLength: 0)
-                if d.controls {
-                    HStack(spacing: 6) {
-                        act("restart", s) {
-                            Icon.restart.view(16, reboot(s) ? .white : L.text, 2.3)
-                                .frame(width: 36, height: 36)
-                                .background(Circle().fill(reboot(s) ? restartOrange : L.btnBg)
-                                    .shadow(color: reboot(s) ? rgba(224, 120, 0, 0.35) : .clear, radius: 5, y: 3))
-                                .overlay(Circle().strokeBorder(reboot(s) ? .clear : L.border, lineWidth: 1))
-                        }
-                        .accessibilityLabel("Restart \(s.name)")
-                        act(updates > 0 ? "install" : "check", s) {
-                            Icon.download.view(16, .white, 2.3)
-                                .frame(width: 36, height: 36)
-                                .background(Circle().fill(hex(0x0066CC)).shadow(color: rgba(0, 102, 204, 0.3), radius: 5, y: 3))
-                                .overlay(alignment: .topTrailing) {
-                                    if updates > 0 {
-                                        Circle().fill(hex(0xFF3B30)).frame(width: 9, height: 9)
-                                            .overlay(Circle().strokeBorder(.white, lineWidth: 1.5))
-                                            .offset(x: -1, y: 1)
-                                    }
-                                }
-                        }
-                        .accessibilityLabel(updates > 0 ? "Install \(updates) updates on \(s.name)" : "Check \(s.name) for updates")
-                        act("power", s) {
-                            Icon.power.view(16, .white, 2.3)
-                                .frame(width: 36, height: 36)
-                                .background(Circle().fill(s.online ? hex(0x248A3D) : rgba(120, 120, 128, 0.45))
-                                    .shadow(color: s.online ? rgba(36, 138, 61, 0.35) : .clear, radius: 5, y: 3))
-                        }
-                        .accessibilityLabel("Turn \(s.name) \(s.online ? "off" : "on")")
-                    }
-                    .opacity(s.online ? 1 : 0.45)
-                }
+                if d.controls { controls(s, 34) }
             }
             VStack(spacing: 6) {
                 ForEach(rows.indices, id: \.self) { r in
@@ -295,6 +239,75 @@ struct WidgetView: View {
                 }
             }
             .frame(maxHeight: .infinity)
+        }
+    }
+
+    /// Restart, Update and Power as round buttons next to the name (design: Widgets › update button states).
+    private func controls(_ s: Stats, _ px: CGFloat) -> some View {
+        let updates = s.updates ?? 0
+        let glow = { (c: Color, on: Bool) in Circle().fill(c).shadow(color: on ? c.opacity(0.35) : .clear, radius: 5, y: 3) }
+        return HStack(spacing: 6) {
+            act("restart", s) {
+                Icon.restart.view(15, reboot(s) ? .white : L.text, 2.3)
+                    .frame(width: px, height: px)
+                    .background(glow(reboot(s) ? restartOrange : L.btnBg, reboot(s)))
+                    .overlay(Circle().strokeBorder(reboot(s) ? .clear : L.border, lineWidth: 1))
+            }
+            .accessibilityLabel(reboot(s) ? "Restart \(s.name), restart required" : "Restart \(s.name)")
+            .opacity(s.online ? 1 : 0.45)
+
+            switch s.phase {
+            case "updating":
+                ZStack {
+                    Circle().fill(hex(0x5E5CE6))
+                    Circle().stroke(.white.opacity(0.3), lineWidth: 2.5).padding(3)
+                    Circle().trim(from: 0, to: Double(s.progress ?? 0) / 100)
+                        .stroke(.white, style: StrokeStyle(lineWidth: 2.5, lineCap: .round)).rotationEffect(.degrees(-90)).padding(3)
+                    Icon.download.view(12, .white, 2.3)
+                }
+                .frame(width: px, height: px)
+                .accessibilityLabel("Installing updates, \(s.progress ?? 0)%")
+            case "checking":
+                Spinner().stroke(hex(0x0066CC), style: StrokeStyle(lineWidth: 2.8 * 15 / 24, lineCap: .round))
+                    .frame(width: 15, height: 15)
+                    .frame(width: px, height: px)
+                    .background(Circle().fill(rgba(0, 102, 204, 0.12)))
+                    .overlay(Circle().strokeBorder(rgba(0, 102, 204, 0.25), lineWidth: 1))
+                    .accessibilityLabel("Checking for updates")
+            default:
+                if !s.online || entry.locked {
+                    Icon.download.view(15, .white, 2.3)
+                        .frame(width: px, height: px)
+                        .background(Circle().fill(rgba(120, 120, 128, 0.45)))
+                        .opacity(0.6)
+                        .accessibilityLabel("Updates unavailable")
+                } else if updates > 0 {
+                    act("install", s) {
+                        Icon.download.view(15, .white, 2.3)
+                            .frame(width: px, height: px)
+                            .background(glow(hex(0x0066CC), true))
+                            .overlay(alignment: .topTrailing) {
+                                Text("\(updates)").font(.system(size: 10, weight: .bold)).foregroundStyle(.white)
+                                    .padding(.horizontal, 4).frame(minWidth: 16, minHeight: 16)
+                                    .background(Capsule().fill(hex(0xFF3B30)))
+                                    .overlay(Capsule().strokeBorder(.white, lineWidth: 1.5))
+                                    .offset(x: 5, y: -4)
+                            }
+                    }
+                    .accessibilityLabel("\(updates) updates available")
+                } else {
+                    act("check", s) {
+                        CheckMark().stroke(hex(0x248A3D), style: StrokeStyle(lineWidth: 2.8 * 15 / 24, lineCap: .round, lineJoin: .round))
+                            .frame(width: 15, height: 15)
+                            .frame(width: px, height: px)
+                            .background(Circle().fill(L.btnBg))
+                            .overlay(Circle().strokeBorder(L.border, lineWidth: 1))
+                    }
+                    .accessibilityLabel("Up to date, check again")
+                }
+            }
+
+            power(s, px)
         }
     }
 
@@ -514,6 +527,26 @@ private struct Sparkline: Shape {
                              y: r.height * (54 - min(max(v, 0), 100) / 100 * 50) / 56)
             i == 0 ? p.move(to: pt) : p.addLine(to: pt)
         }
+        return p
+    }
+}
+
+/// M5 12l5 5 9-10
+private struct CheckMark: Shape {
+    func path(in r: CGRect) -> Path {
+        let k = r.width / 24
+        var p = Path()
+        p.move(to: CGPoint(x: 5 * k, y: 12 * k)); p.addLine(to: CGPoint(x: 10 * k, y: 17 * k)); p.addLine(to: CGPoint(x: 19 * k, y: 7 * k))
+        return p
+    }
+}
+
+/// The app's spinner arc, M12 3a9 9 0 1 0 9 9 (widgets can't animate, so it stands still).
+private struct Spinner: Shape {
+    func path(in r: CGRect) -> Path {
+        let k = r.width / 24
+        var p = Path()
+        p.addArc(center: CGPoint(x: 12 * k, y: 12 * k), radius: 9 * k, startAngle: .degrees(-90), endAngle: .degrees(0), clockwise: true)
         return p
     }
 }

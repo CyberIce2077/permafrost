@@ -295,29 +295,61 @@ ${panelIcon(ICON.server.replace('#FFFFFF', 'var(--sub)').replace('20" height="20
 </div>`;
 }
 
+// design: Main › updates card. One state at a time, each with its own icon and button.
 function updates(s, lock) {
-  const cant = s.phase !== 'online' || lock;
+  const busyPhase = ['restarting', 'stopping', 'starting'].includes(s.phase);
+  const state = s.phase === 'updating' ? 'installing' : s.phase === 'checking' ? 'checking'
+    : s.phase === 'off' || s.phase === 'timedout' || busyPhase ? 'off'
+    : needsRestart(s) ? 'reboot' : s.updates > 0 ? 'available' : 'current';
   let title, sub;
-  if (s.phase === 'updating') { title = `Installing ${s.updates} updates…`; sub = s.progress + '% complete'; }
-  else if (s.phase === 'checking') { title = 'Checking for updates…'; sub = 'Contacting package sources'; }
-  else if (needsRestart(s)) {
+  if (state === 'installing') { title = `Installing ${s.updates} updates…`; sub = s.progress + '% complete'; }
+  else if (state === 'checking') { title = 'Checking for updates…'; sub = 'Contacting package sources'; }
+  else if (state === 'off') { title = 'Updates unavailable'; sub = `${esc(s.name)} is ${s.phase === 'timedout' ? 'not responding' : 'offline'} · last checked ${ago(s.checkedAgo)}`; }
+  else if (state === 'reboot') {
     const why = rebootWhy(s), waited = Date.now() / 1000 - s.rebootSince;
     title = 'Restart required';
     sub = `Updates${why ? ' to ' + why : ''} finish after a restart${waited < 60 ? '.' : ' · waiting ' + ago(waited).replace(' ago', '') + '.'}${s.updates > 0 ? ` ${s.updates} more update${s.updates === 1 ? '' : 's'} available.` : ''}`;
   }
+  else if (state === 'available') { title = `${s.updates} update${s.updates === 1 ? '' : 's'} available`; sub = 'Last checked ' + ago(s.checkedAgo); }
   else if (s.updates == null) { title = 'Software updates'; sub = 'Not checked yet'; }
-  else if (s.updates > 0) { title = `${s.updates} update${s.updates === 1 ? '' : 's'} available`; sub = 'Last checked ' + ago(s.checkedAgo); }
   else { title = 'Software is up to date'; sub = 'Last checked ' + ago(s.checkedAgo); }
-  const idle = s.phase !== 'updating' && s.phase !== 'checking', reboot = needsRestart(s);
-  return `<div style="width: 44px; height: 44px; flex-shrink: 0; border-radius: 13px; display: flex; align-items: center; justify-content: center; background: ${reboot ? 'linear-gradient(160deg, #FFC46B, #FF8A00)' : 'linear-gradient(160deg, #8E8CF5, #5E5CE6)'}; box-shadow: inset 0 1px 0 rgba(255,255,255,calc(0.45 * var(--wk)))">${reboot ? `<span style="display: flex; color: #FFFFFF">${RESTART_SVG(22, 2.2)}</span>` : ICON.download(22, 2, '#FFFFFF')}</div>
+
+  const tile = (bg, inner) => `<div style="width: 44px; height: 44px; flex-shrink: 0; position: relative; border-radius: 13px; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255,255,255,calc(0.45 * var(--wk))); background: ${bg}">${inner}</div>`;
+  const DL = (px, w, c) => `<svg width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"></path></svg>`;
+  const spin = (px, c) => `<svg class="icespin" width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="${px > 16 ? 2.6 : 2.8}" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9"></path></svg>`;
+  const ring = 2 * Math.PI * 16;
+  const icon = {
+    reboot: tile('linear-gradient(160deg, #FFC46B, #FF8A00)', `<span style="display: flex; color: #FFFFFF">${RESTART_SVG(22, 2.2)}</span>`),
+    available: tile('linear-gradient(160deg, #8E8CF5, #5E5CE6)', DL(22, 2, '#FFFFFF') + `<span style="position: absolute; top: -6px; right: -8px; min-width: 20px; height: 20px; box-sizing: border-box; padding: 0 6px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #FFFFFF; background: #FF3B30; border: 2px solid #FFFFFF">${s.updates}</span>`),
+    current: tile('linear-gradient(160deg, #5BD87A, #1F9A45)', '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>'),
+    checking: tile('rgba(0,102,204,0.12)', spin(22, '#0066CC')),
+    installing: tile('linear-gradient(160deg, #8E8CF5, #5E5CE6)', `<svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true" style="position: absolute; transform: rotate(-90deg)"><circle cx="20" cy="20" r="16" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="3"></circle><circle cx="20" cy="20" r="16" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-dasharray="${(s.progress / 100 * ring).toFixed(1)} ${ring.toFixed(1)}"></circle></svg>` + DL(16, 2.4, '#FFFFFF')),
+    off: tile('rgba(120,120,128,0.2)', DL(22, 2, '#8E8E93')),
+  }[state];
+
+  const base = 'display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 20px; white-space: nowrap; flex-shrink: 0; border-radius: 22px; font-size: 14px; font-weight: 600; ';
+  const dim = lock ? '; opacity: 0.4; cursor: default; box-shadow: none' : '';
+  const white = 'cursor: pointer; color: var(--text); background: rgba(255,255,255,calc(0.8 * var(--wk))); border: 1px solid rgba(255,255,255,calc(0.95 * var(--wk)))';
+  let buttons = '';
+  if (state === 'available' || (state === 'reboot' && s.updates > 0)) {
+    const look = state === 'reboot' ? white : 'cursor: pointer; border: 0; color: #FFFFFF; background: var(--accent); box-shadow: 0 6px 16px rgba(var(--accent-rgb),0.3), inset 0 1px 0 rgba(255,255,255,0.35)';
+    buttons += `<button data-cmd="install" ${lock ? 'disabled' : ''} aria-label="Install ${s.updates} updates on ${esc(s.name)}" style="${base}${look}${dim}">${DL(16, 2.3, 'currentColor')}Update Now</button>`;
+  }
+  if (state === 'reboot') buttons += `<button data-cmd="restart" ${lock ? 'disabled' : ''} style="${base}cursor: pointer; border: 0; color: #FFFFFF; background: #E07800; box-shadow: 0 6px 16px rgba(224,120,0,0.3), inset 0 1px 0 rgba(255,255,255,0.35)${dim}">${RESTART_SVG(16, 2.3)}Restart Now</button>`;
+  if (state === 'current' || state === 'off') {
+    const off = state === 'off' || lock;
+    buttons += `<button data-cmd="check" ${off ? 'disabled' : ''} style="${base}${white}; box-shadow: 0 4px 14px rgba(20,40,80,0.08)${off ? '; opacity: 0.45; cursor: default' : ''}">${RESTART_SVG(15, 2.3)}${s.updates == null && state === 'current' ? 'Check Now' : 'Check Again'}</button>`;
+  }
+  if (state === 'checking') buttons += `<button disabled style="${base}cursor: default; color: #0058B0; background: rgba(0,102,204,0.10); border: 1px solid rgba(0,102,204,0.25)">${spin(15, '#0066CC')}Checking…</button>`;
+  if (state === 'installing') buttons += `<button disabled style="${base}position: relative; overflow: hidden; min-width: 168px; justify-content: center; cursor: default; color: #FFFFFF; background: rgba(94,92,230,0.55); border: 0"><span style="position: absolute; left: 0; top: 0; bottom: 0; width: ${s.progress}%; background: #5E5CE6; transition: width 0.25s"></span><span style="position: relative; display: flex; align-items: center; gap: 8px">${spin(15, '#FFFFFF')}Installing ${s.progress}%</span></button>`;
+
+  return `${icon}
 <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0">
 <div style="font-size: 15px; font-weight: 600">${title}</div>
-${s.phase === 'updating' ? `<div style="height: 8px; border-radius: 4px; background: rgba(120,120,128,0.18); overflow: hidden"><div style="height: 100%; border-radius: 4px; background: #5E5CE6; transition: width 0.3s; width: ${s.progress}%"></div></div>` : ''}
+${state === 'installing' ? `<div style="height: 8px; border-radius: 4px; background: rgba(120,120,128,0.18); overflow: hidden"><div style="height: 100%; border-radius: 4px; background: #5E5CE6; transition: width 0.3s; width: ${s.progress}%"></div></div>` : ''}
 <div style="font-size: 13px; color: var(--sub)">${sub}</div>
 </div>
-${idle && s.updates > 0 ? (reboot ? `<button data-cmd="install" ${cant ? 'disabled' : ''} style="${CAPSULE} white-space: nowrap; flex-shrink: 0;${cant ? ' opacity: 0.45; cursor: default;' : ''}">Update Now</button>` : `<button data-cmd="install" ${cant ? 'disabled' : ''} style="${BLUE}${cant ? '; opacity: 0.4; cursor: default; box-shadow: none' : ''}">Update Now</button>`) : ''}
-${reboot ? `<button data-cmd="restart" ${cant ? 'disabled' : ''} style="height: 44px; padding: 0 20px; white-space: nowrap; flex-shrink: 0; border: 0; border-radius: 22px; background: #E07800; color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 6px 16px rgba(224,120,0,0.3), inset 0 1px 0 rgba(255,255,255,0.35)${cant ? '; opacity: 0.4; cursor: default; box-shadow: none' : ''}">Restart Now</button>` : ''}
-${idle && !reboot && !(s.updates > 0) ? `<button data-cmd="check" ${cant ? 'disabled' : ''} style="${CAPSULE}${cant ? ' opacity: 0.45; cursor: default;' : ''}">${s.updates == null ? 'Check Now' : 'Check Again'}</button>` : ''}`;
+${buttons}`;
 }
 
 // ---- Quick server settings (design: Main › qe popover) ----

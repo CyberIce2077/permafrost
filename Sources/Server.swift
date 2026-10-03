@@ -6,7 +6,7 @@ final class Server {
     var phase = "connecting" {  // connecting online off stopping starting restarting updating checking timedout
         didSet {
             guard phase != oldValue else { return }
-            if phase == "online" || phase == "off" { ice.reloadWidgets() }
+            ice.reloadWidgets()  // widgets show checking, installing, restart required…
             // A sudo action runs while the phase is busy; its clock starts and stops with it.
             if let kind = Self.ops[phase] {
                 if op == nil { op = Op(action: kind.action, label: kind.label, limit: kind.limit(ice.prefs) * 60, prev: kind.prev) }

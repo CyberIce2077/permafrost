@@ -256,7 +256,7 @@ ${field('Stats', `<div style="display: flex; flex-wrap: wrap; gap: 8px">${W_ORDE
     }).join('')}</div>${statHint}`)}
 ${field('Style', segs([['bars', 'Bars'], ['rings', 'Rings'], ['graph', 'Graphs'], ['numbers', 'Numbers']], d.style, 'wsStyle'))}
 ${field('Appearance', segs([['glass', 'Glass'], ['tinted', 'Tinted'], ['clear', 'Clear']], d.look, 'wsLook'))}
-<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px"><div style="display: flex; flex-direction: column; gap: 2px"><span style="${ui.label}">Power &amp; restart buttons</span><span style="${ui.sub}">${big ? (multi ? 'A power button on each server row.' : 'Power, Restart and Updates. Sudo runs lock like in the app.') : d.size === 'M' ? (r.ids.length === 1 ? 'Restart, Update and Power as icons next to the name.' : 'On Medium, buttons need a single server.') : 'Available on Medium (one server), Large and Extra Large.'}</span></div>${swRow('Power and restart buttons', '', 'wsCtl', ctlOn, ctlAvail)}</div>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px"><div style="display: flex; flex-direction: column; gap: 2px"><span style="${ui.label}">Power &amp; restart buttons</span><span style="${ui.sub}">${big ? (multi ? 'A power button on each server row.' : 'Restart, Update and Power as icons next to the name.') : d.size === 'M' ? (r.ids.length === 1 ? 'Restart, Update and Power as icons next to the name.' : 'On Medium, buttons need a single server.') : 'Available on Medium (one server), Large and Extra Large.'}</span></div>${swRow('Power and restart buttons', '', 'wsCtl', ctlOn, ctlAvail)}</div>
 </div>
 </div>
 </div>`;

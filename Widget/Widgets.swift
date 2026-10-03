@@ -54,6 +54,8 @@ struct Entry: TimelineEntry {
     var online = 0
     /// How many of them are waiting for a restart.
     var restarts = 0
+    /// Some server is running a sudo action, so update buttons are unavailable (as in the app).
+    var locked = false
     var prefs = Prefs()
     /// Instead of a design, the widget asks for one: "pick" (none picked yet), "gone" (its design
     /// was deleted), "resized" (its design is now another size) or "create" (there are no designs of its size yet).
@@ -123,7 +125,9 @@ struct Provider<I: DesignPicking>: AppIntentTimelineProvider {
         let waiting = { (s: Stats) in s.online && s.rebootSince != nil }
         return Entry(size: size(context), design: d, servers: results, total: all.count,
                      online: results.filter(\.online).count + rest.count,
-                     restarts: results.filter(waiting).count + rest.filter(waiting).count, prefs: config.prefs ?? Prefs())
+                     restarts: results.filter(waiting).count + rest.filter(waiting).count,
+                     locked: live?.contains { ["restarting", "stopping", "starting", "updating", "checking"].contains($0.phase ?? "") } ?? false,
+                     prefs: config.prefs ?? Prefs())
     }
 
     /// One short SSH session: ~3 s of samples plus the update count.

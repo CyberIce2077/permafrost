@@ -126,6 +126,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 st.id = s.cfg.id
                 st.name = s.cfg.name
                 st.online = s.phase == "online"
+                st.phase = s.phase
+                st.progress = s.progress
                 return st
             })
             if let pane = self.settingsPane, self.settings?.loaded == true {

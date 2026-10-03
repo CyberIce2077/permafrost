@@ -16,6 +16,9 @@ struct Stats: Codable {
     var mac: String?
     /// The server's icon color, for widgets that show its icon.
     var color: String?
+    /// From the app, for widget buttons: "checking", "updating" (with `progress`), "restarting"…
+    var phase: String?
+    var progress: Int?
 
     var disk: Double { diskUsed + diskFree > 0 ? diskUsed / (diskUsed + diskFree) * 100 : 0 }
 }
