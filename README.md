@@ -1,5 +1,7 @@
 # Permafrost
 
+![Permafrost](docs/screenshot.png)
+
 A small macOS app for watching and controlling the Linux servers on your home network.
 
 - Live CPU, memory, network, disk and temperature for each server
